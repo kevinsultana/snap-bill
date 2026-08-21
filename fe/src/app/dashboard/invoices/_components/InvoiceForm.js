@@ -35,9 +35,13 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
   const [clientId, setClientId]   = useState(initialData?.client_id || '');
   const [issueDate, setIssueDate] = useState(toDateInput(initialData?.issue_date) || toDateInput(new Date()));
   const [dueDate, setDueDate]     = useState(toDateInput(initialData?.due_date) || '');
-  const [taxRate, setTaxRate]     = useState(String(initialData?.tax_rate ?? '0'));
-  const [discount, setDiscount]   = useState(String(initialData?.discount ?? '0'));
-  const [lines, setLines]         = useState(
+  const [taxRate, setTaxRate]     = useState(initialData?.tax_rate ? String(initialData.tax_rate) : '');
+
+  // Diskon: Tipe (Rupiah vs Persentase) & Nilai
+  const [discountType, setDiscountType]   = useState('fixed'); // 'fixed' (Rp) | 'percent' (%)
+  const [discountValue, setDiscountValue] = useState(initialData?.discount ? String(initialData.discount) : '');
+
+  const [lines, setLines] = useState(
     initialData?.items?.length
       ? initialData.items.map((it) => ({
           item_name:  it.item_name,
@@ -64,6 +68,12 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
     setLines((prev) => prev.map((l, i) => i === idx ? { ...l, [field]: value } : l));
   };
 
+  // Helper pembersih input angka/desimal
+  const cleanNumericInput = (val) => {
+    // Hanya izinkan angka dan satu titik desimal
+    return val.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+  };
+
   // Fill from saved items dropdown
   const [savedItems, setSavedItems] = useState([]);
   useEffect(() => {
@@ -88,7 +98,15 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
     return sum + qty * price;
   }, 0);
 
-  const discountAmt = parseFloat(discount) || 0;
+  // Hitung besaran diskon aktual dalam Rupiah
+  const numDiscountVal = parseFloat(discountValue) || 0;
+  let discountAmt = 0;
+  if (discountType === 'percent') {
+    discountAmt = (subtotal * Math.min(100, Math.max(0, numDiscountVal))) / 100;
+  } else {
+    discountAmt = Math.min(subtotal, Math.max(0, numDiscountVal));
+  }
+
   const taxAmt = ((subtotal - discountAmt) * (parseFloat(taxRate) || 0)) / 100;
   const total = subtotal - discountAmt + taxAmt;
 
@@ -107,7 +125,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
         issue_date: issueDate,
         due_date: dueDate || null,
         tax_rate: parseFloat(taxRate) || 0,
-        discount: parseFloat(discount) || 0,
+        discount: discountAmt, // Selalu kirim nilai nominal diskon murni ke backend
         items: lines.map((l) => ({
           item_name:  l.item_name.trim(),
           quantity:   parseFloat(l.quantity) || 1,
@@ -242,24 +260,27 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   )}
                 </div>
 
+                {/* Qty Input (Text with decimal inputMode, no spinner) */}
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   className="form-input line-qty"
-                  min="0.01"
-                  step="0.01"
+                  placeholder="1"
                   value={line.quantity}
-                  onChange={(e) => updateLine(idx, 'quantity', e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => updateLine(idx, 'quantity', cleanNumericInput(e.target.value))}
                   required
                 />
 
+                {/* Unit Price Input (Text with decimal inputMode, no spinner) */}
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   className="form-input line-price"
-                  min="0"
-                  step="0.01"
                   placeholder="0"
                   value={line.unit_price}
-                  onChange={(e) => updateLine(idx, 'unit_price', e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => updateLine(idx, 'unit_price', cleanNumericInput(e.target.value))}
                   required
                 />
 
@@ -286,31 +307,93 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
         {/* ── Totals ──────────────────────────────────────── */}
         <div className="invoice-section invoice-totals-section">
           <div className="totals-adjustments">
-            <div className="form-group">
-              <label className="form-label">Diskon (Rp)</label>
-              <input
-                type="number"
-                className="form-input"
-                min="0"
-                step="0.01"
-                value={discount}
-                onChange={(e) => setDiscount(e.target.value)}
-              />
+
+            {/* Diskon dengan Toggle Rupiah / Persentase */}
+            <div className="form-group" style={{ flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ margin: 0 }}>Diskon</label>
+                <div className="discount-type-toggle">
+                  <button
+                    type="button"
+                    className={`btn-toggle-type ${discountType === 'fixed' ? 'active' : ''}`}
+                    onClick={() => { setDiscountType('fixed'); setDiscountValue(''); }}
+                  >
+                    Nominal (Rp)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-toggle-type ${discountType === 'percent' ? 'active' : ''}`}
+                    onClick={() => { setDiscountType('percent'); setDiscountValue(''); }}
+                  >
+                    Persen (%)
+                  </button>
+                </div>
+              </div>
+
+              <div className="input-with-addon">
+                <span className="input-addon-badge">
+                  {discountType === 'fixed' ? 'Rp' : '%'}
+                </span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="form-input"
+                  placeholder="0"
+                  value={discountValue}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => {
+                    const cleaned = cleanNumericInput(e.target.value);
+                    if (discountType === 'percent' && parseFloat(cleaned) > 100) {
+                      setDiscountValue('100');
+                    } else {
+                      setDiscountValue(cleaned);
+                    }
+                  }}
+                />
+              </div>
+
+              {discountAmt > 0 && (
+                <p className="form-hint" style={{ color: '#f87171', marginTop: 4, fontWeight: 500 }}>
+                  {discountType === 'percent'
+                    ? `Potongan: − ${formatRupiah(discountAmt)} (${discountValue}%)`
+                    : subtotal > 0
+                    ? `Potongan: − ${formatRupiah(discountAmt)} (${((discountAmt / subtotal) * 100).toFixed(1)}%)`
+                    : `Potongan: − ${formatRupiah(discountAmt)}`}
+                </p>
+              )}
             </div>
-            <div className="form-group">
-              <label className="form-label">Pajak (%)</label>
-              <input
-                type="number"
-                className="form-input"
-                min="0"
-                max="100"
-                step="0.01"
-                value={taxRate}
-                onChange={(e) => setTaxRate(e.target.value)}
-              />
+
+            {/* Pajak (%) */}
+            <div className="form-group" style={{ flex: 0.8 }}>
+              <label className="form-label">Pajak Pertambahan Nilai (%)</label>
+              <div className="input-with-addon">
+                <span className="input-addon-badge">%</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="form-input"
+                  placeholder="0"
+                  value={taxRate}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => {
+                    const cleaned = cleanNumericInput(e.target.value);
+                    if (parseFloat(cleaned) > 100) {
+                      setTaxRate('100');
+                    } else {
+                      setTaxRate(cleaned);
+                    }
+                  }}
+                />
+              </div>
+              {taxAmt > 0 && (
+                <p className="form-hint" style={{ color: 'var(--indigo-light)', marginTop: 4, fontWeight: 500 }}>
+                  Pajak: + {formatRupiah(taxAmt)} ({taxRate}%)
+                </p>
+              )}
             </div>
           </div>
 
+          {/* Summary Box */}
           <div className="totals-summary">
             <div className="total-row">
               <span>Subtotal</span>
@@ -318,7 +401,9 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             </div>
             {discountAmt > 0 && (
               <div className="total-row total-discount">
-                <span>Diskon</span>
+                <span>
+                  Diskon {discountType === 'percent' ? `(${discountValue}%)` : ''}
+                </span>
                 <span>− {formatRupiah(discountAmt)}</span>
               </div>
             )}
@@ -329,8 +414,8 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
               </div>
             )}
             <div className="total-row total-grand">
-              <span>Total</span>
-              <span>{formatRupiah(total)}</span>
+              <span>Total Tagihan</span>
+              <span style={{ color: 'var(--indigo-light)' }}>{formatRupiah(total)}</span>
             </div>
           </div>
         </div>

@@ -45,42 +45,155 @@ export default function InvoiceDetailPage() {
   const handleSubmitInvoice = async () => {
     const result = await Swal.fire({
       title: 'Terbitkan Invoice ini?',
-      text: 'Status invoice akan diubah menjadi "Belum Dibayar", file PDF akan di-generate, Midtrans Snap link akan dibuat (jika aktif), dan notifikasi email akan dikirim ke klien.',
+      html: `
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 10px;">
+          Invoice <b style="color: #f1f5f9;">#${invoice.invoice_number}</b> akan diterbitkan ke klien <b style="color: #f1f5f9;">${invoice.client?.name || ''}</b>.
+        </p>
+        <p style="color: #64748b; font-size: 12px; margin: 0;">
+          Status akan diubah menjadi <b>Belum Dibayar</b>, PDF dibuat, dan email tagihan dikirim ke klien.
+        </p>
+      `,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: '🚀 Ya, Terbitkan Sekarang',
       cancelButtonText: 'Batal',
       confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#374151',
+      customClass: { popup: 'swal-custom-popup' },
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          Swal.showLoading();
+          const res = await api.post(`/api/invoices/${id}/submit`);
+          return res.data;
+        } catch (err) {
+          Swal.showValidationMessage(
+            err.response?.data?.message || 'Terjadi kesalahan saat menerbitkan invoice.'
+          );
+          return false;
+        }
+      },
     });
 
-    if (!result.isConfirmed) return;
-
-    setSubmitting(true);
-    try {
-      const res = await api.post(`/api/invoices/${id}/submit`);
+    if (result.isConfirmed && result.value) {
       await Swal.fire({
         icon: 'success',
-        title: 'Invoice Berhasil Diterbitkan!',
+        title: '🎉 Invoice Berhasil Diterbitkan!',
         html: `
-          <p style="color: #94a3b8; font-size: 14px;">Link pembayaran publik untuk klien telah aktif:</p>
-          <div style="margin-top: 12px; padding: 10px; background: #1a1a2e; border-radius: 8px; border: 1px solid #2a2a4a; word-break: break-all; font-family: monospace; font-size: 13px; color: #818cf8;">
-            ${res.data.public_link}
+          <p style="color: #94a3b8; font-size: 13px; margin: 0 0 8px;">Link pembayaran publik untuk klien telah aktif:</p>
+          <div style="margin-top: 6px; padding: 12px; background: #1a1a2e; border-radius: 8px; border: 1px solid #2a2a4a; word-break: break-all; font-family: monospace; font-size: 12px; color: #818cf8; user-select: all;">
+            ${result.value.public_link}
           </div>
         `,
         confirmButtonText: 'Lihat Detail',
         confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
       });
       fetchInvoice();
-    } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Menerbitkan Invoice',
-        text: err.response?.data?.message || 'Terjadi kesalahan saat submit invoice.',
-        confirmButtonColor: '#6366f1',
-      });
-    } finally {
-      setSubmitting(false);
     }
+  };
+
+  // Review payment
+  const handleReviewPayment = () => {
+    const isPdf = invoice.receipt_url && invoice.receipt_url.toLowerCase().endsWith('.pdf');
+
+    const receiptContent = invoice.receipt_url
+      ? isPdf
+        ? `
+          <div style="margin: 16px 0; padding: 20px; background: #1a1a2e; border-radius: 10px; border: 1px solid #2a2a4a; text-align: center;">
+            <div style="font-size: 36px; margin-bottom: 8px;">📄</div>
+            <p style="color: #f1f5f9; font-weight: 600; font-size: 14px; margin: 0 0 8px;">Dokumen Bukti Transfer (PDF)</p>
+            <a href="${invoice.receipt_url}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: underline; font-size: 13px;">
+              👁️ Klik untuk Membuka Dokumen Bukti ↗
+            </a>
+          </div>
+        `
+        : `
+          <div style="margin: 16px 0; text-align: center;">
+            <div style="max-height: 340px; overflow-y: auto; background: #0f0f1a; padding: 10px; border-radius: 10px; border: 1px solid #2a2a4a;">
+              <img
+                src="${invoice.receipt_url}"
+                alt="Bukti Transfer"
+                style="max-width: 100%; max-height: 300px; border-radius: 6px; object-fit: contain; margin: 0 auto; display: block;"
+              />
+            </div>
+            <a href="${invoice.receipt_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; margin-top: 8px; color: #818cf8; font-size: 12px;">
+              🔍 Buka gambar ukuran penuh ↗
+            </a>
+          </div>
+        `
+      : `
+        <div style="margin: 20px 0; padding: 20px; background: #1a1a2e; border-radius: 10px; border: 1px solid #2a2a4a; text-align: center; color: #94a3b8;">
+          <p style="margin: 0;">Bukti transfer belum diunggah atau tidak ditemukan.</p>
+        </div>
+      `;
+
+    Swal.fire({
+      title: '🔍 Review Pembayaran',
+      html: `
+        <div style="text-align: left; font-family: 'Inter', sans-serif;">
+          <div style="background: #1a1a2e; padding: 14px 18px; border-radius: 10px; border: 1px solid #2a2a4a; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Invoice</p>
+              <p style="margin: 2px 0 0; font-size: 16px; font-weight: 700; color: #818cf8;">#${invoice.invoice_number}</p>
+              <p style="margin: 2px 0 0; font-size: 13px; color: #cbd5e1;">${invoice.client?.name || '—'}</p>
+            </div>
+            <div style="text-align: right;">
+              <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Total Tagihan</p>
+              <p style="margin: 2px 0 0; font-size: 18px; font-weight: 800; color: #10b981;">${formatRupiah(invoice.total)}</p>
+            </div>
+          </div>
+
+          <p style="margin: 0; font-size: 13px; color: #94a3b8; font-weight: 500;">Bukti Pembayaran yang Diunggah Klien:</p>
+          ${receiptContent}
+
+          <p style="margin: 8px 0 0; font-size: 12px; color: #64748b; text-align: center;">
+            Pilih <b>Approve</b> untuk menyelesaikan pembayaran, atau <b>Reject</b> jika bukti tidak sesuai.
+          </p>
+        </div>
+      `,
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: '✅ Approve (Lunas)',
+      denyButtonText: '❌ Reject (Tolak)',
+      cancelButtonText: 'Tutup',
+      confirmButtonColor: '#10b981',
+      denyButtonColor: '#ef4444',
+      cancelButtonColor: '#374151',
+      customClass: { popup: 'swal-custom-popup swal-review-popup' },
+      showLoaderOnConfirm: true,
+      showLoaderOnDeny: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          Swal.showLoading();
+          await api.post(`/api/invoices/${id}/verify`, { action: 'approve' });
+          return { action: 'approve' };
+        } catch (err) {
+          Swal.showValidationMessage(err.response?.data?.message || 'Gagal menyetujui pembayaran.');
+          return false;
+        }
+      },
+      preDeny: async () => {
+        try {
+          Swal.showLoading();
+          await api.post(`/api/invoices/${id}/verify`, { action: 'reject' });
+          return { action: 'reject' };
+        } catch (err) {
+          Swal.showValidationMessage(err.response?.data?.message || 'Gagal menolak pembayaran.');
+          return false;
+        }
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        toast('success', `Invoice #${invoice.invoice_number} berhasil disetujui (LUNAS)!`);
+        fetchInvoice();
+      } else if (result.isDenied) {
+        toast('info', `Pembayaran Invoice #${invoice.invoice_number} ditolak. Status kembali Belum Dibayar.`);
+        fetchInvoice();
+      }
+    });
   };
 
   const copyPublicLink = () => {
@@ -119,6 +232,17 @@ export default function InvoiceDetailPage() {
         </div>
         <div className="header-actions">
           <Link href="/dashboard/invoices" className="btn-secondary">← Kembali</Link>
+
+          {invoice.status === 'pending_verification' && (
+            <button
+              type="button"
+              onClick={handleReviewPayment}
+              className="btn-action btn-review"
+              style={{ padding: '8px 16px', fontSize: 13 }}
+            >
+              🔍 Review Pembayaran
+            </button>
+          )}
 
           {invoice.status === 'draft' && (
             <>

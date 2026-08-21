@@ -6,9 +6,9 @@ import { openFormModal, confirmDelete } from '@/lib/modals';
 import { toast } from '@/lib/toast';
 
 const ITEM_FIELDS = [
-  { name: 'name',        label: 'Nama Item',   placeholder: 'Jasa Desain Logo', required: true },
-  { name: 'description', label: 'Deskripsi',   placeholder: 'Deskripsi singkat item...', type: 'textarea', required: false },
-  { name: 'price',       label: 'Harga (Rp)',  placeholder: '500000', type: 'number', required: true, step: '0.01' },
+  { name: 'name',        label: 'Nama Item / Layanan', placeholder: 'Contoh: Jasa Desain Logo & Branding', required: true },
+  { name: 'description', label: 'Deskripsi (Opsional)', placeholder: 'Deskripsi singkat layanan atau spesifikasi produk...', type: 'textarea', required: false },
+  { name: 'price',       label: 'Harga',               placeholder: 'Contoh: 500.000', type: 'currency', required: true },
 ];
 
 // Format angka ke Rupiah

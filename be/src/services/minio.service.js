@@ -81,8 +81,9 @@ async function uploadReceipt(buffer, originalName, mimeType) {
 
   await minioClient.putObject(BUCKET_NAME, objectName, buffer, buffer.length, metaData);
 
-  // Buat URL publik MinIO
-  const host = process.env.MINIO_PUBLIC_URL || `http://${process.env.MINIO_ENDPOINT || '100.110.43.25'}:${process.env.MINIO_PORT || 9000}`;
+  // Buat URL publik MinIO (bersihkan trailing slash agar tidak terjadi double slash '//')
+  const rawHost = process.env.MINIO_PUBLIC_URL || `http://${process.env.MINIO_ENDPOINT || '100.110.43.25'}:${process.env.MINIO_PORT || 9000}`;
+  const host = rawHost.replace(/\/+$/, '');
   const url = `${host}/${BUCKET_NAME}/${objectName}`;
 
   console.log(`[minio.service] ✅ Bukti transfer berhasil diupload ke MinIO: ${url}`);

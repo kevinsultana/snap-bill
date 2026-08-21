@@ -61,9 +61,11 @@ export default function InvoicesPage() {
     const result = await Swal.fire({
       title: 'Terbitkan Invoice ini?',
       html: `
-        <p style="color: #94a3b8; font-size: 14px;">
+        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 10px;">
           Invoice <b style="color: #f1f5f9;">#${inv.invoice_number}</b> akan diterbitkan ke klien <b style="color: #f1f5f9;">${inv.client?.name || ''}</b>.
-          Status akan diubah menjadi <b>Belum Dibayar</b>, PDF dibuat, dan email tagihan dikirim.
+        </p>
+        <p style="color: #64748b; font-size: 12px; margin: 0;">
+          Status akan diubah menjadi <b>Belum Dibayar</b>, PDF dibuat, dan email tagihan dikirim ke klien.
         </p>
       `,
       icon: 'question',
@@ -73,33 +75,37 @@ export default function InvoicesPage() {
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#374151',
       customClass: { popup: 'swal-custom-popup' },
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          Swal.showLoading();
+          const res = await api.post(`/api/invoices/${inv.id}/submit`);
+          return res.data;
+        } catch (err) {
+          Swal.showValidationMessage(
+            err.response?.data?.message || 'Terjadi kesalahan saat menerbitkan invoice.'
+          );
+          return false;
+        }
+      },
     });
 
-    if (!result.isConfirmed) return;
-
-    try {
-      Swal.showLoading();
-      const res = await api.post(`/api/invoices/${inv.id}/submit`);
+    if (result.isConfirmed && result.value) {
       await Swal.fire({
         icon: 'success',
-        title: 'Invoice Diterbitkan!',
+        title: '🎉 Invoice Berhasil Diterbitkan!',
         html: `
-          <p style="color: #94a3b8; font-size: 13px;">Link pembayaran publik untuk klien telah aktif:</p>
-          <div style="margin-top: 10px; padding: 10px; background: #1a1a2e; border-radius: 8px; border: 1px solid #2a2a4a; word-break: break-all; font-family: monospace; font-size: 12px; color: #818cf8;">
-            ${res.data.public_link}
+          <p style="color: #94a3b8; font-size: 13px; margin: 0 0 8px;">Link pembayaran publik untuk klien telah aktif:</p>
+          <div style="margin-top: 6px; padding: 12px; background: #1a1a2e; border-radius: 8px; border: 1px solid #2a2a4a; word-break: break-all; font-family: monospace; font-size: 12px; color: #818cf8; user-select: all;">
+            ${result.value.public_link}
           </div>
         `,
+        confirmButtonText: 'Selesai',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
       });
       fetchInvoices();
-    } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Submit Invoice',
-        text: err.response?.data?.message || 'Terjadi kesalahan saat submit invoice.',
-        confirmButtonColor: '#6366f1',
-      });
     }
   };
 
@@ -173,25 +179,36 @@ export default function InvoicesPage() {
       customClass: {
         popup: 'swal-custom-popup swal-review-popup',
       },
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        // Approve
+      showLoaderOnConfirm: true,
+      showLoaderOnDeny: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      preConfirm: async () => {
         try {
+          Swal.showLoading();
           await api.post(`/api/invoices/${inv.id}/verify`, { action: 'approve' });
-          toast('success', `Invoice #${inv.invoice_number} berhasil disetujui (LUNAS)!`);
-          fetchInvoices();
+          return { action: 'approve' };
         } catch (err) {
-          toast('error', err.response?.data?.message || 'Gagal menyetujui pembayaran.');
+          Swal.showValidationMessage(err.response?.data?.message || 'Gagal menyetujui pembayaran.');
+          return false;
         }
-      } else if (result.isDenied) {
-        // Reject
+      },
+      preDeny: async () => {
         try {
+          Swal.showLoading();
           await api.post(`/api/invoices/${inv.id}/verify`, { action: 'reject' });
-          toast('info', `Pembayaran Invoice #${inv.invoice_number} ditolak. Status kembali Belum Dibayar.`);
-          fetchInvoices();
+          return { action: 'reject' };
         } catch (err) {
-          toast('error', err.response?.data?.message || 'Gagal menolak pembayaran.');
+          Swal.showValidationMessage(err.response?.data?.message || 'Gagal menolak pembayaran.');
+          return false;
         }
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        toast('success', `Invoice #${inv.invoice_number} berhasil disetujui (LUNAS)!`);
+        fetchInvoices();
+      } else if (result.isDenied) {
+        toast('info', `Pembayaran Invoice #${inv.invoice_number} ditolak. Status kembali Belum Dibayar.`);
+        fetchInvoices();
       }
     });
   };

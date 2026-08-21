@@ -864,6 +864,44 @@ html, body {
   resize: vertical !important;
 }
 
+/* SweetAlert2 Currency Input */
+.swal-currency-input-wrap {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+
+.swal-currency-prefix {
+  position: absolute;
+  left: 12px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--indigo-light);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.swal-currency-input {
+  padding-left: 38px !important;
+  font-weight: 600 !important;
+  font-family: 'Geist Mono', monospace, sans-serif !important;
+  font-size: 15px !important;
+  color: #10b981 !important;
+}
+
+.swal-currency-preview {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 4px;
+  background: rgba(99, 102, 241, 0.06);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  display: inline-block;
+  width: fit-content;
+}
+
 /* SweetAlert2 buttons */
 .swal2-confirm {
   background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
@@ -2282,6 +2320,300 @@ select.form-input option {
   font-size: 12px;
   color: #475569;
 }
+
+/* ==========================================
+   Dashboard Interactive Components
+   ========================================== */
+.dash-welcome-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* Pending Verification Action Banner */
+.dash-action-banner {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.2));
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: 16px;
+  padding: 18px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  animation: slideUp 0.3s ease;
+}
+
+.dash-action-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
+}
+
+.dash-action-content {
+  flex: 1;
+}
+
+.dash-action-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.dash-action-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+/* KPI Stats Grid */
+.dash-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.dash-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.dash-stat-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateY(-2px);
+}
+
+.dash-stat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.dash-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dash-stat-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.dash-stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: #f1f5f9;
+  margin: 0 0 10px;
+  font-family: 'Geist Mono', monospace, sans-serif;
+}
+
+.dash-stat-footer {
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 10px;
+  margin-top: auto;
+}
+
+.dash-stat-sub b {
+  color: #f1f5f9;
+}
+
+.dash-stat-link {
+  color: var(--indigo-light);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.dash-stat-link:hover {
+  color: #ffffff;
+}
+
+/* Two-column Layout */
+.dash-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .dash-content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dash-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dash-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dash-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.dash-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dash-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.dash-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+
+.dash-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Checklist */
+.dash-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dash-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.dash-check-icon {
+  font-size: 16px;
+  margin-top: 1px;
+}
+
+.dash-check-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.dash-check-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+
+/* ==========================================
+   Discount Type Toggle & Input Addons
+   ========================================== */
+.discount-type-toggle {
+  display: inline-flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.btn-toggle-type {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-toggle-type:hover {
+  color: #f1f5f9;
+}
+
+.btn-toggle-type.active {
+  background: var(--indigo);
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.4);
+}
+
+.input-with-addon {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+
+.input-addon-badge {
+  position: absolute;
+  left: 12px;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--indigo-light);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.input-with-addon .form-input {
+  padding-left: 36px !important;
+}
+
+/* ==========================================
+   Global Spinner / Stepper Removal
+   ========================================== */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+input[type=number] {
+  -moz-appearance: textfield !important;
+}
+
+
+
 
 
 
