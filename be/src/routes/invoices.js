@@ -1,6 +1,10 @@
 const express = require('express');
+const crypto = require('crypto');
 const prisma = require('../db/prisma');
 const { verifyToken } = require('../middleware/auth');
+const { generateInvoicePDF } = require('../services/pdf.service');
+const { sendEmail } = require('../services/email.service');
+const { createSnapTransaction } = require('../services/midtrans.service');
 
 const router = express.Router();
 router.use(verifyToken);
@@ -37,7 +41,7 @@ router.get('/', async (req, res) => {
     const invoices = await prisma.invoice.findMany({
       where: { user_id: req.user.id },
       include: {
-        client: { select: { id: true, name: true } },
+        client: { select: { id: true, name: true, email: true } },
         items: true,
       },
       orderBy: { created_at: 'desc' },
@@ -77,6 +81,32 @@ router.post('/', async (req, res) => {
     if (!Array.isArray(items) || items.length === 0)
       return res.status(400).json({ message: 'Minimal satu item harus ditambahkan.' });
 
+    // Cek batas kuota Free Tier (Maksimal 10 invoice per bulan kalender)
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const isPro = user?.tier === 'pro' && (!user.subscription_ends_at || new Date(user.subscription_ends_at) > new Date());
+
+    if (!isPro) {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const countThisMonth = await prisma.invoice.count({
+        where: {
+          user_id: req.user.id,
+          created_at: { gte: startOfMonth },
+        },
+      });
+
+      if (countThisMonth >= 10) {
+        return res.status(403).json({
+          message: 'Batas kuota 10 invoice per bulan untuk akun Free telah tercapai. Upgrade ke paket Pro untuk invoice tak terbatas!',
+          code: 'TIER_LIMIT_REACHED',
+          limit: 10,
+          current: countThisMonth,
+        });
+      }
+    }
+
     // Validasi kepemilikan klien (multi-tenancy)
     const client = await prisma.client.findFirst({
       where: { id: client_id, user_id: req.user.id },
@@ -93,6 +123,7 @@ router.post('/', async (req, res) => {
     }
 
     const invoice_number = await generateInvoiceNumber(req.user.id);
+    const public_link_token = crypto.randomBytes(16).toString('hex');
     const { subtotal, total } = calcTotals(items, tax_rate, discount);
 
     // Gunakan transaksi Prisma untuk atomicity
@@ -102,6 +133,7 @@ router.post('/', async (req, res) => {
           user_id: req.user.id,
           client_id,
           invoice_number,
+          public_link_token,
           status: 'draft',
           issue_date: new Date(issue_date),
           due_date: due_date ? new Date(due_date) : null,
@@ -198,6 +230,189 @@ router.put('/:id', async (req, res) => {
   } catch (err) {
     console.error('[PUT /invoices/:id]', err);
     return res.status(500).json({ message: 'Terjadi kesalahan server.' });
+  }
+});
+
+// ─── POST /api/invoices/:id/submit ── Submit invoice (ubah status -> unpaid, Midtrans, PDF, Email) ───
+router.post('/:id/submit', async (req, res) => {
+  try {
+    const existing = await prisma.invoice.findFirst({
+      where: { id: req.params.id, user_id: req.user.id },
+      include: {
+        client: true,
+        items: true,
+        user: true,
+      },
+    });
+
+    if (!existing) return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
+
+    // Pastikan token link publik tersedia
+    let publicToken = existing.public_link_token;
+    if (!publicToken) {
+      publicToken = crypto.randomBytes(16).toString('hex');
+    }
+
+    let paymentUrl = existing.payment_url;
+
+    // 1. Generate Midtrans Snap URL jika user sudah konfigurasi Midtrans Server Key
+    if (existing.user?.midtrans_server_key) {
+      try {
+        const snapRes = await createSnapTransaction({
+          serverKey: existing.user.midtrans_server_key,
+          clientKey: existing.user.midtrans_client_key || '',
+          invoice: { ...existing, public_link_token: publicToken },
+          client: existing.client,
+          items: existing.items,
+        });
+        paymentUrl = snapRes.redirect_url;
+      } catch (midtransErr) {
+        console.warn('[submit] ⚠️ Gagal membuat transaksi Midtrans:', midtransErr.message);
+        // Tetap lanjutkan submit meskipun Midtrans opsional
+      }
+    }
+
+    // 2. Update status invoice ke 'unpaid', simpan token & payment_url
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: existing.id },
+      data: {
+        status: 'unpaid',
+        public_link_token: publicToken,
+        payment_url: paymentUrl,
+      },
+      include: {
+        client: true,
+        items: true,
+        user: true,
+      },
+    });
+
+    // 3. Generate PDF Invoice menggunakan Puppeteer
+    let pdfBuffer = null;
+    try {
+      pdfBuffer = await generateInvoicePDF(updatedInvoice);
+    } catch (pdfErr) {
+      console.warn('[submit] ⚠️ Gagal generate PDF invoice:', pdfErr.message);
+    }
+
+    // 4. Kirim Email ke Klien jika email klien terdaftar
+    const clientEmail = updatedInvoice.client?.email;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const payUrl = `${frontendUrl}/pay/${publicToken}`;
+
+    if (clientEmail) {
+      try {
+        const emailHtml = `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6;">
+            <div style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 28px; border-radius: 12px 12px 0 0; text-align: center; color: white;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 700;">Tagihan Baru dari ${updatedInvoice.user?.business_name || 'SnapBill'}</h1>
+              <p style="margin: 6px 0 0 0; opacity: 0.9; font-size: 14px;">Invoice #${updatedInvoice.invoice_number}</p>
+            </div>
+            
+            <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+              <p>Halo <b>${updatedInvoice.client?.name}</b>,</p>
+              <p>Terima kasih atas kerja sama Anda. Tagihan Anda dengan nomor <b>#${updatedInvoice.invoice_number}</b> sejumlah <b>Rp ${Number(updatedInvoice.total).toLocaleString('id-ID')}</b> telah diterbitkan.</p>
+              
+              <div style="margin: 28px 0; text-align: center;">
+                <a href="${payUrl}" style="background: #6366f1; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block;">
+                  💳 Bayar Tagihan Sekarang
+                </a>
+              </div>
+              
+              <p style="font-size: 13px; color: #64748b;">
+                Atau salin tautan berikut ke browser Anda:<br/>
+                <a href="${payUrl}" style="color: #6366f1; word-break: break-all;">${payUrl}</a>
+              </p>
+              
+              <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+              <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
+                Email ini dikirim secara otomatis oleh SnapBill. File invoice PDF terlampir pada email ini.
+              </p>
+            </div>
+          </div>
+        `;
+
+        const attachments = pdfBuffer
+          ? [
+              {
+                filename: `Invoice-${updatedInvoice.invoice_number}.pdf`,
+                content: pdfBuffer,
+                contentType: 'application/pdf',
+              },
+            ]
+          : [];
+
+        await sendEmail({
+          to: clientEmail,
+          subject: `Tagihan Invoice #${updatedInvoice.invoice_number} dari ${updatedInvoice.user?.business_name || 'SnapBill'}`,
+          html: emailHtml,
+          attachments,
+        });
+      } catch (emailErr) {
+        console.warn('[submit] ⚠️ Gagal mengirim email ke klien:', emailErr.message);
+      }
+    }
+
+    return res.json({
+      message: 'Invoice berhasil disubmit dan diterbitkan ke klien.',
+      invoice: updatedInvoice,
+      public_link: payUrl,
+    });
+  } catch (err) {
+    console.error('[POST /invoices/:id/submit]', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan server saat submit invoice.' });
+  }
+});
+
+// ─── POST /api/invoices/:id/verify ── Verifikasi bukti transfer (Approve / Reject) ───
+router.post('/:id/verify', async (req, res) => {
+  try {
+    const { action } = req.body;
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ message: "Action harus berupa 'approve' atau 'reject'." });
+    }
+
+    const existing = await prisma.invoice.findFirst({
+      where: { id: req.params.id, user_id: req.user.id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
+    }
+
+    let updateData = {};
+
+    if (action === 'approve') {
+      updateData = {
+        status: 'paid',
+      };
+    } else if (action === 'reject') {
+      updateData = {
+        status: 'unpaid',
+        receipt_url: null, // Hapus bukti yang ditolak agar klien dapat mengunggah ulang
+      };
+    }
+
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: req.params.id },
+      data: updateData,
+      include: {
+        client: true,
+        items: true,
+      },
+    });
+
+    const actionText = action === 'approve' ? 'disetujui (LUNAS)' : 'ditolak (kembali ke Belum Dibayar)';
+    console.log(`[invoices.verify] ✅ Pembayaran Invoice #${existing.invoice_number} ${actionText}.`);
+
+    return res.json({
+      message: `Pembayaran invoice berhasil ${actionText}.`,
+      invoice: updatedInvoice,
+    });
+  } catch (err) {
+    console.error('[POST /invoices/:id/verify]', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan server saat memverifikasi pembayaran.' });
   }
 });
 

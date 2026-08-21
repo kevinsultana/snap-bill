@@ -8,6 +8,8 @@ const settingsRoutes = require('./routes/settings');
 const clientRoutes = require('./routes/clients');
 const itemRoutes = require('./routes/items');
 const invoiceRoutes = require('./routes/invoices');
+const publicRoutes = require('./routes/public');
+const subscriptionRoutes = require('./routes/subscriptions');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +28,8 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/public', publicRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

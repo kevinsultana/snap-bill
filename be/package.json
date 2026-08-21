@@ -16,7 +16,12 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.23.0"
+    "midtrans-client": "^1.4.3",
+    "minio": "^8.0.7",
+    "multer": "^2.2.0",
+    "nodemailer": "^9.0.5",
+    "pg": "^8.23.0",
+    "puppeteer": "^25.8.0"
   },
   "devDependencies": {
     "prisma": "^7.9.1"

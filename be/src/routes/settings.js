@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
       select: {
         id: true,
         email: true,
+        phone: true,
         business_name: true,
         logo_url: true,
         tier: true,
@@ -40,7 +41,7 @@ router.get('/', async (req, res) => {
 // PUT /api/settings — update Midtrans keys dan bank accounts
 router.put('/', async (req, res) => {
   try {
-    const { midtrans_server_key, midtrans_client_key, bank_accounts, business_name } = req.body;
+    const { midtrans_server_key, midtrans_client_key, bank_accounts, business_name, phone } = req.body;
 
     // Validasi bank_accounts
     if (bank_accounts !== undefined) {
@@ -68,6 +69,7 @@ router.put('/', async (req, res) => {
     if (midtrans_client_key !== undefined) updateData.midtrans_client_key = midtrans_client_key;
     if (bank_accounts !== undefined) updateData.bank_accounts = bank_accounts;
     if (business_name !== undefined) updateData.business_name = business_name;
+    if (phone !== undefined) updateData.phone = phone;
 
     const updated = await prisma.user.update({
       where: { id: req.user.id },
@@ -75,6 +77,7 @@ router.put('/', async (req, res) => {
       select: {
         id: true,
         email: true,
+        phone: true,
         business_name: true,
         midtrans_server_key: true,
         midtrans_client_key: true,
