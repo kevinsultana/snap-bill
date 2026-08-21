@@ -23,6 +23,7 @@ function DashboardLayoutContent({ children }) {
   const [subStatus, setSubStatus] = useState(null);
   const [checking, setChecking] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const fetchUserData = () => {
     return Promise.all([
@@ -40,6 +41,11 @@ function DashboardLayoutContent({ children }) {
   useEffect(() => {
     fetchUserData();
   }, [router]);
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   // Handle return from Midtrans payment redirect
   useEffect(() => {
@@ -63,15 +69,15 @@ function DashboardLayoutContent({ children }) {
     const result = await Swal.fire({
       title: '⚡ Upgrade ke SnapBill PRO',
       html: `
-        <div style="text-align: left; font-size: 13px; color: #94a3b8; line-height: 1.6;">
-          <p style="margin: 0 0 12px; font-size: 15px; color: #f1f5f9; font-weight: 600;">
-            Hanya <b>Rp 99.000 / bulan</b> untuk fitur tanpa batas:
+        <div style="text-align: left; font-size: 13px; color: #475569; line-height: 1.6;">
+          <p style="margin: 0 0 12px; font-size: 15px; color: #0f172a; font-weight: 700;">
+            Hanya <b>Rp 99.000 / bulan</b> untuk fitur bisnis tanpa batas:
           </p>
           <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px;">
-            <li><b style="color: #10b981;">✓</b> <b>Unlimited Invoices</b> (Tanpa batas kuota bulanan)</li>
-            <li><b style="color: #10b981;">✓</b> Integrasi Pembayaran Online Midtrans (BYOK)</li>
-            <li><b style="color: #10b981;">✓</b> Upload Bukti Transfer Bank & Verifikasi 1-Klik</li>
-            <li><b style="color: #10b981;">✓</b> Notifikasi Email Otomatis & Generate PDF</li>
+            <li><b style="color: #10b981;">✓</b> <b>Unlimited Invoices</b> (Tanpa batas kuota)</li>
+            <li><b style="color: #10b981;">✓</b> Integrasi Pembayaran Otomatis Midtrans (BYOK)</li>
+            <li><b style="color: #10b981;">✓</b> Upload Bukti Transfer Bank & Verifikasi Cepat</li>
+            <li><b style="color: #10b981;">✓</b> Notifikasi Email Klien & Generate PDF Puppeteer</li>
           </ul>
         </div>
       `,
@@ -80,7 +86,7 @@ function DashboardLayoutContent({ children }) {
       confirmButtonText: '💳 Bayar via Midtrans (Rp 99.000)',
       cancelButtonText: 'Nanti Saja',
       confirmButtonColor: '#6366f1',
-      cancelButtonColor: '#374151',
+      cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup' },
     });
 
@@ -107,12 +113,13 @@ function DashboardLayoutContent({ children }) {
   const handleLogout = async () => {
     const result = await Swal.fire({
       title: 'Yakin ingin keluar?',
+      text: 'Sesi Anda saat ini akan diakhiri.',
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Ya, Keluar',
       cancelButtonText: 'Batal',
       confirmButtonColor: '#6366f1',
-      cancelButtonColor: '#374151',
+      cancelButtonColor: '#94a3b8',
     });
     if (result.isConfirmed) {
       await api.post('/api/auth/logout');
@@ -132,10 +139,11 @@ function DashboardLayoutContent({ children }) {
 
   return (
     <div className="dashboard-layout">
-      {/* Sidebar */}
-      <aside className="sidebar">
+
+      {/* ── Desktop Floating Glass Sidebar ────────────────────────────── */}
+      <aside className="sidebar glass-card">
         <div className="sidebar-brand">
-          <span className="sidebar-logo">⚡</span>
+          <div className="sidebar-logo">⚡</div>
           <span className="sidebar-name">Snap<b>Bill</b></span>
         </div>
 
@@ -160,13 +168,13 @@ function DashboardLayoutContent({ children }) {
                 <span>👑</span>
                 <b>PRO ACTIVE</b>
               </div>
-              <span style={{ fontSize: 11, color: '#fef08a' }}>Unlimited Invoices</span>
+              <span style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>Unlimited Invoices</span>
             </div>
           ) : (
             <div className="tier-free-box">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>PAKET FREE</span>
-                <span style={{ fontSize: 11, color: '#818cf8', fontWeight: 600 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: '0.04em' }}>PAKET FREE</span>
+                <span style={{ fontSize: 11, color: '#4f46e5', fontWeight: 700 }}>
                   {subStatus?.invoiceCountThisMonth ?? 0} / 10 inv
                 </span>
               </div>
@@ -193,20 +201,82 @@ function DashboardLayoutContent({ children }) {
         <div className="sidebar-footer">
           <div className="sidebar-user">
             <div className="sidebar-avatar">
-              {user?.email?.[0]?.toUpperCase() ?? '?'}
+              {user?.business_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
             </div>
             <div className="sidebar-user-info">
               <p className="sidebar-user-email">{user?.business_name || user?.email}</p>
-              <p className="sidebar-user-tier" style={{ color: isPro ? '#facc15' : 'var(--indigo-light)' }}>
-                {isPro ? '👑 Pro Plan' : 'Free Plan'}
+              <p className="sidebar-user-tier" style={{ color: isPro ? '#b45309' : '#4f46e5' }}>
+                {isPro ? '👑 Pro Member' : 'Free Plan'}
               </p>
             </div>
           </div>
-          <button onClick={handleLogout} className="btn-logout">Keluar</button>
+          <button onClick={handleLogout} className="btn-logout" title="Keluar dari akun">
+            Keluar
+          </button>
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* ── Mobile Header & Navigation Drawer ─────────────────────────── */}
+      <div className="mobile-topbar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="sidebar-logo" style={{ width: 32, height: 32, fontSize: 16 }}>⚡</div>
+          <span className="sidebar-name" style={{ fontSize: 18 }}>Snap<b>Bill</b></span>
+        </div>
+        <button
+          type="button"
+          className="btn-hamburger"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? '✕' : '☰'}
+        </button>
+      </div>
+
+      <div
+        className={`mobile-drawer-overlay ${mobileMenuOpen ? 'open' : ''}`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+
+      <div className={`mobile-drawer ${mobileMenuOpen ? 'open' : ''}`}>
+        <div className="sidebar-brand" style={{ marginBottom: 20 }}>
+          <div className="sidebar-logo">⚡</div>
+          <span className="sidebar-name">Snap<b>Bill</b></span>
+        </div>
+
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`sidebar-link ${pathname === item.href ? 'active' : ''}`}
+            >
+              <span className="sidebar-icon">{item.icon}</span>
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div style={{ marginTop: 'auto' }}>
+          <div className="sidebar-footer" style={{ borderTop: '1px solid #e2e8f0', paddingTop: 16 }}>
+            <div className="sidebar-user">
+              <div className="sidebar-avatar">
+                {user?.business_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
+              </div>
+              <div className="sidebar-user-info">
+                <p className="sidebar-user-email">{user?.business_name || user?.email}</p>
+                <p className="sidebar-user-tier" style={{ color: isPro ? '#b45309' : '#4f46e5' }}>
+                  {isPro ? '👑 Pro Member' : 'Free Plan'}
+                </p>
+              </div>
+            </div>
+            <button onClick={handleLogout} className="btn-logout">
+              Keluar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main Dashboard Content ────────────────────────────────────── */}
       <main className="dashboard-main">
         {children}
       </main>

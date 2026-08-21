@@ -1,17 +1,44 @@
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans, Inter } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-jakarta',
+  weight: ['400', '500', '600', '700', '800'],
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+});
 
 export const metadata = {
-  title: 'SnapBill — Invoice Generator SaaS',
-  description: 'Buat dan kelola invoice bisnis Anda dengan mudah dan cepat menggunakan SnapBill.',
+  title: 'SnapBill — Smart Invoice Generator & SaaS Billing',
+  description: 'Kelola penagihan klien, pembuatan invoice otomatis, bukti transfer, dan sistem pembayaran online terpadu dengan SnapBill.',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="id" className={inter.variable}>
-      <body>{children}</body>
+    <html lang="id" className={`${jakarta.variable} ${inter.variable}`}>
+      <body className="antialiased font-sans">
+        <div className="ambient-mesh-bg" aria-hidden="true">
+          <div className="glow-blob blob-1" />
+          <div className="glow-blob blob-2" />
+          <div className="glow-blob blob-3" />
+        </div>
+        <div className="app-content-wrapper">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }

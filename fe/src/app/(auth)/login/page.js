@@ -22,64 +22,92 @@ export default function LoginPage() {
       await api.post('/api/auth/login', form);
       router.push('/dashboard');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Terjadi kesalahan. Coba lagi.';
-      Swal.fire({ icon: 'error', title: 'Login Gagal', text: msg, confirmButtonColor: '#6366f1' });
+      const msg = err.response?.data?.message || 'Email atau password salah. Silakan coba lagi.';
+      Swal.fire({
+        icon: 'error',
+        title: 'Login Gagal',
+        text: msg,
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-card">
-      {/* Logo / Brand */}
-      <div className="auth-brand">
-        <div className="auth-logo">⚡</div>
-        <h1 className="auth-title">Snap<span>Bill</span></h1>
-        <p className="auth-subtitle">Invoice Generator SaaS</p>
+    <div className="auth-page-container">
+      <div className="auth-glass-card">
+        {/* Brand */}
+        <div className="auth-brand">
+          <div className="sidebar-logo" style={{ width: 40, height: 40, fontSize: 20 }}>⚡</div>
+          <span className="sidebar-name" style={{ fontSize: 22 }}>Snap<b>Bill</b></span>
+        </div>
+
+        <h1 className="auth-title">Masuk ke Dashboard</h1>
+        <p className="auth-subtitle">Kelola tagihan bisnis Anda dengan praktis dan otomatis.</p>
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group">
+            <label htmlFor="email" className="form-label">Email Terdaftar</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              value={form.email}
+              onChange={handleChange}
+              className="form-input"
+              placeholder="nama@perusahaan.com"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password" className="form-label">Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={form.password}
+              onChange={handleChange}
+              className="form-input"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button type="submit" disabled={loading} className="btn-primary" style={{ padding: '13px', marginTop: 6 }}>
+            {loading ? <span className="btn-spinner" /> : 'Masuk ke Akun ➜'}
+          </button>
+        </form>
+
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginTop: 20 }}>
+          Belum memiliki akun?{' '}
+          <Link href="/register" className="auth-link">Daftar Akun Gratis</Link>
+        </p>
+
+        <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(226, 232, 240, 0.8)', textAlign: 'center' }}>
+          <Link
+            href="/"
+            style={{
+              fontSize: 13,
+              color: 'var(--text-muted)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              textDecoration: 'none',
+              fontWeight: 600,
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--indigo-dark)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+          >
+            <span>←</span> Kembali ke Beranda
+          </Link>
+        </div>
       </div>
-
-      <form onSubmit={handleSubmit} className="auth-form">
-        <h2 className="form-heading">Masuk ke akun Anda</h2>
-
-        <div className="form-group">
-          <label htmlFor="email" className="form-label">Email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            value={form.email}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="you@example.com"
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="password" className="form-label">Password</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            value={form.password}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="••••••••"
-          />
-        </div>
-
-        <button type="submit" disabled={loading} className="btn-primary">
-          {loading ? <span className="btn-spinner" /> : 'Masuk'}
-        </button>
-      </form>
-
-      <p className="auth-footer">
-        Belum punya akun?{' '}
-        <Link href="/register" className="auth-link">Daftar sekarang</Link>
-      </p>
     </div>
   );
 }

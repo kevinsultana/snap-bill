@@ -61,7 +61,13 @@ export default function SettingsPage() {
     // Validasi bank: pastikan field wajib terisi
     for (const b of banks) {
       if (!b.bank_name.trim() || !b.account_number.trim()) {
-        Swal.fire({ icon: 'warning', title: 'Data rekening tidak lengkap', text: 'Nama bank dan nomor rekening wajib diisi.', confirmButtonColor: '#6366f1' });
+        Swal.fire({
+          icon: 'warning',
+          title: 'Data rekening tidak lengkap',
+          text: 'Nama bank dan nomor rekening wajib diisi.',
+          confirmButtonColor: '#6366f1',
+          customClass: { popup: 'swal-custom-popup' },
+        });
         return;
       }
     }
@@ -74,10 +80,23 @@ export default function SettingsPage() {
         midtrans_client_key: clientKey,
         bank_accounts: banks,
       });
-      Swal.fire({ icon: 'success', title: 'Pengaturan tersimpan!', toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, timerProgressBar: true });
+      Swal.fire({
+        icon: 'success',
+        title: 'Pengaturan tersimpan!',
+        text: 'Profil bisnis dan metode pembayaran berhasil diperbarui.',
+        timer: 2000,
+        showConfirmButton: false,
+        customClass: { popup: 'swal-custom-popup' },
+      });
     } catch (err) {
       const msg = err.response?.data?.message || 'Gagal menyimpan pengaturan.';
-      Swal.fire({ icon: 'error', title: 'Gagal', text: msg, confirmButtonColor: '#6366f1' });
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal',
+        text: msg,
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
     } finally {
       setSaving(false);
     }
@@ -86,7 +105,9 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="page-container">
-        <div className="loading-spinner" style={{ margin: '60px auto' }} />
+        <div className="loading-screen">
+          <div className="loading-spinner" />
+        </div>
       </div>
     );
   }
@@ -94,104 +115,111 @@ export default function SettingsPage() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">Pengaturan</h1>
-        <p className="page-desc">Kelola profil bisnis, API Midtrans, dan rekening bank Anda.</p>
+        <div>
+          <h1 className="page-title">⚙️ Pengaturan Bisnis</h1>
+          <p className="page-desc">Kelola profil identitas bisnis, API Midtrans (BYOK), dan rekening bank transfer.</p>
+        </div>
       </div>
 
-      <form onSubmit={handleSave} className="settings-form">
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 840 }}>
 
-        {/* Business Profile */}
-        <div className="settings-section">
+        {/* 1. Profil Bisnis */}
+        <div className="glass-card" style={{ padding: 26 }}>
           <h2 className="section-title">
-            <span className="section-icon">🏢</span> Profil Bisnis
+            <span className="section-icon">🏢</span> 1. Identitas Brand / Bisnis
           </h2>
           <div className="form-group">
-            <label htmlFor="business_name" className="form-label">Nama Bisnis</label>
+            <label htmlFor="business_name" className="form-label">Nama Bisnis / Brand</label>
             <input
               id="business_name"
               type="text"
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               className="form-input"
-              placeholder="Contoh: PT. Maju Jaya"
+              placeholder="Contoh: Studio Kreatif Nusantara"
             />
+            <p className="form-hint">Nama ini akan tercantum di bagian atas faktur invoice PDF dan portal pembayaran klien.</p>
           </div>
         </div>
 
-        {/* Midtrans */}
-        <div className="settings-section">
+        {/* 2. Midtrans BYOK */}
+        <div className="glass-card" style={{ padding: 26 }}>
           <h2 className="section-title">
-            <span className="section-icon">💳</span> Midtrans API Keys
+            <span className="section-icon">💳</span> 2. Integrasi Midtrans (BYOK)
           </h2>
-          <p className="section-desc">
-            Gunakan kunci dari dashboard Midtrans Anda. Biarkan kosong jika tidak menggunakan Midtrans.
+          <p className="form-hint" style={{ marginBottom: 18 }}>
+            Gunakan API Keys Midtrans Snap Anda untuk menerima pembayaran otomatis QRIS, GoPay, dan Virtual Account langsung ke rekening Anda. Biarkan kosong jika hanya menggunakan transfer manual.
           </p>
 
-          <div className="form-group">
-            <label htmlFor="server_key" className="form-label">Server Key</label>
-            <div className="input-with-action">
-              <input
-                id="server_key"
-                type={showServerKey ? 'text' : 'password'}
-                value={serverKey}
-                onChange={(e) => setServerKey(e.target.value)}
-                className="form-input"
-                placeholder="SB-Mid-server-..."
-                autoComplete="off"
-              />
-              <button
-                type="button"
-                className="btn-icon"
-                onClick={() => setShowServerKey((v) => !v)}
-                title={showServerKey ? 'Sembunyikan' : 'Tampilkan'}
-              >
-                {showServerKey ? '🙈' : '👁️'}
-              </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="form-group">
+              <label htmlFor="server_key" className="form-label">Midtrans Server Key</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  id="server_key"
+                  type={showServerKey ? 'text' : 'password'}
+                  value={serverKey}
+                  onChange={(e) => setServerKey(e.target.value)}
+                  className="form-input"
+                  placeholder="SB-Mid-server-..."
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowServerKey((v) => !v)}
+                  title={showServerKey ? 'Sembunyikan' : 'Tampilkan'}
+                  style={{ padding: '0 14px' }}
+                >
+                  {showServerKey ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="client_key" className="form-label">Client Key</label>
-            <div className="input-with-action">
-              <input
-                id="client_key"
-                type={showClientKey ? 'text' : 'password'}
-                value={clientKey}
-                onChange={(e) => setClientKey(e.target.value)}
-                className="form-input"
-                placeholder="SB-Mid-client-..."
-                autoComplete="off"
-              />
-              <button
-                type="button"
-                className="btn-icon"
-                onClick={() => setShowClientKey((v) => !v)}
-                title={showClientKey ? 'Sembunyikan' : 'Tampilkan'}
-              >
-                {showClientKey ? '🙈' : '👁️'}
-              </button>
+            <div className="form-group">
+              <label htmlFor="client_key" className="form-label">Midtrans Client Key</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  id="client_key"
+                  type={showClientKey ? 'text' : 'password'}
+                  value={clientKey}
+                  onChange={(e) => setClientKey(e.target.value)}
+                  className="form-input"
+                  placeholder="SB-Mid-client-..."
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowClientKey((v) => !v)}
+                  title={showClientKey ? 'Sembunyikan' : 'Tampilkan'}
+                  style={{ padding: '0 14px' }}
+                >
+                  {showClientKey ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Bank Accounts */}
-        <div className="settings-section">
-          <div className="section-header-row">
-            <h2 className="section-title">
-              <span className="section-icon">🏦</span> Rekening Bank
+        {/* 3. Bank Accounts */}
+        <div className="glass-card" style={{ padding: 26 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <h2 className="section-title" style={{ margin: 0 }}>
+              <span className="section-icon">🏦</span> 3. Rekening Bank Transfer Manual
             </h2>
-            <span className="badge">{banks.length} / {MAX_BANKS}</span>
+            <span className="glass-pill" style={{ color: 'var(--text-secondary)' }}>
+              {banks.length} / {MAX_BANKS} Rekening
+            </span>
           </div>
-          <p className="section-desc">
-            Rekening ini akan ditampilkan ke klien sebagai opsi transfer manual.
+          <p className="form-hint" style={{ marginBottom: 18 }}>
+            Rekening ini akan ditampilkan kepada klien sebagai pilihan transfer langsung dengan fasilitas upload bukti transfer.
           </p>
 
-          <div className="bank-list">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {banks.map((bank, idx) => (
-              <div key={idx} className="bank-row">
-                <div className="bank-row-number">{idx + 1}</div>
-
-                <div className="bank-fields">
+              <div key={idx} style={{ background: 'rgba(248, 250, 252, 0.8)', border: '1px solid #e2e8f0', borderRadius: 14, padding: 18, position: 'relative' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
                   <div className="form-group">
                     <label className="form-label">Nama Bank</label>
                     <input
@@ -199,7 +227,7 @@ export default function SettingsPage() {
                       value={bank.bank_name}
                       onChange={(e) => updateBank(idx, 'bank_name', e.target.value)}
                       className="form-input"
-                      placeholder="BCA, BNI, Mandiri..."
+                      placeholder="BCA / Mandiri / BNI"
                     />
                   </div>
                   <div className="form-group">
@@ -209,11 +237,11 @@ export default function SettingsPage() {
                       value={bank.account_number}
                       onChange={(e) => updateBank(idx, 'account_number', e.target.value)}
                       className="form-input"
-                      placeholder="1234567890"
+                      placeholder="Contoh: 1234567890"
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Atas Nama</label>
+                    <label className="form-label">Atas Nama Pemilik</label>
                     <input
                       type="text"
                       value={bank.account_holder}
@@ -227,8 +255,9 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => removeBank(idx)}
-                  className="btn-remove"
-                  title="Hapus rekening"
+                  className="btn-remove-line"
+                  style={{ position: 'absolute', top: 12, right: 12 }}
+                  title="Hapus rekening ini"
                 >
                   ✕
                 </button>
@@ -240,17 +269,23 @@ export default function SettingsPage() {
             type="button"
             onClick={addBank}
             disabled={banks.length >= MAX_BANKS}
-            className="btn-add-bank"
+            className="btn-add-line"
+            style={{ marginTop: 14 }}
           >
-            + Tambah Rekening
-            {banks.length >= MAX_BANKS && <span className="badge-max"> (Maks. {MAX_BANKS})</span>}
+            + Tambah Rekening Bank ({banks.length}/{MAX_BANKS})
           </button>
         </div>
 
-        {/* Submit */}
-        <div className="form-actions">
-          <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? <span className="btn-spinner" /> : '💾 Simpan Pengaturan'}
+        {/* Submit Action */}
+        <div>
+          <button type="submit" disabled={saving} className="btn-primary" style={{ padding: '14px 28px', fontSize: 15 }}>
+            {saving ? (
+              <>
+                <span className="btn-spinner" /> Menyimpan Pengaturan...
+              </>
+            ) : (
+              '💾 Simpan Seluruh Pengaturan'
+            )}
           </button>
         </div>
 

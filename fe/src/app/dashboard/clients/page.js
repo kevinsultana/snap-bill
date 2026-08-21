@@ -6,10 +6,10 @@ import { openFormModal, confirmDelete } from '@/lib/modals';
 import { toast } from '@/lib/toast';
 
 const CLIENT_FIELDS = [
-  { name: 'name',    label: 'Nama Klien',  placeholder: 'PT. Maju Jaya', required: true },
-  { name: 'email',   label: 'Email',       placeholder: 'klien@email.com', type: 'email', required: false },
-  { name: 'phone',   label: 'No. Telepon', placeholder: '08123456789', required: false },
-  { name: 'address', label: 'Alamat',      placeholder: 'Jl. Sudirman No. 1, Jakarta', type: 'textarea', required: false },
+  { name: 'name',    label: 'Nama Klien / Perusahaan',  placeholder: 'PT. Maju Jaya Bersama', required: true },
+  { name: 'email',   label: 'Email Klien',       placeholder: 'klien@perusahaan.com', type: 'email', required: false },
+  { name: 'phone',   label: 'No. WhatsApp / Telepon', placeholder: '08123456789', required: false },
+  { name: 'address', label: 'Alamat Tagihan',      placeholder: 'Jl. Sudirman No. 1, Jakarta Selatan', type: 'textarea', required: false },
 ];
 
 export default function ClientsPage() {
@@ -33,7 +33,7 @@ export default function ClientsPage() {
   // --- Add ---
   const handleAdd = () => {
     openFormModal({
-      title: '➕ Tambah Klien',
+      title: '➕ Tambah Klien Baru',
       fields: CLIENT_FIELDS,
       onSubmit: async (values) => {
         try {
@@ -50,13 +50,13 @@ export default function ClientsPage() {
   // --- Edit ---
   const handleEdit = (client) => {
     openFormModal({
-      title: '✏️ Edit Klien',
+      title: '✏️ Edit Data Klien',
       fields: CLIENT_FIELDS,
       initialValues: client,
       onSubmit: async (values) => {
         try {
           await api.put(`/api/clients/${client.id}`, values);
-          toast('success', 'Klien berhasil diperbarui!');
+          toast('success', 'Data klien berhasil diperbarui!');
           fetchClients();
         } catch (err) {
           toast('error', err.response?.data?.message || 'Gagal memperbarui klien');
@@ -81,7 +81,8 @@ export default function ClientsPage() {
   const filtered = clients.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.email || '').toLowerCase().includes(search.toLowerCase())
+      (c.email || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.phone || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -89,78 +90,90 @@ export default function ClientsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">Klien</h1>
-          <p className="page-desc">Kelola daftar klien bisnis Anda.</p>
+          <h1 className="page-title">👥 Master Klien</h1>
+          <p className="page-desc">Kelola kontak, email, dan alamat klien penagihan bisnis Anda.</p>
         </div>
-        <button className="btn-primary btn-inline" onClick={handleAdd} id="btn-add-client">
+        <button className="btn-primary" onClick={handleAdd} id="btn-add-client">
           + Tambah Klien
         </button>
       </div>
 
-      {/* Search & count */}
-      <div className="table-toolbar">
-        <input
-          type="search"
-          className="form-input search-input"
-          placeholder="🔍  Cari nama atau email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <span className="record-count">{filtered.length} klien</span>
-      </div>
+      {/* Glass Card Container */}
+      <div className="glass-card" style={{ padding: '20px 24px' }}>
+        {/* Search & count */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+          <div className="search-bar-wrap">
+            <span className="search-icon">🔍</span>
+            <input
+              type="search"
+              className="form-input search-input"
+              placeholder="Cari nama, email, atau no. telepon..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <span className="glass-pill" style={{ color: 'var(--text-secondary)' }}>
+            Total: <b>{filtered.length}</b> klien
+          </span>
+        </div>
 
-      {/* Table */}
-      <div className="table-card">
-        {loading ? (
-          <div className="table-loading">
-            <div className="loading-spinner" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="table-empty">
-            <span className="table-empty-icon">👥</span>
-            <p>{search ? 'Tidak ada klien yang cocok.' : 'Belum ada klien. Tambahkan klien pertama Anda!'}</p>
-          </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Nama Klien</th>
-                <th>Email</th>
-                <th>No. Telepon</th>
-                <th>Alamat</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((client, idx) => (
-                <tr key={client.id}>
-                  <td className="td-num">{idx + 1}</td>
-                  <td className="td-name">{client.name}</td>
-                  <td className="td-secondary">{client.email || <span className="td-empty">—</span>}</td>
-                  <td className="td-secondary">{client.phone || <span className="td-empty">—</span>}</td>
-                  <td className="td-secondary td-address">{client.address || <span className="td-empty">—</span>}</td>
-                  <td className="td-actions">
-                    <button
-                      className="btn-action btn-edit"
-                      onClick={() => handleEdit(client)}
-                      title="Edit"
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button
-                      className="btn-action btn-delete"
-                      onClick={() => handleDelete(client)}
-                      title="Hapus"
-                    >
-                      🗑️ Hapus
-                    </button>
-                  </td>
+        {/* Table */}
+        <div className="table-container">
+          {loading ? (
+            <div className="loading-screen" style={{ minHeight: '30vh' }}>
+              <div className="loading-spinner" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="table-empty">
+              <span className="table-empty-icon">👥</span>
+              <p>{search ? 'Tidak ada klien yang cocok dengan pencarian.' : 'Belum ada klien. Tambahkan klien pertama Anda!'}</p>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nama Klien</th>
+                  <th>Email</th>
+                  <th>No. WhatsApp</th>
+                  <th>Alamat</th>
+                  <th style={{ textAlign: 'right' }}>Aksi</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {filtered.map((client, idx) => (
+                  <tr key={client.id}>
+                    <td className="td-num">{idx + 1}</td>
+                    <td className="td-name">{client.name}</td>
+                    <td className="td-secondary">{client.email || '—'}</td>
+                    <td className="td-secondary">{client.phone || '—'}</td>
+                    <td className="td-secondary" style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {client.address || '—'}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <div className="td-actions" style={{ justifyContent: 'flex-end' }}>
+                        <button
+                          className="btn-action btn-edit"
+                          onClick={() => handleEdit(client)}
+                          title="Edit"
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          className="btn-action btn-delete"
+                          onClick={() => handleDelete(client)}
+                          title="Hapus"
+                        >
+                          🗑️ Hapus
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );

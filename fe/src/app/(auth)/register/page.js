@@ -31,6 +31,7 @@ export default function RegisterPage() {
         title: 'Password Terlalu Pendek',
         text: 'Password minimal harus 8 karakter.',
         confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
       });
       return;
     }
@@ -41,6 +42,7 @@ export default function RegisterPage() {
         title: 'Password Tidak Cocok',
         text: 'Pastikan konfirmasi password sama dengan password yang dimasukkan.',
         confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
       });
       return;
     }
@@ -56,6 +58,7 @@ export default function RegisterPage() {
           title: 'Nomor Telepon Tidak Valid',
           text: 'Gunakan format nomor telepon yang valid, contoh: 08123456789 atau +628123456789.',
           confirmButtonColor: '#6366f1',
+          customClass: { popup: 'swal-custom-popup' },
         });
         return;
       }
@@ -72,9 +75,10 @@ export default function RegisterPage() {
 
       await Swal.fire({
         icon: 'success',
-        title: 'Registrasi Berhasil!',
+        title: '🎉 Registrasi Berhasil!',
         text: 'Selamat datang di SnapBill! Akun Anda aktif dengan paket Free (10 invoice/bulan).',
         confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
       });
       router.push('/dashboard');
     } catch (err) {
@@ -84,6 +88,7 @@ export default function RegisterPage() {
         title: 'Registrasi Gagal',
         text: msg,
         confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
       });
     } finally {
       setLoading(false);
@@ -91,114 +96,133 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="auth-card" style={{ maxWidth: 460 }}>
-      {/* Logo / Brand */}
-      <div className="auth-brand">
-        <div className="auth-logo">⚡</div>
-        <h1 className="auth-title">Snap<span>Bill</span></h1>
-        <p className="auth-subtitle">Invoice Generator SaaS</p>
-      </div>
+    <div className="auth-page-container">
+      <div className="auth-glass-card" style={{ maxWidth: 480 }}>
+        {/* Brand */}
+        <div className="auth-brand">
+          <div className="sidebar-logo" style={{ width: 40, height: 40, fontSize: 20 }}>⚡</div>
+          <span className="sidebar-name" style={{ fontSize: 22 }}>Snap<b>Bill</b></span>
+        </div>
 
-      <form onSubmit={handleSubmit} className="auth-form">
-        <h2 className="form-heading">Mulai Akun Gratis Anda</h2>
-        <p style={{ fontSize: 12, color: '#94a3b8', marginTop: -8, marginBottom: 4 }}>
-          Paket Free mencakup 10 invoice/bulan. Tanpa kartu kredit.
+        <h1 className="auth-title">Daftar Akun Gratis</h1>
+        <p className="auth-subtitle">Paket Free mencakup 10 invoice/bulan. Tanpa kartu kredit.</p>
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group">
+            <label htmlFor="email" className="form-label">
+              Email Bisnis / Pribadi <span className="req">*</span>
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              value={form.email}
+              onChange={handleChange}
+              className="form-input"
+              placeholder="nama@perusahaan.com"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="phone" className="form-label">
+              Nomor WhatsApp / Telepon <span className="req">*</span>
+            </label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              required
+              autoComplete="tel"
+              value={form.phone}
+              onChange={handleChange}
+              className="form-input"
+              placeholder="Contoh: 081234567890"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="business_name" className="form-label">
+              Nama Bisnis / Brand (Opsional)
+            </label>
+            <input
+              id="business_name"
+              name="business_name"
+              type="text"
+              value={form.business_name}
+              onChange={handleChange}
+              className="form-input"
+              placeholder="Contoh: Studio Kreatif Nusantara"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password" className="form-label">
+              Password <span className="req">*</span>
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={form.password}
+              onChange={handleChange}
+              className="form-input"
+              placeholder="Minimal 8 karakter"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirm" className="form-label">
+              Konfirmasi Password <span className="req">*</span>
+            </label>
+            <input
+              id="confirm"
+              name="confirm"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={form.confirm}
+              onChange={handleChange}
+              className="form-input"
+              placeholder="Ulangi password"
+            />
+          </div>
+
+          <button type="submit" disabled={loading} className="btn-primary" style={{ padding: '13px', marginTop: 8 }}>
+            {loading ? <span className="btn-spinner" /> : '🚀 Buat Akun & Mulai Gratis ➜'}
+          </button>
+        </form>
+
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginTop: 20 }}>
+          Sudah memiliki akun?{' '}
+          <Link href="/login" className="auth-link">Masuk ke Dashboard</Link>
         </p>
 
-        <div className="form-group">
-          <label htmlFor="email" className="form-label">
-            Email Bisnis / Pribadi <span className="req">*</span>
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            value={form.email}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="nama@bisnisanda.com"
-          />
+        <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(226, 232, 240, 0.8)', textAlign: 'center' }}>
+          <Link
+            href="/"
+            style={{
+              fontSize: 13,
+              color: 'var(--text-muted)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              textDecoration: 'none',
+              fontWeight: 600,
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--indigo-dark)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+          >
+            <span>←</span> Kembali ke Beranda
+          </Link>
         </div>
-
-        <div className="form-group">
-          <label htmlFor="phone" className="form-label">
-            Nomor WhatsApp / Telepon <span className="req">*</span>
-          </label>
-          <input
-            id="phone"
-            name="phone"
-            type="tel"
-            required
-            autoComplete="tel"
-            value={form.phone}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="081234567890"
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="business_name" className="form-label">
-            Nama Bisnis / Brand (Opsional)
-          </label>
-          <input
-            id="business_name"
-            name="business_name"
-            type="text"
-            value={form.business_name}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="Contoh: Studio Kreatif Nusantara"
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="password" className="form-label">
-            Password <span className="req">*</span>
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            value={form.password}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="Minimal 8 karakter"
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="confirm" className="form-label">
-            Konfirmasi Password <span className="req">*</span>
-          </label>
-          <input
-            id="confirm"
-            name="confirm"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            value={form.confirm}
-            onChange={handleChange}
-            className="form-input"
-            placeholder="Ulangi password di atas"
-          />
-        </div>
-
-        <button type="submit" disabled={loading} className="btn-primary" style={{ marginTop: 8 }}>
-          {loading ? <span className="btn-spinner" /> : '🚀 Buat Akun Sekarang'}
-        </button>
-      </form>
-
-      <p className="auth-footer">
-        Sudah memiliki akun?{' '}
-        <Link href="/login" className="auth-link">Masuk ke Dashboard</Link>
-      </p>
+      </div>
     </div>
   );
 }

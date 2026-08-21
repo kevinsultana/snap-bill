@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import api from '@/lib/api';
 import { toast } from '@/lib/toast';
 
@@ -21,10 +22,7 @@ function toDateInput(dateStr) {
 
 /**
  * InvoiceForm — shared between Create and Edit pages.
- * Props:
- *   mode: 'create' | 'edit'
- *   invoiceId: string (edit mode only)
- *   initialData: object (edit mode only)
+ * 2-Column Responsive Liquid Glassmorphism Layout
  */
 export default function InvoiceForm({ mode = 'create', invoiceId, initialData }) {
   const router = useRouter();
@@ -70,7 +68,6 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
   // Helper pembersih input angka/desimal
   const cleanNumericInput = (val) => {
-    // Hanya izinkan angka dan satu titik desimal
     return val.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
   };
 
@@ -125,7 +122,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
         issue_date: issueDate,
         due_date: dueDate || null,
         tax_rate: parseFloat(taxRate) || 0,
-        discount: discountAmt, // Selalu kirim nilai nominal diskon murni ke backend
+        discount: discountAmt, // Kirim nominal diskon aktual
         items: lines.map((l) => ({
           item_name:  l.item_name.trim(),
           quantity:   parseFloat(l.quantity) || 1,
@@ -151,289 +148,316 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="page-container">
+      {/* Header */}
       <div className="page-header">
         <div>
           <h1 className="page-title">
             {mode === 'edit' ? '✏️ Edit Invoice' : '🧾 Buat Invoice Baru'}
           </h1>
           <p className="page-desc">
-            {mode === 'edit' ? 'Perbarui detail invoice draft.' : 'Isi detail invoice, tambahkan item, lalu simpan sebagai draft.'}
+            {mode === 'edit' ? 'Perbarui detail invoice draft dan simpan perubahan.' : 'Isi detail tagihan, masukkan rincian item, dan terbitkan invoice profesional.'}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => router.push('/dashboard/invoices')}
-          className="btn-secondary"
-        >
-          ← Kembali
-        </button>
+        <Link href="/dashboard/invoices" className="btn-secondary">
+          ← Kembali ke Invoice
+        </Link>
       </div>
 
-      <form onSubmit={handleSubmit} className="invoice-form">
+      <form onSubmit={handleSubmit}>
+        {/* ── 2-Column Responsive Layout ───────────────────────────── */}
+        <div className="invoice-form-2col">
 
-        {/* ── Info Section ─────────────────────────────────── */}
-        <div className="invoice-section">
-          <h2 className="section-title"><span className="section-icon">📋</span> Informasi Invoice</h2>
+          {/* ── Left Column: Form & Line Items ─────────────────────── */}
+          <div className="form-left-col">
 
-          <div className="invoice-info-grid">
-            <div className="form-group">
-              <label className="form-label">Klien <span className="req">*</span></label>
-              <select
-                className="form-input"
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                required
-              >
-                <option value="">— Pilih Klien —</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              {clients.length === 0 && (
-                <p className="form-hint">Belum ada klien. <a href="/dashboard/clients" className="auth-link">Tambah klien</a> dulu.</p>
-              )}
-            </div>
+            {/* 1. Informasi Invoice */}
+            <div className="invoice-section">
+              <h2 className="section-title"><span className="section-icon">📋</span> 1. Informasi Klien & Tanggal</h2>
 
-            <div className="form-group">
-              <label className="form-label">Tanggal Invoice <span className="req">*</span></label>
-              <input
-                type="date"
-                className="form-input"
-                value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Tanggal Jatuh Tempo</label>
-              <input
-                type="date"
-                className="form-input"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                min={issueDate}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ── Line Items ───────────────────────────────────── */}
-        <div className="invoice-section">
-          <h2 className="section-title"><span className="section-icon">📦</span> Item / Layanan</h2>
-
-          {/* Header row */}
-          <div className="line-header">
-            <span className="lh-name">Nama Item</span>
-            <span className="lh-qty">Qty</span>
-            <span className="lh-price">Harga Satuan</span>
-            <span className="lh-total">Subtotal</span>
-            <span className="lh-del" />
-          </div>
-
-          {lines.map((line, idx) => {
-            const lineTotal = (parseFloat(line.quantity) || 0) * (parseFloat(line.unit_price) || 0);
-            return (
-              <div key={idx} className="line-row">
-                {/* Item name + optional saved-item picker */}
-                <div className="line-name">
-                  <input
-                    type="text"
+              <div className="invoice-info-grid">
+                <div className="form-group">
+                  <label className="form-label">Klien Tujuan <span className="req">*</span></label>
+                  <select
                     className="form-input"
-                    placeholder="Nama item / layanan"
-                    value={line.item_name}
-                    onChange={(e) => updateLine(idx, 'item_name', e.target.value)}
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
                     required
-                  />
-                  {savedItems.length > 0 && (
-                    <select
-                      className="form-input line-picker"
-                      defaultValue=""
-                      onChange={(e) => { fillLineFromItem(idx, e.target.value); e.target.value = ''; }}
-                      title="Isi dari item tersimpan"
-                    >
-                      <option value="">📋 Pilih dari item tersimpan</option>
-                      {savedItems.map((it) => (
-                        <option key={it.id} value={it.id}>{it.name}</option>
-                      ))}
-                    </select>
+                  >
+                    <option value="">— Pilih Klien —</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  {clients.length === 0 && (
+                    <p className="form-hint">Belum ada klien. <Link href="/dashboard/clients" className="auth-link">Tambah klien</Link> terlebih dahulu.</p>
                   )}
                 </div>
 
-                {/* Qty Input (Text with decimal inputMode, no spinner) */}
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="form-input line-qty"
-                  placeholder="1"
-                  value={line.quantity}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => updateLine(idx, 'quantity', cleanNumericInput(e.target.value))}
-                  required
-                />
+                <div className="form-group">
+                  <label className="form-label">Tanggal Terbit <span className="req">*</span></label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={issueDate}
+                    onChange={(e) => setIssueDate(e.target.value)}
+                    required
+                  />
+                </div>
 
-                {/* Unit Price Input (Text with decimal inputMode, no spinner) */}
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="form-input line-price"
-                  placeholder="0"
-                  value={line.unit_price}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => updateLine(idx, 'unit_price', cleanNumericInput(e.target.value))}
-                  required
-                />
-
-                <span className="line-total">{formatRupiah(lineTotal)}</span>
-
-                <button
-                  type="button"
-                  className="btn-remove-line"
-                  onClick={() => removeLine(idx)}
-                  disabled={lines.length === 1}
-                  title="Hapus baris"
-                >
-                  ✕
-                </button>
-              </div>
-            );
-          })}
-
-          <button type="button" onClick={addLine} className="btn-add-line">
-            + Tambah Baris
-          </button>
-        </div>
-
-        {/* ── Totals ──────────────────────────────────────── */}
-        <div className="invoice-section invoice-totals-section">
-          <div className="totals-adjustments">
-
-            {/* Diskon dengan Toggle Rupiah / Persentase */}
-            <div className="form-group" style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label className="form-label" style={{ margin: 0 }}>Diskon</label>
-                <div className="discount-type-toggle">
-                  <button
-                    type="button"
-                    className={`btn-toggle-type ${discountType === 'fixed' ? 'active' : ''}`}
-                    onClick={() => { setDiscountType('fixed'); setDiscountValue(''); }}
-                  >
-                    Nominal (Rp)
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn-toggle-type ${discountType === 'percent' ? 'active' : ''}`}
-                    onClick={() => { setDiscountType('percent'); setDiscountValue(''); }}
-                  >
-                    Persen (%)
-                  </button>
+                <div className="form-group">
+                  <label className="form-label">Jatuh Tempo Pembayaran</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    min={issueDate}
+                  />
                 </div>
               </div>
+            </div>
 
-              <div className="input-with-addon">
-                <span className="input-addon-badge">
-                  {discountType === 'fixed' ? 'Rp' : '%'}
-                </span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="form-input"
-                  placeholder="0"
-                  value={discountValue}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => {
-                    const cleaned = cleanNumericInput(e.target.value);
-                    if (discountType === 'percent' && parseFloat(cleaned) > 100) {
-                      setDiscountValue('100');
-                    } else {
-                      setDiscountValue(cleaned);
-                    }
-                  }}
-                />
+            {/* 2. Rincian Item / Layanan */}
+            <div className="invoice-section">
+              <h2 className="section-title"><span className="section-icon">📦</span> 2. Rincian Item & Layanan</h2>
+
+              {/* Line Items Table Header */}
+              <div className="line-header">
+                <span>Nama Item / Layanan</span>
+                <span>Qty</span>
+                <span>Harga Satuan (Rp)</span>
+                <span style={{ textAlign: 'right' }}>Subtotal</span>
+                <span />
+              </div>
+
+              {/* Line Items Rows */}
+              {lines.map((line, idx) => {
+                const lineTotal = (parseFloat(line.quantity) || 0) * (parseFloat(line.unit_price) || 0);
+                return (
+                  <div key={idx} className="line-row">
+                    {/* Item Name + Item Picker */}
+                    <div className="line-name">
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Contoh: Jasa Pembuatan Website & UI/UX"
+                        value={line.item_name}
+                        onChange={(e) => updateLine(idx, 'item_name', e.target.value)}
+                        required
+                      />
+                      {savedItems.length > 0 && (
+                        <select
+                          className="form-input line-picker"
+                          defaultValue=""
+                          onChange={(e) => { fillLineFromItem(idx, e.target.value); e.target.value = ''; }}
+                          title="Pilih dari item tersimpan"
+                        >
+                          <option value="">📋 Pilih cepat dari katalog item tersimpan</option>
+                          {savedItems.map((it) => (
+                            <option key={it.id} value={it.id}>{it.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    {/* Qty Input */}
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="form-input line-qty"
+                      placeholder="1"
+                      value={line.quantity}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => updateLine(idx, 'quantity', cleanNumericInput(e.target.value))}
+                      required
+                    />
+
+                    {/* Unit Price Input */}
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="form-input line-price"
+                      placeholder="0"
+                      value={line.unit_price}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => updateLine(idx, 'unit_price', cleanNumericInput(e.target.value))}
+                      required
+                    />
+
+                    {/* Line Total */}
+                    <span className="line-total">{formatRupiah(lineTotal)}</span>
+
+                    {/* Remove Line */}
+                    <button
+                      type="button"
+                      className="btn-remove-line"
+                      onClick={() => removeLine(idx)}
+                      disabled={lines.length === 1}
+                      title="Hapus baris item"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+
+              <button type="button" onClick={addLine} className="btn-add-line" style={{ marginTop: 14 }}>
+                + Tambah Baris Item Baru
+              </button>
+            </div>
+
+          </div>
+
+          {/* ── Right Column: Sticky Grand Total Summary Card ──────── */}
+          <div className="sticky-summary-card">
+
+            {/* Adjustments (Discount & Tax) */}
+            <div className="totals-adjustments-card">
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 4px' }}>
+                ⚙️ Penyesuaian Harga
+              </h3>
+
+              {/* Discount Selector */}
+              <div className="form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label className="form-label" style={{ margin: 0 }}>Diskon</label>
+                  <div className="discount-type-toggle">
+                    <button
+                      type="button"
+                      className={`btn-toggle-type ${discountType === 'fixed' ? 'active' : ''}`}
+                      onClick={() => { setDiscountType('fixed'); setDiscountValue(''); }}
+                    >
+                      Nominal (Rp)
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-toggle-type ${discountType === 'percent' ? 'active' : ''}`}
+                      onClick={() => { setDiscountType('percent'); setDiscountValue(''); }}
+                    >
+                      Persen (%)
+                    </button>
+                  </div>
+                </div>
+
+                <div className="input-with-addon">
+                  <span className="input-addon-badge">
+                    {discountType === 'fixed' ? 'Rp' : '%'}
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="form-input"
+                    placeholder="0"
+                    value={discountValue}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const cleaned = cleanNumericInput(e.target.value);
+                      if (discountType === 'percent' && parseFloat(cleaned) > 100) {
+                        setDiscountValue('100');
+                      } else {
+                        setDiscountValue(cleaned);
+                      }
+                    }}
+                  />
+                </div>
+
+                {discountAmt > 0 && (
+                  <p className="form-hint" style={{ color: 'var(--rose)', fontWeight: 600 }}>
+                    {discountType === 'percent'
+                      ? `Potongan: − ${formatRupiah(discountAmt)} (${discountValue}%)`
+                      : subtotal > 0
+                      ? `Potongan: − ${formatRupiah(discountAmt)} (${((discountAmt / subtotal) * 100).toFixed(1)}%)`
+                      : `Potongan: − ${formatRupiah(discountAmt)}`}
+                  </p>
+                )}
+              </div>
+
+              {/* Tax Rate */}
+              <div className="form-group">
+                <label className="form-label">Pajak Pertambahan Nilai (%)</label>
+                <div className="input-with-addon">
+                  <span className="input-addon-badge">%</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="form-input"
+                    placeholder="0"
+                    value={taxRate}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const cleaned = cleanNumericInput(e.target.value);
+                      if (parseFloat(cleaned) > 100) {
+                        setTaxRate('100');
+                      } else {
+                        setTaxRate(cleaned);
+                      }
+                    }}
+                  />
+                </div>
+                {taxAmt > 0 && (
+                  <p className="form-hint" style={{ color: 'var(--indigo-dark)', fontWeight: 600 }}>
+                    Pajak: + {formatRupiah(taxAmt)} ({taxRate}%)
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Grand Total Highlight Box */}
+            <div className="grand-total-glass-box">
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+                Ringkasan Kalkulasi
+              </h3>
+
+              <div className="total-row">
+                <span>Subtotal Item</span>
+                <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{formatRupiah(subtotal)}</span>
               </div>
 
               {discountAmt > 0 && (
-                <p className="form-hint" style={{ color: '#f87171', marginTop: 4, fontWeight: 500 }}>
-                  {discountType === 'percent'
-                    ? `Potongan: − ${formatRupiah(discountAmt)} (${discountValue}%)`
-                    : subtotal > 0
-                    ? `Potongan: − ${formatRupiah(discountAmt)} (${((discountAmt / subtotal) * 100).toFixed(1)}%)`
-                    : `Potongan: − ${formatRupiah(discountAmt)}`}
-                </p>
+                <div className="total-row total-discount">
+                  <span>Diskon {discountType === 'percent' ? `(${discountValue}%)` : ''}</span>
+                  <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>− {formatRupiah(discountAmt)}</span>
+                </div>
               )}
-            </div>
 
-            {/* Pajak (%) */}
-            <div className="form-group" style={{ flex: 0.8 }}>
-              <label className="form-label">Pajak Pertambahan Nilai (%)</label>
-              <div className="input-with-addon">
-                <span className="input-addon-badge">%</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="form-input"
-                  placeholder="0"
-                  value={taxRate}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => {
-                    const cleaned = cleanNumericInput(e.target.value);
-                    if (parseFloat(cleaned) > 100) {
-                      setTaxRate('100');
-                    } else {
-                      setTaxRate(cleaned);
-                    }
-                  }}
-                />
-              </div>
               {taxAmt > 0 && (
-                <p className="form-hint" style={{ color: 'var(--indigo-light)', marginTop: 4, fontWeight: 500 }}>
-                  Pajak: + {formatRupiah(taxAmt)} ({taxRate}%)
-                </p>
+                <div className="total-row" style={{ color: 'var(--indigo-dark)' }}>
+                  <span>Pajak ({taxRate}%)</span>
+                  <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>+ {formatRupiah(taxAmt)}</span>
+                </div>
               )}
+
+              <div className="total-row total-grand">
+                <div>
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Total Pembayaran
+                  </span>
+                  <p className="grand-total-amount">{formatRupiah(total)}</p>
+                </div>
+              </div>
+
+              {/* Action Submit Button */}
+              <button
+                type="submit"
+                disabled={saving}
+                className="btn-primary"
+                style={{ width: '100%', padding: '14px', fontSize: 15, marginTop: 18 }}
+              >
+                {saving ? (
+                  <>
+                    <span className="btn-spinner" /> Menyimpan Invoice...
+                  </>
+                ) : mode === 'edit' ? (
+                  '💾 Simpan Perubahan Invoice'
+                ) : (
+                  '💾 Simpan sebagai Draft Invoice'
+                )}
+              </button>
             </div>
+
           </div>
 
-          {/* Summary Box */}
-          <div className="totals-summary">
-            <div className="total-row">
-              <span>Subtotal</span>
-              <span>{formatRupiah(subtotal)}</span>
-            </div>
-            {discountAmt > 0 && (
-              <div className="total-row total-discount">
-                <span>
-                  Diskon {discountType === 'percent' ? `(${discountValue}%)` : ''}
-                </span>
-                <span>− {formatRupiah(discountAmt)}</span>
-              </div>
-            )}
-            {taxAmt > 0 && (
-              <div className="total-row">
-                <span>Pajak ({taxRate}%)</span>
-                <span>+ {formatRupiah(taxAmt)}</span>
-              </div>
-            )}
-            <div className="total-row total-grand">
-              <span>Total Tagihan</span>
-              <span style={{ color: 'var(--indigo-light)' }}>{formatRupiah(total)}</span>
-            </div>
-          </div>
         </div>
-
-        {/* ── Actions ─────────────────────────────────────── */}
-        <div className="invoice-actions">
-          <button
-            type="button"
-            onClick={() => router.push('/dashboard/invoices')}
-            className="btn-secondary"
-          >
-            Batal
-          </button>
-          <button type="submit" disabled={saving} className="btn-primary btn-inline">
-            {saving ? <span className="btn-spinner" /> : (mode === 'edit' ? '💾 Simpan Perubahan' : '💾 Simpan sebagai Draft')}
-          </button>
-        </div>
-
       </form>
     </div>
   );

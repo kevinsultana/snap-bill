@@ -69,30 +69,30 @@ export default function DashboardPage() {
     const receiptContent = inv.receipt_url
       ? isPdf
         ? `
-          <div style="margin: 16px 0; padding: 20px; background: #1a1a2e; border-radius: 10px; border: 1px solid #2a2a4a; text-align: center;">
+          <div style="margin: 16px 0; padding: 20px; background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0; text-align: center;">
             <div style="font-size: 36px; margin-bottom: 8px;">📄</div>
-            <p style="color: #f1f5f9; font-weight: 600; font-size: 14px; margin: 0 0 8px;">Dokumen Bukti Transfer (PDF)</p>
-            <a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: underline; font-size: 13px;">
+            <p style="color: #0f172a; font-weight: 700; font-size: 14px; margin: 0 0 8px;">Dokumen Bukti Transfer (PDF)</p>
+            <a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="color: #4f46e5; font-weight: 700; text-decoration: underline; font-size: 13px;">
               👁️ Klik untuk Membuka Dokumen Bukti ↗
             </a>
           </div>
         `
         : `
           <div style="margin: 16px 0; text-align: center;">
-            <div style="max-height: 320px; overflow-y: auto; background: #0f0f1a; padding: 10px; border-radius: 10px; border: 1px solid #2a2a4a;">
+            <div style="max-height: 320px; overflow-y: auto; background: #f8fafc; padding: 10px; border-radius: 14px; border: 1px solid #e2e8f0;">
               <img
                 src="${inv.receipt_url}"
                 alt="Bukti Transfer"
-                style="max-width: 100%; max-height: 280px; border-radius: 6px; object-fit: contain; margin: 0 auto; display: block;"
+                style="max-width: 100%; max-height: 280px; border-radius: 8px; object-fit: contain; margin: 0 auto; display: block;"
               />
             </div>
-            <a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; margin-top: 8px; color: #818cf8; font-size: 12px;">
+            <a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; margin-top: 8px; color: #4f46e5; font-weight: 600; font-size: 12px;">
               🔍 Buka gambar ukuran penuh ↗
             </a>
           </div>
         `
       : `
-        <div style="margin: 20px 0; padding: 20px; background: #1a1a2e; border-radius: 10px; border: 1px solid #2a2a4a; text-align: center; color: #94a3b8;">
+        <div style="margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0; text-align: center; color: #64748b;">
           <p style="margin: 0;">Bukti transfer belum diunggah.</p>
         </div>
       `;
@@ -100,16 +100,16 @@ export default function DashboardPage() {
     Swal.fire({
       title: '🔍 Review Pembayaran Klien',
       html: `
-        <div style="text-align: left; font-family: 'Inter', sans-serif;">
-          <div style="background: #1a1a2e; padding: 14px 18px; border-radius: 10px; border: 1px solid #2a2a4a; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="text-align: left; font-family: 'Plus Jakarta Sans', sans-serif;">
+          <div style="background: #f1f5f9; padding: 14px 18px; border-radius: 14px; border: 1px solid #e2e8f0; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Invoice</p>
-              <p style="margin: 2px 0 0; font-size: 16px; font-weight: 700; color: #818cf8;">#${inv.invoice_number}</p>
-              <p style="margin: 2px 0 0; font-size: 13px; color: #cbd5e1;">${inv.client?.name || '—'}</p>
+              <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.05em;">Invoice</p>
+              <p style="margin: 2px 0 0; font-size: 16px; font-weight: 800; color: #4f46e5;">#${inv.invoice_number}</p>
+              <p style="margin: 2px 0 0; font-size: 13px; color: #334155; font-weight: 600;">${inv.client?.name || '—'}</p>
             </div>
             <div style="text-align: right;">
-              <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600;">Total Tagihan</p>
-              <p style="margin: 2px 0 0; font-size: 18px; font-weight: 800; color: #10b981;">${formatRupiah(inv.total)}</p>
+              <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.05em;">Total Tagihan</p>
+              <p style="margin: 2px 0 0; font-size: 18px; font-weight: 800; color: #047857;">${formatRupiah(inv.total)}</p>
             </div>
           </div>
           ${receiptContent}
@@ -121,8 +121,8 @@ export default function DashboardPage() {
       denyButtonText: '❌ Reject (Tolak)',
       cancelButtonText: 'Tutup',
       confirmButtonColor: '#10b981',
-      denyButtonColor: '#ef4444',
-      cancelButtonColor: '#374151',
+      denyButtonColor: '#f43f5e',
+      cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup swal-review-popup' },
       showLoaderOnConfirm: true,
       showLoaderOnDeny: true,
@@ -166,7 +166,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Perhitungan Metrik Finansial
+  // Metrik Finansial
   const totalPaidRevenue = invoices
     .filter((i) => i.status === 'paid')
     .reduce((sum, i) => sum + Number(i.total || 0), 0);
@@ -182,7 +182,6 @@ export default function DashboardPage() {
 
   const isPro = subStatus?.tier === 'pro' || user?.tier === 'pro';
   const recentInvoices = invoices.slice(0, 5);
-
   const bankAccounts = Array.isArray(user?.bank_accounts) ? user.bank_accounts : [];
 
   return (
@@ -192,15 +191,15 @@ export default function DashboardPage() {
       <div className="dash-welcome-header">
         <div>
           <h1 className="page-title">
-            Selamat datang, <span style={{ color: 'var(--indigo-light)' }}>{user?.business_name || user?.email?.split('@')[0]}</span> 👋
+            Selamat datang, <span style={{ color: 'var(--indigo)' }}>{user?.business_name || user?.email?.split('@')[0]}</span> 👋
           </h1>
-          <p className="page-desc" style={{ marginTop: 4 }}>
-            Berikut ringkasan performa finansial, tagihan aktif, dan aktivitas bisnis Anda.
+          <p className="page-desc">
+            Berikut ringkasan performa finansial, tagihan aktif, dan status bisnis Anda.
           </p>
         </div>
 
         <div className="header-actions">
-          <Link href="/dashboard/invoices/create" className="btn-primary btn-inline">
+          <Link href="/dashboard/invoices/create" className="btn-primary">
             + Buat Invoice Baru
           </Link>
           <Link href="/dashboard/clients" className="btn-secondary">
@@ -224,7 +223,7 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() => handleReviewPayment(pendingVerifyInvoices[0])}
-            className="btn-primary btn-inline"
+            className="btn-primary"
             style={{ whiteSpace: 'nowrap' }}
           >
             🔍 Review Sekarang ➜
@@ -236,14 +235,14 @@ export default function DashboardPage() {
       <div className="dash-stats-grid">
 
         {/* Pendapatan Lunas */}
-        <div className="dash-stat-card">
+        <div className="dash-stat-card glass-card-interactive">
           <div className="dash-stat-top">
             <span className="dash-stat-label">Total Pendapatan (Lunas)</span>
-            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
+            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#059669' }}>
               💰
             </div>
           </div>
-          <p className="dash-stat-value" style={{ color: '#10b981' }}>
+          <p className="dash-stat-value" style={{ color: '#059669' }}>
             {formatRupiah(totalPaidRevenue)}
           </p>
           <div className="dash-stat-footer">
@@ -254,14 +253,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Menunggu Pembayaran */}
-        <div className="dash-stat-card">
+        <div className="dash-stat-card glass-card-interactive">
           <div className="dash-stat-top">
             <span className="dash-stat-label">Belum Dibayar & Pending</span>
-            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
+            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#b45309' }}>
               ⏳
             </div>
           </div>
-          <p className="dash-stat-value" style={{ color: '#f59e0b' }}>
+          <p className="dash-stat-value" style={{ color: '#b45309' }}>
             {formatRupiah(pendingRevenue)}
           </p>
           <div className="dash-stat-footer">
@@ -272,15 +271,15 @@ export default function DashboardPage() {
         </div>
 
         {/* Total Klien */}
-        <div className="dash-stat-card">
+        <div className="dash-stat-card glass-card-interactive">
           <div className="dash-stat-top">
             <span className="dash-stat-label">Total Klien Terdaftar</span>
-            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#818cf8' }}>
+            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#4f46e5' }}>
               👥
             </div>
           </div>
-          <p className="dash-stat-value" style={{ color: '#f1f5f9' }}>
-            {clients.length} <span style={{ fontSize: 15, fontWeight: 500, color: '#94a3b8' }}>Klien</span>
+          <p className="dash-stat-value">
+            {clients.length} <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-muted)' }}>Klien</span>
           </p>
           <div className="dash-stat-footer">
             <Link href="/dashboard/clients" className="dash-stat-link">
@@ -290,15 +289,15 @@ export default function DashboardPage() {
         </div>
 
         {/* Total Invoice & Draft */}
-        <div className="dash-stat-card">
+        <div className="dash-stat-card glass-card-interactive">
           <div className="dash-stat-top">
             <span className="dash-stat-label">Total Faktur Diterbitkan</span>
-            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#c084fc' }}>
+            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#7e22ce' }}>
               🧾
             </div>
           </div>
-          <p className="dash-stat-value" style={{ color: '#f1f5f9' }}>
-            {invoices.length} <span style={{ fontSize: 15, fontWeight: 500, color: '#94a3b8' }}>Faktur</span>
+          <p className="dash-stat-value">
+            {invoices.length} <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-muted)' }}>Faktur</span>
           </p>
           <div className="dash-stat-footer">
             <span className="dash-stat-sub">
@@ -314,7 +313,7 @@ export default function DashboardPage() {
 
         {/* Left Column: Recent Invoices Table */}
         <div className="dash-left-col">
-          <div className="dash-card">
+          <div className="dash-card glass-card">
             <div className="dash-card-header">
               <div>
                 <h3 className="dash-card-title">🧾 Invoice Terbaru</h3>
@@ -326,10 +325,10 @@ export default function DashboardPage() {
             </div>
 
             {recentInvoices.length === 0 ? (
-              <div className="table-empty" style={{ padding: '36px 20px' }}>
+              <div className="table-empty">
                 <span className="table-empty-icon">🧾</span>
                 <p>Belum ada invoice. Buat invoice pertama Anda sekarang!</p>
-                <Link href="/dashboard/invoices/create" className="btn-primary btn-inline" style={{ marginTop: 12 }}>
+                <Link href="/dashboard/invoices/create" className="btn-primary" style={{ marginTop: 14 }}>
                   + Buat Invoice
                 </Link>
               </div>
@@ -387,7 +386,7 @@ export default function DashboardPage() {
         <div className="dash-right-col">
 
           {/* Subscription Tier Widget */}
-          <div className="dash-card">
+          <div className="dash-card glass-card">
             <h3 className="dash-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>💎</span> Paket Berlangganan
             </h3>
@@ -398,8 +397,8 @@ export default function DashboardPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 20 }}>👑</span>
                     <div>
-                      <b style={{ fontSize: 14, color: '#fef08a' }}>SNAPBILL PRO ACTIVE</b>
-                      <p style={{ margin: '2px 0 0', fontSize: 12, opacity: 0.9 }}>
+                      <b style={{ fontSize: 14, color: '#78350f' }}>SNAPBILL PRO ACTIVE</b>
+                      <p style={{ margin: '2px 0 0', fontSize: 12, color: '#92400e', opacity: 0.95 }}>
                         Nikmati kuota invoice tanpa batas & fitur lengkap.
                       </p>
                     </div>
@@ -409,8 +408,8 @@ export default function DashboardPage() {
             ) : (
               <div style={{ marginTop: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-                  <span style={{ color: '#94a3b8' }}>Kuota Bulan Ini:</span>
-                  <span style={{ fontWeight: 700, color: '#818cf8' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Kuota Bulan Ini:</span>
+                  <span style={{ fontWeight: 800, color: 'var(--indigo)' }}>
                     {subStatus?.invoiceCountThisMonth ?? 0} / 10 Invoice
                   </span>
                 </div>
@@ -420,13 +419,13 @@ export default function DashboardPage() {
                     style={{ width: `${Math.min(100, ((subStatus?.invoiceCountThisMonth ?? 0) / 10) * 100)}%` }}
                   />
                 </div>
-                <p style={{ fontSize: 12, color: '#64748b', margin: '8px 0 14px' }}>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 16px' }}>
                   Tersisa {Math.max(0, 10 - (subStatus?.invoiceCountThisMonth ?? 0))} invoice di paket Free.
                 </p>
                 <Link
                   href="/dashboard/settings"
                   className="btn-primary"
-                  style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}
+                  style={{ width: '100%', justifyContent: 'center' }}
                 >
                   ⚡ Upgrade ke Pro (Rp 99rb)
                 </Link>
@@ -435,7 +434,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Setup Health Checklist */}
-          <div className="dash-card">
+          <div className="dash-card glass-card">
             <h3 className="dash-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>⚙️</span> Kesiapan Penagihan
             </h3>
