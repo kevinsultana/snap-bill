@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+model User {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                String    @unique
+  password_hash        String
+  business_name        String?
+  logo_url             String?
+  tier                 String?   @default("free")
+  subscription_ends_at DateTime?
+  midtrans_server_key  String?
+  midtrans_client_key  String?
+  bank_accounts        Json?     @default("[]")
+  created_at           DateTime? @default(now())
+  clients              Client[]
+  items                Item[]
+  invoices             Invoice[]
+
+  @@map("users")
+}
+
+model Client {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  name       String
+  email      String?
+  phone      String?
+  address    String?
+  created_at DateTime? @default(now())
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  invoices   Invoice[]
+
+  @@map("clients")
+}
+
+model Item {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String    @db.Uuid
+  name        String
+  description String?
+  price       Decimal   @db.Decimal(15, 2)
+  created_at  DateTime? @default(now())
+  user        User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("items")
+}
+
+model Invoice {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String        @db.Uuid
+  client_id         String        @db.Uuid
+  invoice_number    String
+  status            String?       @default("draft") // draft, unpaid, pending_verification, paid, overdue
+  issue_date        DateTime      @db.Date
+  due_date          DateTime?     @db.Date
+  subtotal          Decimal       @default(0) @db.Decimal(15, 2)
+  tax_rate          Decimal?      @default(0) @db.Decimal(5, 2)
+  discount          Decimal?      @default(0) @db.Decimal(15, 2)
+  total             Decimal       @default(0) @db.Decimal(15, 2)
+  public_link_token String?       @unique
+  payment_url       String?
+  receipt_url       String?
+  created_at        DateTime?     @default(now())
+  user              User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  client            Client        @relation(fields: [client_id], references: [id], onDelete: Restrict)
+  items             InvoiceItem[]
+
+  @@unique([user_id, invoice_number])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoice_id  String    @db.Uuid
+  item_name   String
+  quantity    Decimal   @default(1) @db.Decimal(10, 2)
+  unit_price  Decimal   @db.Decimal(15, 2)
+  total_price Decimal   @db.Decimal(15, 2)
+  created_at  DateTime? @default(now())
+  invoice     Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@map("invoice_items")
+}

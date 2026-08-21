@@ -1,0 +1,117 @@
+const express = require('express');
+const prisma = require('../db/prisma');
+const { verifyToken } = require('../middleware/auth');
+
+const router = express.Router();
+
+// Semua route butuh autentikasi
+router.use(verifyToken);
+
+// GET /api/clients — list semua klien milik user
+router.get('/', async (req, res) => {
+  try {
+    const clients = await prisma.client.findMany({
+      where: { user_id: req.user.id },
+      orderBy: { created_at: 'desc' },
+    });
+    return res.json(clients);
+  } catch (err) {
+    console.error('[GET /clients]', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan server.' });
+  }
+});
+
+// GET /api/clients/:id — detail satu klien
+router.get('/:id', async (req, res) => {
+  try {
+    const client = await prisma.client.findFirst({
+      where: { id: req.params.id, user_id: req.user.id },
+    });
+    if (!client) return res.status(404).json({ message: 'Klien tidak ditemukan.' });
+    return res.json(client);
+  } catch (err) {
+    console.error('[GET /clients/:id]', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan server.' });
+  }
+});
+
+// POST /api/clients — buat klien baru
+router.post('/', async (req, res) => {
+  try {
+    const { name, email, phone, address } = req.body;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ message: 'Nama klien wajib diisi.' });
+    }
+
+    const client = await prisma.client.create({
+      data: {
+        user_id: req.user.id, // Multi-tenancy: kunci ke user yang login
+        name: name.trim(),
+        email: email?.trim() || null,
+        phone: phone?.trim() || null,
+        address: address?.trim() || null,
+      },
+    });
+
+    return res.status(201).json({ message: 'Klien berhasil ditambahkan.', client });
+  } catch (err) {
+    console.error('[POST /clients]', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan server.' });
+  }
+});
+
+// PUT /api/clients/:id — update klien
+router.put('/:id', async (req, res) => {
+  try {
+    const { name, email, phone, address } = req.body;
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ message: 'Nama klien wajib diisi.' });
+    }
+
+    // Cek kepemilikan sebelum update (Multi-tenancy)
+    const existing = await prisma.client.findFirst({
+      where: { id: req.params.id, user_id: req.user.id },
+    });
+    if (!existing) return res.status(404).json({ message: 'Klien tidak ditemukan.' });
+
+    const client = await prisma.client.update({
+      where: { id: req.params.id },
+      data: {
+        name: name.trim(),
+        email: email?.trim() || null,
+        phone: phone?.trim() || null,
+        address: address?.trim() || null,
+      },
+    });
+
+    return res.json({ message: 'Klien berhasil diperbarui.', client });
+  } catch (err) {
+    console.error('[PUT /clients/:id]', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan server.' });
+  }
+});
+
+// DELETE /api/clients/:id — hapus klien
+router.delete('/:id', async (req, res) => {
+  try {
+    // Cek kepemilikan sebelum hapus (Multi-tenancy)
+    const existing = await prisma.client.findFirst({
+      where: { id: req.params.id, user_id: req.user.id },
+    });
+    if (!existing) return res.status(404).json({ message: 'Klien tidak ditemukan.' });
+
+    await prisma.client.delete({ where: { id: req.params.id } });
+    return res.json({ message: 'Klien berhasil dihapus.' });
+  } catch (err) {
+    // Handle kasus klien masih punya invoice (onDelete: Restrict)
+    if (err.code === 'P2003') {
+      return res.status(409).json({ message: 'Klien tidak bisa dihapus karena masih memiliki invoice.' });
+    }
+    console.error('[DELETE /clients/:id]', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan server.' });
+  }
+});
+
+module.exports = router;
