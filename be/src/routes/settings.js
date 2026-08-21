@@ -88,6 +88,11 @@ router.put('/', async (req, res) => {
       }
     }
 
+    const currentUser = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const isPro =
+      currentUser?.tier === 'pro' &&
+      (!currentUser.subscription_ends_at || new Date(currentUser.subscription_ends_at) > new Date());
+
     // Bangun objek update secara selektif
     const updateData = {};
     if (email !== undefined) updateData.email = email.trim().toLowerCase();
@@ -95,8 +100,13 @@ router.put('/', async (req, res) => {
     if (address !== undefined) updateData.address = address?.trim() || null;
     if (business_name !== undefined) updateData.business_name = business_name?.trim() || null;
     if (logo_url !== undefined) updateData.logo_url = logo_url?.trim() || null;
-    if (midtrans_server_key !== undefined) updateData.midtrans_server_key = midtrans_server_key?.trim() || null;
-    if (midtrans_client_key !== undefined) updateData.midtrans_client_key = midtrans_client_key?.trim() || null;
+
+    // Hanya pengguna berstatus PRO yang dapat menyimpan konfigurasi Midtrans BYOK
+    if (isPro) {
+      if (midtrans_server_key !== undefined) updateData.midtrans_server_key = midtrans_server_key?.trim() || null;
+      if (midtrans_client_key !== undefined) updateData.midtrans_client_key = midtrans_client_key?.trim() || null;
+    }
+
     if (bank_accounts !== undefined) updateData.bank_accounts = bank_accounts;
 
     const updated = await prisma.user.update({

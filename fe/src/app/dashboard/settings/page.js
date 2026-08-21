@@ -24,11 +24,15 @@ export default function SettingsPage() {
   const [clientKey, setClientKey] = useState('');
   const [showServerKey, setShowServerKey] = useState(false);
   const [showClientKey, setShowClientKey] = useState(false);
+  const [userTier, setUserTier] = useState('free');
+  const [subscriptionEndsAt, setSubscriptionEndsAt] = useState(null);
 
   // Bank accounts
   const [banks, setBanks] = useState([]);
 
   const fileInputRef = useRef(null);
+
+  const isPro = userTier === 'pro' && (!subscriptionEndsAt || new Date(subscriptionEndsAt) > new Date());
 
   useEffect(() => {
     api.get('/api/settings')
@@ -41,6 +45,8 @@ export default function SettingsPage() {
         setLogoUrl(d.logo_url || '');
         setServerKey(d.midtrans_server_key || '');
         setClientKey(d.midtrans_client_key || '');
+        setUserTier(d.tier || 'free');
+        setSubscriptionEndsAt(d.subscription_ends_at || null);
         setBanks(Array.isArray(d.bank_accounts) && d.bank_accounts.length > 0
           ? d.bank_accounts
           : []);
@@ -55,6 +61,34 @@ export default function SettingsPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  // Handle Instant Upgrade to Pro via Midtrans Snap
+  const handleUpgradeToPro = async () => {
+    try {
+      Swal.fire({
+        title: 'Menyiapkan Pembayaran...',
+        text: 'Membuka Midtrans Snap langganan Paket Pro...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+        customClass: { popup: 'swal-custom-popup' },
+      });
+
+      const res = await api.post('/api/subscriptions/create-snap');
+      Swal.close();
+
+      if (res.data?.redirect_url) {
+        window.location.href = res.data.redirect_url;
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal Memproses Upgrade',
+        text: err.response?.data?.message || 'Terjadi kesalahan saat memproses langganan Pro.',
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
+    }
+  };
 
   // --- Logo Upload Handler ---
   const handleLogoSelect = async (e) => {
@@ -381,30 +415,71 @@ export default function SettingsPage() {
         </div>
 
         {/* ── 2. Midtrans BYOK ──────────────────────────────────────── */}
-        <div className="glass-card" style={{ padding: 26 }}>
-          <h2 className="section-title">
-            <span className="section-icon">💳</span> 2. Integrasi Midtrans (BYOK)
-          </h2>
-          <p className="form-hint" style={{ marginBottom: 18 }}>
-            Gunakan API Keys Midtrans Snap Anda untuk menerima pembayaran otomatis QRIS, GoPay, dan Virtual Account langsung ke rekening Anda. Biarkan kosong jika hanya menggunakan transfer manual.
-          </p>
+        <div className="glass-card" style={{ padding: 26, position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+            <h2 className="section-title" style={{ margin: 0 }}>
+              <span className="section-icon">💳</span> 2. Integrasi Midtrans (BYOK)
+            </h2>
+            {isPro ? (
+              <span className="status-badge badge-emerald" style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px' }}>
+                👑 PRO ACTIVE
+              </span>
+            ) : (
+              <span className="status-badge badge-amber" style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px' }}>
+                🔒 FITUR EKSKLUSIF PRO
+              </span>
+            )}
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {!isPro ? (
+            <div style={{ background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.75), rgba(254, 249, 195, 0.75))', border: '1px solid #fde047', borderRadius: 14, padding: '16px 18px', margin: '14px 0 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flex: 1, minWidth: 240 }}>
+                <span style={{ fontSize: 26 }}>🔒</span>
+                <div>
+                  <h4 style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 800, color: '#854d0e' }}>
+                    Fitur Terkunci (Khusus Pengguna Paket Pro)
+                  </h4>
+                  <p style={{ margin: 0, fontSize: 12, color: '#a16207', lineHeight: 1.5 }}>
+                    Integrasi pembayaran otomatis Midtrans Snap (QRIS, BCA/Mandiri Virtual Account, GoPay) langsung ke rekening merchant Anda hanya aktif untuk anggota Paket Pro.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleUpgradeToPro}
+                className="btn-primary"
+                style={{ padding: '9px 18px', fontSize: 13, whiteSpace: 'nowrap' }}
+              >
+                ⚡ Upgrade ke Pro (Rp 99rb)
+              </button>
+            </div>
+          ) : (
+            <p className="form-hint" style={{ marginBottom: 18 }}>
+              Gunakan API Keys Midtrans Snap Anda untuk menerima pembayaran otomatis QRIS, GoPay, dan Virtual Account langsung ke rekening Anda. Biarkan kosong jika hanya menggunakan transfer manual.
+            </p>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, opacity: isPro ? 1 : 0.5, pointerEvents: isPro ? 'auto' : 'none' }}>
             <div className="form-group">
-              <label htmlFor="server_key" className="form-label">Midtrans Server Key</label>
+              <label htmlFor="server_key" className="form-label">
+                Midtrans Server Key {!isPro && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(Terkunci)</span>}
+              </label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   id="server_key"
                   type={showServerKey ? 'text' : 'password'}
                   value={serverKey}
+                  disabled={!isPro}
                   onChange={(e) => setServerKey(e.target.value)}
                   className="form-input"
-                  placeholder="SB-Mid-server-..."
+                  placeholder={isPro ? "SB-Mid-server-..." : "Fitur ini khusus untuk paket Pro"}
                   autoComplete="off"
                 />
                 <button
                   type="button"
                   className="btn-secondary"
+                  disabled={!isPro}
                   onClick={() => setShowServerKey((v) => !v)}
                   title={showServerKey ? 'Sembunyikan' : 'Tampilkan'}
                   style={{ padding: '0 14px' }}
@@ -415,20 +490,24 @@ export default function SettingsPage() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="client_key" className="form-label">Midtrans Client Key</label>
+              <label htmlFor="client_key" className="form-label">
+                Midtrans Client Key {!isPro && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(Terkunci)</span>}
+              </label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   id="client_key"
                   type={showClientKey ? 'text' : 'password'}
                   value={clientKey}
+                  disabled={!isPro}
                   onChange={(e) => setClientKey(e.target.value)}
                   className="form-input"
-                  placeholder="SB-Mid-client-..."
+                  placeholder={isPro ? "SB-Mid-client-..." : "Fitur ini khusus untuk paket Pro"}
                   autoComplete="off"
                 />
                 <button
                   type="button"
                   className="btn-secondary"
+                  disabled={!isPro}
                   onClick={() => setShowClientKey((v) => !v)}
                   title={showClientKey ? 'Sembunyikan' : 'Tampilkan'}
                   style={{ padding: '0 14px' }}

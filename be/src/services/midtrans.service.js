@@ -14,10 +14,12 @@ function getSnapInstance(serverKey, clientKey = '', isProduction = false) {
   }
 
   let isProd = isProduction;
-  if (process.env.USER_MIDTRANS_IS_PRODUCTION !== undefined) {
-    isProd = process.env.USER_MIDTRANS_IS_PRODUCTION === 'true';
-  } else if (process.env.MIDTRANS_IS_PRODUCTION !== undefined) {
+  if (process.env.MIDTRANS_IS_PRODUCTION !== undefined) {
     isProd = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+  } else if (process.env.PLATFORM_MIDTRANS_IS_PRODUCTION !== undefined) {
+    isProd = process.env.PLATFORM_MIDTRANS_IS_PRODUCTION === 'true';
+  } else if (process.env.USER_MIDTRANS_IS_PRODUCTION !== undefined) {
+    isProd = process.env.USER_MIDTRANS_IS_PRODUCTION === 'true';
   } else {
     isProd = !serverKey.startsWith('SB-');
   }
@@ -103,7 +105,7 @@ async function createSnapTransaction({
       phone: client.phone || undefined,
     },
     callbacks: {
-      finish: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/public/invoices/${invoice.public_link_token || invoice.id}`,
+      finish: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/pay/${invoice.public_link_token || invoice.id}`,
     },
   };
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
@@ -34,15 +34,23 @@ function formatDate(dateStr) {
 
 export default function PublicPayPage() {
   const { token } = useParams();
+  const searchParams = useSearchParams();
+  const txStatus = searchParams?.get('transaction_status');
+  const statusCode = searchParams?.get('status_code');
+
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const orderId = searchParams?.get('order_id');
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   // File upload state
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [payingSnap, setPayingSnap] = useState(false);
 
   const fetchInvoice = useCallback(async () => {
     try {
@@ -55,9 +63,87 @@ export default function PublicPayPage() {
     }
   }, [token]);
 
+  // Cek status pembayaran ke server & Midtrans Core API
+  const handleCheckPaymentStatus = useCallback(async (showToast = true) => {
+    setCheckingStatus(true);
+    try {
+      const res = await axios.post(`${API_URL}/api/public/invoices/${token}/check-status`, {
+        order_id: orderId || undefined,
+      });
+
+      if (res.data?.invoice) {
+        setInvoice(res.data.invoice);
+      }
+
+      if (res.data?.status === 'paid') {
+        Swal.fire({
+          icon: 'success',
+          title: '🎉 Pembayaran Berhasil Terverifikasi!',
+          text: 'Terima kasih, tagihan invoice Anda telah lunas.',
+          confirmButtonColor: '#6366f1',
+          customClass: { popup: 'swal-custom-popup' },
+        });
+      } else if (showToast) {
+        Swal.fire({
+          icon: 'info',
+          title: 'Status Pembayaran',
+          text: 'Transaksi masih dalam proses atau menunggu pembayaran.',
+          confirmButtonColor: '#6366f1',
+          customClass: { popup: 'swal-custom-popup' },
+        });
+      }
+    } catch (err) {
+      if (showToast) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal Memeriksa Status',
+          text: err.response?.data?.message || 'Terjadi kesalahan saat memeriksa status.',
+          confirmButtonColor: '#6366f1',
+          customClass: { popup: 'swal-custom-popup' },
+        });
+      }
+    } finally {
+      setCheckingStatus(false);
+    }
+  }, [token, orderId]);
+
   useEffect(() => {
     fetchInvoice();
   }, [fetchInvoice]);
+
+  // Otomatis cek status transaksi ke Midtrans jika ada query order_id / txStatus
+  useEffect(() => {
+    if (orderId || txStatus) {
+      handleCheckPaymentStatus(false);
+    }
+  }, [orderId, txStatus, handleCheckPaymentStatus]);
+
+  // Handle Pay Snap Online (Midtrans BYOK)
+  const handlePaySnap = async () => {
+    if (invoice?.payment_url) {
+      window.open(invoice.payment_url, '_blank');
+      return;
+    }
+
+    setPayingSnap(true);
+    try {
+      const res = await axios.post(`${API_URL}/api/public/invoices/${token}/pay-snap`);
+      if (res.data?.redirect_url) {
+        window.open(res.data.redirect_url, '_blank');
+        fetchInvoice();
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal Membuka Pembayaran',
+        text: err.response?.data?.message || 'Gagal memproses pembayaran otomatis.',
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
+    } finally {
+      setPayingSnap(false);
+    }
+  };
 
   // Handle file selection
   const handleFileChange = (e) => {
@@ -209,6 +295,61 @@ export default function PublicPayPage() {
         </div>
       </div>
 
+      {/* Midtrans Callback Return Banner */}
+      {(txStatus === 'settlement' || txStatus === 'capture' || statusCode === '200') && invoice.status !== 'paid' && (
+        <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(209, 250, 229, 0.95), rgba(236, 253, 245, 0.95))', border: '1px solid #34d399', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{ fontSize: 32 }}>🎉</span>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ margin: 0, fontWeight: 800, color: '#065f46', fontSize: 15 }}>Pembayaran Midtrans Berhasil Diproses!</h3>
+            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#047857' }}>
+              Transaksi Anda telah diterima oleh sistem Midtrans. Sinkronisasi status tagihan sedang berlangsung.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {(txStatus === 'pending' || statusCode === '201') && invoice.status !== 'paid' && (
+        <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(254, 249, 195, 0.95))', border: '1px solid #facc15', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, minWidth: 240 }}>
+            <span style={{ fontSize: 32 }}>⏳</span>
+            <div>
+              <h3 style={{ margin: 0, fontWeight: 800, color: '#854d0e', fontSize: 15 }}>Menunggu Penyelesaian Pembayaran Midtrans</h3>
+              <p style={{ margin: '2px 0 0', fontSize: 13, color: '#a16207' }}>
+                Silakan selesaikan pembayaran sesuai instruksi pada Virtual Account / QRIS / E-Wallet yang Anda pilih.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => handleCheckPaymentStatus(true)}
+            disabled={checkingStatus}
+            className="btn-primary"
+            style={{ padding: '10px 18px', fontSize: 13, whiteSpace: 'nowrap' }}
+          >
+            {checkingStatus ? (
+              <>
+                <span className="btn-spinner" /> Memeriksa...
+              </>
+            ) : (
+              <>🔄 Cek Status Pembayaran</>
+            )}
+          </button>
+        </div>
+      )}
+
+      {(txStatus === 'deny' || txStatus === 'cancel' || txStatus === 'expire') && invoice.status !== 'paid' && (
+        <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(255, 228, 230, 0.95), rgba(254, 242, 242, 0.95))', border: '1px solid #fda4af', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{ fontSize: 32 }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ margin: 0, fontWeight: 800, color: '#9f1239', fontSize: 15 }}>Transaksi Midtrans Dibatalkan / Kedaluwarsa</h3>
+            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#be123c' }}>
+              Sesi pembayaran sebelumnya belum diselesaikan atau dibatalkan. Anda dapat mengulangi proses pembayaran menggunakan tombol di bawah.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Status Notice Banner */}
       {invoice.status === 'paid' && (
         <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(209, 250, 229, 0.9), rgba(236, 253, 245, 0.9))', border: '1px solid #6ee7b7', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -336,24 +477,36 @@ export default function PublicPayPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
           {/* 1. Midtrans Snap Online Payment */}
-          {invoice.status !== 'paid' && invoice.payment_url && (
+          {invoice.status !== 'paid' && (invoice.payment_url || user.has_midtrans) && (
             <div className="glass-card glass-card-highlight" style={{ padding: 24 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 6px' }}>
-                <span>💳</span> Pembayaran Instan
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                  <span>💳</span> Pembayaran Otomatis Online
+                </h3>
+                <span className="status-badge badge-emerald" style={{ fontSize: 10, fontWeight: 800 }}>
+                  ⚡ INSTANT MIDTRANS
+                </span>
+              </div>
+
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18 }}>
-                Bayar otomatis via <b>QRIS, BCA/Mandiri/BNI Virtual Account, GoPay, OVO, atau Kartu Kredit</b>.
+                Bayar otomatis langsung ke rekening merchant via <b>QRIS, BCA / Mandiri / BRI / BNI Virtual Account, GoPay, OVO, atau Kartu Kredit</b>.
               </p>
 
-              <a
-                href={invoice.payment_url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={handlePaySnap}
+                disabled={payingSnap}
                 className="btn-primary"
-                style={{ width: '100%', padding: '14px', fontSize: 15 }}
+                style={{ width: '100%', padding: '14px', fontSize: 15, justifyContent: 'center' }}
               >
-                🚀 Bayar Sekarang via Midtrans Snap ↗
-              </a>
+                {payingSnap ? (
+                  <>
+                    <span className="btn-spinner" /> Membuka Gateway Pembayaran...
+                  </>
+                ) : (
+                  <>🚀 Bayar Otomatis via Midtrans Snap ↗</>
+                )}
+              </button>
             </div>
           )}
 
