@@ -71,6 +71,35 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// ─── GET /api/invoices/:id/pdf ── Download / Stream PDF Invoice ───────────────
+router.get('/:id/pdf', async (req, res) => {
+  try {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: req.params.id, user_id: req.user.id },
+      include: {
+        client: true,
+        items: true,
+        user: true,
+      },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
+    }
+
+    const pdfBuffer = await generateInvoicePDF(invoice);
+
+    const filename = `Invoice-${invoice.invoice_number}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
+  } catch (err) {
+    console.error('[GET /invoices/:id/pdf]', err);
+    return res.status(500).json({ message: 'Gagal membuat file PDF invoice.' });
+  }
+});
+
 // ─── POST /api/invoices ── Buat draft baru ────────────────────────────────────
 router.post('/', async (req, res) => {
   try {

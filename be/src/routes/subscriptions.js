@@ -11,17 +11,27 @@ const PRO_MONTHLY_PRICE = 99000; // Rp 99.000 / bulan
  * Inisialisasi Midtrans Snap untuk Platform Subscription
  */
 function getPlatformSnap() {
-  const serverKey =
+  const serverKey = (
     process.env.PLATFORM_MIDTRANS_SERVER_KEY ||
     process.env.MIDTRANS_SERVER_KEY ||
-    'SB-Mid-server-your-platform-key';
+    'SB-Mid-server-your-platform-key'
+  ).trim();
 
-  const clientKey =
+  const clientKey = (
     process.env.PLATFORM_MIDTRANS_CLIENT_KEY ||
     process.env.MIDTRANS_CLIENT_KEY ||
-    '';
+    ''
+  ).trim();
 
-  const isProduction = process.env.NODE_ENV === 'production' && !serverKey.startsWith('SB-');
+  // Mode Sandbox vs Production: Utamakan konfigurasi explicit dari .env jika ada
+  let isProduction = false;
+  if (process.env.PLATFORM_MIDTRANS_IS_PRODUCTION !== undefined) {
+    isProduction = process.env.PLATFORM_MIDTRANS_IS_PRODUCTION === 'true';
+  } else if (process.env.MIDTRANS_IS_PRODUCTION !== undefined) {
+    isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+  } else {
+    isProduction = !serverKey.startsWith('SB-') && serverKey !== 'SB-Mid-server-your-platform-key';
+  }
 
   return new midtransClient.Snap({
     isProduction,
@@ -85,7 +95,11 @@ router.post('/create-snap', verifyToken, async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'User tidak ditemukan.' });
 
-    const orderId = `SUB-${user.id}-${Date.now()}`;
+    // Midtrans membatasi order_id maks 50 karakter.
+    // Format: SUB-{compactUuid32}-{timestamp10} = 47 karakter (aman dan valid)
+    const compactUuid = user.id.replace(/-/g, '');
+    const timestampSec = Math.floor(Date.now() / 1000);
+    const orderId = `SUB-${compactUuid}-${timestampSec}`;
     const snap = getPlatformSnap();
 
     const parameter = {
@@ -175,8 +189,11 @@ router.post('/webhook', async (req, res) => {
     }
 
     const parts = order_id.split('-');
-    // Format: SUB-{userId}-{timestamp} (userId adalah UUID)
-    const userId = parts[1];
+    // Format: SUB-{compactUuid32}-{timestamp}
+    const rawId = parts[1];
+    const userId = (rawId && rawId.length === 32)
+      ? rawId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5')
+      : rawId;
 
     const isSuccess =
       transaction_status === 'settlement' ||

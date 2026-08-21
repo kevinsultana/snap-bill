@@ -90,9 +90,39 @@ async function uploadReceipt(buffer, originalName, mimeType) {
   return { objectName, url };
 }
 
+/**
+ * Upload logo bisnis ke MinIO
+ *
+ * @param {Buffer} buffer - Buffer file logo
+ * @param {string} originalName - Nama file asli
+ * @param {string} mimeType - MIME type file (image/png, image/jpeg, etc.)
+ * @returns {Promise<{ objectName: string, url: string }>}
+ */
+async function uploadLogo(buffer, originalName, mimeType) {
+  await ensureBucket(BUCKET_NAME);
+
+  const ext = path.extname(originalName) || '.png';
+  const randomStr = crypto.randomBytes(8).toString('hex');
+  const objectName = `logos/${Date.now()}-${randomStr}${ext}`;
+
+  const metaData = {
+    'Content-Type': mimeType,
+  };
+
+  await minioClient.putObject(BUCKET_NAME, objectName, buffer, buffer.length, metaData);
+
+  const rawHost = process.env.MINIO_PUBLIC_URL || `http://${process.env.MINIO_ENDPOINT || '100.110.43.25'}:${process.env.MINIO_PORT || 9000}`;
+  const host = rawHost.replace(/\/+$/, '');
+  const url = `${host}/${BUCKET_NAME}/${objectName}`;
+
+  console.log(`[minio.service] ✅ Logo bisnis berhasil diupload ke MinIO: ${url}`);
+  return { objectName, url };
+}
+
 module.exports = {
   minioClient,
   uploadMemory,
   ensureBucket,
   uploadReceipt,
+  uploadLogo,
 };

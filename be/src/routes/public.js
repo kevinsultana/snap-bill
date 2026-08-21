@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../db/prisma');
 const { uploadMemory, uploadReceipt } = require('../services/minio.service');
+const { generateInvoicePDF } = require('../services/pdf.service');
 
 const router = express.Router();
 
@@ -33,6 +34,8 @@ router.get('/invoices/:token', async (req, res) => {
             id: true,
             business_name: true,
             email: true,
+            phone: true,
+            address: true,
             logo_url: true,
             bank_accounts: true,
           },
@@ -48,6 +51,37 @@ router.get('/invoices/:token', async (req, res) => {
   } catch (err) {
     console.error('[GET /api/public/invoices/:token]', err);
     return res.status(500).json({ message: 'Terjadi kesalahan server saat memuat tagihan.' });
+  }
+});
+
+// ─── GET /api/public/invoices/:token/pdf ──────────────────────────────────────
+// Unduh PDF langsung dari link publik
+router.get('/invoices/:token/pdf', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const invoice = await prisma.invoice.findFirst({
+      where: { public_link_token: token },
+      include: {
+        client: true,
+        items: true,
+        user: true,
+      },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
+    }
+
+    const pdfBuffer = await generateInvoicePDF(invoice);
+
+    const filename = `Invoice-${invoice.invoice_number}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
+  } catch (err) {
+    console.error('[GET /public/invoices/:token/pdf]', err);
+    return res.status(500).json({ message: 'Gagal membuat file PDF invoice.' });
   }
 });
 

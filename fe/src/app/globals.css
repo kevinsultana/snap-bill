@@ -1110,8 +1110,17 @@ body {
 .dash-table-wrap {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  max-width: 100%;
+  display: block;
   background: rgba(255, 255, 255, 0.5);
+}
+
+.dash-table-wrap .data-table {
+  min-width: 600px;
+  width: 100%;
 }
 
 .dash-checklist {
@@ -1221,6 +1230,22 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.line-mobile-inputs {
+  display: contents;
+}
+
+.line-mobile-field {
+  display: contents;
+}
+
+.line-mobile-label {
+  display: none;
+}
+
+.line-total-wrap {
+  display: contents;
 }
 
 .line-picker {
@@ -1346,13 +1371,227 @@ body {
 }
 
 /* ==========================================
+   Comprehensive Mobile & Tablet Breakpoints
+   ========================================== */
+@media (max-width: 900px) {
+  .dashboard-layout {
+    flex-direction: column;
+    min-height: 100vh;
+    width: 100%;
+  }
+  .dashboard-main {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  .sidebar {
+    display: none !important;
+  }
+  .mobile-topbar {
+    display: flex !important;
+  }
+  .page-container {
+    padding: 16px 14px 48px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .invoice-form-2col {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+  .sticky-summary-card {
+    position: static !important;
+  }
+  .dash-content-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 20px !important;
+  }
+  .dash-left-col,
+  .dash-right-col {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px !important;
+  }
+  .dash-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .dash-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .dash-table-wrap .data-table {
+    min-width: 600px !important;
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .line-header {
+    display: none !important;
+  }
+  .line-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 16px !important;
+    background: rgba(248, 250, 252, 0.9) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: var(--radius-lg) !important;
+    position: relative !important;
+    margin-bottom: 14px !important;
+  }
+  .line-name {
+    width: 100% !important;
+    padding-right: 36px;
+  }
+  .line-mobile-label {
+    display: block !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    color: var(--text-muted) !important;
+    margin-bottom: 4px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .line-mobile-inputs {
+    display: flex !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+  .line-mobile-field {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+  }
+  .line-total-wrap {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    border-top: 1px dashed #cbd5e1 !important;
+    padding-top: 10px !important;
+    margin-top: 4px !important;
+  }
+  .line-row .btn-remove-line {
+    position: absolute !important;
+    top: 14px !important;
+    right: 14px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-header, .dash-welcome-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 14px !important;
+    margin-bottom: 20px !important;
+  }
+  .page-title {
+    font-size: 22px !important;
+  }
+  .page-desc {
+    font-size: 13px !important;
+  }
+  .header-actions {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary,
+  .header-actions .btn-action {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  .dash-stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+  }
+  .dash-stat-card {
+    padding: 18px 16px !important;
+  }
+  .dash-stat-value {
+    font-size: 22px !important;
+  }
+  .dash-action-banner {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 16px !important;
+    gap: 12px !important;
+  }
+  .dash-action-banner .btn-primary {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .search-bar-wrap {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  .search-input {
+    width: 100% !important;
+  }
+  .invoice-section, .totals-adjustments-card, .grand-total-glass-box, .dash-card {
+    padding: 18px 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* ==========================================
    SweetAlert2 Glassmorphism Overrides
    ========================================== */
 .swal2-container {
   z-index: 99999 !important;
+}
+
+/* Modal backdrop only (NOT for toasts/corner alerts) */
+.swal2-container:not(.swal2-top-end):not(.swal2-top-start):not(.swal2-top):not(.swal2-bottom-end):not(.swal2-bottom-start):not(.swal2-bottom):not(.swal2-toast-shown) {
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
   background: rgba(15, 23, 42, 0.35) !important;
+}
+
+/* Toast Containers must always be 100% transparent without dark overlay */
+.swal2-toast-shown,
+.swal2-container.swal2-top-end,
+.swal2-container.swal2-top-start,
+.swal2-container.swal2-top,
+.swal2-container.swal2-bottom-end,
+.swal2-container.swal2-bottom-start,
+.swal2-container.swal2-center-start,
+.swal2-container.swal2-center-end,
+.swal2-container.swal2-toast-shown,
+body.swal2-toast-shown .swal2-container {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  pointer-events: none !important;
+}
+
+/* Toast popup card styling */
+.swal2-toast,
+.swal-toast {
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 16px !important;
+  padding: 12px 18px !important;
+  color: var(--text-main) !important;
+  pointer-events: auto !important;
 }
 
 .swal-custom-popup {
@@ -1601,10 +1840,32 @@ input[type=number] {
 
 /* Public Payment Page Portal */
 .pay-portal-container {
-  max-width: 720px;
-  margin: 40px auto;
-  padding: 0 20px 60px;
+  max-width: 1320px;
+  margin: 36px auto 60px;
+  padding: 0 32px;
   width: 100%;
+  box-sizing: border-box;
+}
+
+.pay-portal-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .pay-portal-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .pay-portal-container {
+    padding: 0 14px 48px;
+    margin: 20px auto 40px;
+  }
 }
 
 .bank-item-glass {

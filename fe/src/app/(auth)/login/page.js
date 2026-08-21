@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
@@ -10,6 +10,18 @@ export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Jika sudah login dan memiliki cookie sesi, langsung arahkan ke dashboard
+  useEffect(() => {
+    api.get('/api/settings')
+      .then(() => {
+        router.replace('/dashboard');
+      })
+      .catch(() => {
+        setCheckingAuth(false);
+      });
+  }, [router]);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -34,6 +46,16 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="auth-page-container">
+        <div className="loading-screen" style={{ minHeight: 'auto' }}>
+          <div className="loading-spinner" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-page-container">

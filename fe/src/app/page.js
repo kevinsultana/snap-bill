@@ -1,10 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import api from '@/lib/api';
 
 export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Cek apakah user sudah memiliki sesi login aktif (cookie JWT)
+  useEffect(() => {
+    api.get('/api/settings')
+      .then(() => setIsLoggedIn(true))
+      .catch(() => setIsLoggedIn(false));
+  }, []);
 
   const toggleFaq = (idx) => {
     setOpenFaq(openFaq === idx ? null : idx);
@@ -48,12 +57,20 @@ export default function LandingPage() {
           </div>
 
           <div className="landing-nav-actions">
-            <Link href="/login" className="btn-secondary" style={{ padding: '8px 16px', fontSize: 13 }}>
-              Masuk
-            </Link>
-            <Link href="/register" className="btn-primary" style={{ padding: '8px 18px', fontSize: 13 }}>
-              Daftar Gratis ➜
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard" className="btn-primary" style={{ padding: '8px 18px', fontSize: 13 }}>
+                📊 Buka Dashboard ➜
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="btn-secondary" style={{ padding: '8px 16px', fontSize: 13 }}>
+                  Masuk
+                </Link>
+                <Link href="/register" className="btn-primary" style={{ padding: '8px 18px', fontSize: 13 }}>
+                  Daftar Gratis ➜
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -74,12 +91,25 @@ export default function LandingPage() {
         </p>
 
         <div className="hero-cta-group">
-          <Link href="/register" className="btn-primary" style={{ padding: '14px 30px', fontSize: 15, borderRadius: 14 }}>
-            🚀 Mulai Gratis (10 Inv/Bulan)
-          </Link>
-          <a href="#harga" className="btn-secondary" style={{ padding: '14px 26px', fontSize: 15, borderRadius: 14 }}>
-            💎 Lihat Paket Pro
-          </a>
+          {isLoggedIn ? (
+            <>
+              <Link href="/dashboard" className="btn-primary" style={{ padding: '14px 30px', fontSize: 15, borderRadius: 14 }}>
+                📊 Masuk ke Dashboard ➜
+              </Link>
+              <Link href="/dashboard/invoices/create" className="btn-secondary" style={{ padding: '14px 26px', fontSize: 15, borderRadius: 14 }}>
+                + Buat Invoice Baru
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/register" className="btn-primary" style={{ padding: '14px 30px', fontSize: 15, borderRadius: 14 }}>
+                🚀 Mulai Gratis (10 Inv/Bulan)
+              </Link>
+              <a href="#harga" className="btn-secondary" style={{ padding: '14px 26px', fontSize: 15, borderRadius: 14 }}>
+                💎 Lihat Paket Pro
+              </a>
+            </>
+          )}
         </div>
 
         <div className="hero-metrics">
@@ -286,8 +316,8 @@ export default function LandingPage() {
               <li className="feature-disabled">✕ Integrasi Midtrans Snap BYOK</li>
             </ul>
 
-            <Link href="/register" className="btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto', padding: '12px' }}>
-              Daftar Gratis Sekarang
+            <Link href={isLoggedIn ? "/dashboard" : "/register"} className="btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto', padding: '12px' }}>
+              {isLoggedIn ? "Buka Dashboard" : "Daftar Gratis Sekarang"}
             </Link>
           </div>
 
@@ -317,7 +347,7 @@ export default function LandingPage() {
               <li><b style={{ color: '#059669' }}>✓</b> Dukungan Prioritas & Lencana Pro Member</li>
             </ul>
 
-            <Link href="/register" className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto', padding: '13px', fontSize: 15 }}>
+            <Link href={isLoggedIn ? "/dashboard/settings" : "/register"} className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto', padding: '13px', fontSize: 15 }}>
               ⚡ Langganan Pro Sekarang ➜
             </Link>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginTop: 10 }}>
@@ -360,12 +390,20 @@ export default function LandingPage() {
             Bergabunglah dengan ratusan profesional dan pemilik bisnis yang menghemat waktu penagihan bersama SnapBill.
           </p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 24 }}>
-            <Link href="/register" className="btn-primary" style={{ padding: '14px 28px', fontSize: 15 }}>
-              🚀 Mulai Akun Gratis Sekarang
-            </Link>
-            <Link href="/login" className="btn-secondary" style={{ padding: '14px 24px', fontSize: 15 }}>
-              Masuk ke Akun
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard" className="btn-primary" style={{ padding: '14px 28px', fontSize: 15 }}>
+                📊 Buka Dashboard Saya ➜
+              </Link>
+            ) : (
+              <>
+                <Link href="/register" className="btn-primary" style={{ padding: '14px 28px', fontSize: 15 }}>
+                  🚀 Mulai Akun Gratis Sekarang
+                </Link>
+                <Link href="/login" className="btn-secondary" style={{ padding: '14px 24px', fontSize: 15 }}>
+                  Masuk ke Akun
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>

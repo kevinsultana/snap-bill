@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../db/prisma');
 const { verifyToken } = require('../middleware/auth');
+const { uploadMemory, uploadLogo } = require('../services/minio.service');
 
 const router = express.Router();
 
@@ -16,6 +17,7 @@ router.get('/', async (req, res) => {
         id: true,
         email: true,
         phone: true,
+        address: true,
         business_name: true,
         logo_url: true,
         tier: true,
@@ -38,10 +40,33 @@ router.get('/', async (req, res) => {
   }
 });
 
-// PUT /api/settings — update Midtrans keys dan bank accounts
+// PUT /api/settings — update profil bisnis, email, no telp, alamat, Midtrans keys, dan bank accounts
 router.put('/', async (req, res) => {
   try {
-    const { midtrans_server_key, midtrans_client_key, bank_accounts, business_name, phone } = req.body;
+    const {
+      email,
+      phone,
+      address,
+      business_name,
+      logo_url,
+      midtrans_server_key,
+      midtrans_client_key,
+      bank_accounts,
+    } = req.body;
+
+    // Validasi email jika diubah
+    if (email !== undefined) {
+      const trimmedEmail = email.trim().toLowerCase();
+      if (!trimmedEmail) {
+        return res.status(400).json({ message: 'Email tidak boleh kosong.' });
+      }
+      if (trimmedEmail !== req.user.email) {
+        const existing = await prisma.user.findUnique({ where: { email: trimmedEmail } });
+        if (existing) {
+          return res.status(400).json({ message: 'Email sudah terdaftar oleh akun lain.' });
+        }
+      }
+    }
 
     // Validasi bank_accounts
     if (bank_accounts !== undefined) {
@@ -65,11 +90,14 @@ router.put('/', async (req, res) => {
 
     // Bangun objek update secara selektif
     const updateData = {};
-    if (midtrans_server_key !== undefined) updateData.midtrans_server_key = midtrans_server_key;
-    if (midtrans_client_key !== undefined) updateData.midtrans_client_key = midtrans_client_key;
+    if (email !== undefined) updateData.email = email.trim().toLowerCase();
+    if (phone !== undefined) updateData.phone = phone?.trim() || null;
+    if (address !== undefined) updateData.address = address?.trim() || null;
+    if (business_name !== undefined) updateData.business_name = business_name?.trim() || null;
+    if (logo_url !== undefined) updateData.logo_url = logo_url?.trim() || null;
+    if (midtrans_server_key !== undefined) updateData.midtrans_server_key = midtrans_server_key?.trim() || null;
+    if (midtrans_client_key !== undefined) updateData.midtrans_client_key = midtrans_client_key?.trim() || null;
     if (bank_accounts !== undefined) updateData.bank_accounts = bank_accounts;
-    if (business_name !== undefined) updateData.business_name = business_name;
-    if (phone !== undefined) updateData.phone = phone;
 
     const updated = await prisma.user.update({
       where: { id: req.user.id },
@@ -78,17 +106,68 @@ router.put('/', async (req, res) => {
         id: true,
         email: true,
         phone: true,
+        address: true,
         business_name: true,
+        logo_url: true,
         midtrans_server_key: true,
         midtrans_client_key: true,
         bank_accounts: true,
       },
     });
 
-    return res.json({ message: 'Pengaturan berhasil disimpan.', user: updated });
+    return res.json({ message: 'Pengaturan identitas bisnis berhasil disimpan.', user: updated });
   } catch (err) {
     console.error('[PUT /settings]', err);
     return res.status(500).json({ message: 'Terjadi kesalahan server.' });
+  }
+});
+
+// POST /api/settings/logo — upload logo brand bisnis ke MinIO Storage
+router.post('/logo', uploadMemory.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Harap pilih file gambar logo.' });
+    }
+
+    // Upload ke MinIO bucket (folder logos/)
+    const { url } = await uploadLogo(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype
+    );
+
+    // Simpan url logo ke profil user
+    const updated = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { logo_url: url },
+      select: {
+        id: true,
+        logo_url: true,
+      },
+    });
+
+    return res.json({
+      message: 'Logo bisnis berhasil diunggah.',
+      logo_url: updated.logo_url,
+    });
+  } catch (err) {
+    console.error('[POST /settings/logo]', err);
+    return res.status(500).json({ message: err.message || 'Gagal mengunggah logo.' });
+  }
+});
+
+// DELETE /api/settings/logo — hapus logo brand
+router.delete('/logo', async (req, res) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { logo_url: null },
+    });
+
+    return res.json({ message: 'Logo bisnis berhasil dihapus.' });
+  } catch (err) {
+    console.error('[DELETE /settings/logo]', err);
+    return res.status(500).json({ message: 'Gagal menghapus logo.' });
   }
 });
 

@@ -30,6 +30,7 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const fetchInvoice = () => {
     return api.get(`/api/invoices/${id}`)
@@ -41,6 +42,30 @@ export default function InvoiceDetailPage() {
   useEffect(() => {
     fetchInvoice();
   }, [id]);
+
+  // Download / Generate PDF
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const response = await api.get(`/api/invoices/${id}/pdf`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const fileUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.setAttribute('download', `Invoice-${invoice.invoice_number}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(fileUrl);
+      toast('success', 'PDF Invoice berhasil diunduh!');
+    } catch (err) {
+      toast('error', 'Gagal men-generate file PDF invoice.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   // Submit invoice to client
   const handleSubmitInvoice = async () => {
@@ -259,6 +284,27 @@ export default function InvoiceDetailPage() {
               </button>
             </>
           )}
+
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="btn-secondary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            title="Download PDF Faktur Invoice"
+          >
+            {downloadingPdf ? (
+              <>
+                <span className="btn-spinner" style={{ borderColor: 'rgba(99, 102, 241, 0.3)', borderTopColor: 'var(--indigo)' }} />
+                <span>Membuat PDF...</span>
+              </>
+            ) : (
+              <>
+                <span>📄</span>
+                <span>Unduh PDF</span>
+              </>
+            )}
+          </button>
 
           {publicPayUrl && (
             <>

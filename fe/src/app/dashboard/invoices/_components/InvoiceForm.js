@@ -237,6 +237,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   <div key={idx} className="line-row">
                     {/* Item Name + Item Picker */}
                     <div className="line-name">
+                      <label className="line-mobile-label">Nama Item / Layanan</label>
                       <input
                         type="text"
                         className="form-input"
@@ -260,34 +261,44 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                       )}
                     </div>
 
-                    {/* Qty Input */}
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      className="form-input line-qty"
-                      placeholder="1"
-                      value={line.quantity}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => updateLine(idx, 'quantity', cleanNumericInput(e.target.value))}
-                      required
-                    />
+                    {/* Qty & Price Group on Mobile */}
+                    <div className="line-mobile-inputs">
+                      <div className="line-mobile-field">
+                        <label className="line-mobile-label">Qty</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="form-input line-qty"
+                          placeholder="1"
+                          value={line.quantity}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => updateLine(idx, 'quantity', cleanNumericInput(e.target.value))}
+                          required
+                        />
+                      </div>
 
-                    {/* Unit Price Input */}
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      className="form-input line-price"
-                      placeholder="0"
-                      value={line.unit_price}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => updateLine(idx, 'unit_price', cleanNumericInput(e.target.value))}
-                      required
-                    />
+                      <div className="line-mobile-field" style={{ flex: 2 }}>
+                        <label className="line-mobile-label">Harga Satuan (Rp)</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="form-input line-price"
+                          placeholder="0"
+                          value={line.unit_price}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => updateLine(idx, 'unit_price', cleanNumericInput(e.target.value))}
+                          required
+                        />
+                      </div>
+                    </div>
 
-                    {/* Line Total */}
-                    <span className="line-total">{formatRupiah(lineTotal)}</span>
+                    {/* Line Total & Remove Action */}
+                    <div className="line-total-wrap">
+                      <label className="line-mobile-label">Subtotal</label>
+                      <span className="line-total">{formatRupiah(lineTotal)}</span>
+                    </div>
 
-                    {/* Remove Line */}
+                    {/* Remove Line Button */}
                     <button
                       type="button"
                       className="btn-remove-line"

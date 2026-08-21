@@ -96,11 +96,15 @@ function buildInvoiceHTML(invoice) {
     <div>
       ${
         user.logo_url
-          ? `<img src="${user.logo_url}" alt="Logo" style="max-height: 48px; margin-bottom: 8px;" />`
+          ? `<img src="${user.logo_url}" alt="Logo" style="max-height: 54px; max-width: 180px; object-fit: contain; margin-bottom: 8px; display: block;" />`
           : ''
       }
       <h1 style="margin: 0; font-size: 22px; color: #4338ca; font-weight: 700;">${user.business_name || 'SnapBill'}</h1>
-      <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">${user.email || ''}</p>
+      ${user.address ? `<p style="margin: 3px 0 0 0; color: #64748b; font-size: 12px; max-width: 340px; line-height: 1.4;">${user.address}</p>` : ''}
+      <div style="margin-top: 4px; font-size: 12px; color: #64748b;">
+        ${user.phone ? `<span style="margin-right: 12px;">📞 ${user.phone}</span>` : ''}
+        ${user.email ? `<span>✉️ ${user.email}</span>` : ''}
+      </div>
     </div>
     <div style="text-align: right;">
       <h2 style="margin: 0; font-size: 24px; color: #0f172a; font-weight: 700; letter-spacing: -0.5px;">INVOICE</h2>

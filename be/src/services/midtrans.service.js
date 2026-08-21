@@ -13,8 +13,14 @@ function getSnapInstance(serverKey, clientKey = '', isProduction = false) {
     throw new Error('Midtrans Server Key belum dikonfigurasi pada akun Anda. Harap atur di menu Pengaturan.');
   }
 
-  // Jika serverKey dimulai dengan 'SB-', otomatis anggap sandbox jika isProduction tidak ditentukan
-  const isProd = isProduction || !serverKey.startsWith('SB-');
+  let isProd = isProduction;
+  if (process.env.USER_MIDTRANS_IS_PRODUCTION !== undefined) {
+    isProd = process.env.USER_MIDTRANS_IS_PRODUCTION === 'true';
+  } else if (process.env.MIDTRANS_IS_PRODUCTION !== undefined) {
+    isProd = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+  } else {
+    isProd = !serverKey.startsWith('SB-');
+  }
 
   return new midtransClient.Snap({
     isProduction: isProd,

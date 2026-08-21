@@ -171,8 +171,17 @@ export default function PublicPayPage() {
 
       {/* Top Header Card */}
       <div className="glass-card" style={{ padding: '24px 28px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div className="sidebar-logo" style={{ width: 42, height: 42, fontSize: 20 }}>⚡</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {user.logo_url ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={user.logo_url}
+              alt="Logo"
+              style={{ maxHeight: 42, maxWidth: 120, objectFit: 'contain' }}
+            />
+          ) : (
+            <div className="sidebar-logo" style={{ width: 42, height: 42, fontSize: 20 }}>⚡</div>
+          )}
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
               {user.business_name || 'SnapBill Invoice'}
@@ -182,9 +191,22 @@ export default function PublicPayPage() {
             </p>
           </div>
         </div>
-        <span className={`status-badge ${statusInfo.badgeClass}`} style={{ fontSize: 13, padding: '6px 14px' }}>
-          {statusInfo.label}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <a
+            href={`${API_URL}/api/public/invoices/${token}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary"
+            style={{ padding: '6px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            title="Download PDF Faktur Invoice Resmi"
+          >
+            <span>📄</span>
+            <span>Unduh PDF</span>
+          </a>
+          <span className={`status-badge ${statusInfo.badgeClass}`} style={{ fontSize: 13, padding: '6px 14px' }}>
+            {statusInfo.label}
+          </span>
+        </div>
       </div>
 
       {/* Status Notice Banner */}
@@ -213,7 +235,7 @@ export default function PublicPayPage() {
       )}
 
       {/* Main Grid: Details + Payment Actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'start' }}>
+      <div className="pay-portal-grid">
 
         {/* ── Left Column: Rincian Invoice & Item ──────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
