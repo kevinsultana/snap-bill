@@ -11,13 +11,14 @@ function formatDateFull(dateStr, lang = 'id') {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
   return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
+    timeZone: 'Asia/Jakarta',
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }) + (lang === 'en' ? ' UTC' : ' WIB');
+  }) + (lang === 'en' ? ' WIB (UTC+7)' : ' WIB');
 }
 
 function getDaysRemaining(dateStr) {
@@ -398,22 +399,34 @@ function SubscriptionContent() {
               </div>
 
               {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 {isPro ? (
-                  <button
-                    type="button"
-                    onClick={handleCancelSubscription}
-                    disabled={actionLoading}
-                    className="btn-secondary"
-                    style={{
-                      color: 'var(--rose)',
-                      borderColor: 'rgba(244, 63, 94, 0.35)',
-                      padding: '10px 18px',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {t('subscription.btn_cancel_sub')}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleUpgrade}
+                      disabled={actionLoading}
+                      className="btn-primary"
+                      style={{ padding: '10px 20px', fontSize: 14, fontWeight: 700 }}
+                    >
+                      {actionLoading ? 'Memproses...' : t('subscription.btn_extend_pro')}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCancelSubscription}
+                      disabled={actionLoading}
+                      className="btn-secondary"
+                      style={{
+                        color: 'var(--rose)',
+                        borderColor: 'rgba(244, 63, 94, 0.35)',
+                        padding: '10px 18px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {t('subscription.btn_cancel_sub')}
+                    </button>
+                  </>
                 ) : (
                   <button
                     type="button"
@@ -631,11 +644,12 @@ function SubscriptionContent() {
                 {isPro ? (
                   <button
                     type="button"
-                    disabled
+                    onClick={handleUpgrade}
+                    disabled={actionLoading}
                     className="btn-primary"
-                    style={{ width: '100%', textAlign: 'center', background: '#10b981', borderColor: '#10b981', opacity: 0.9, cursor: 'default' }}
+                    style={{ width: '100%', textAlign: 'center', padding: '12px 20px', fontSize: 14, fontWeight: 700 }}
                   >
-                    {t('subscription.current_plan_active_btn')}
+                    {actionLoading ? 'Menghubungkan Midtrans...' : t('subscription.btn_extend_pro')}
                   </button>
                 ) : (
                   <button

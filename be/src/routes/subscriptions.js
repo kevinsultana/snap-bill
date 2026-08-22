@@ -40,6 +40,26 @@ function getPlatformSnap() {
   });
 }
 
+/**
+ * Menghitung tanggal berakhir langganan per tanggal penuh (jam 00:00:00 + 1 hari / 23:59:59 WIB)
+ * Tidak mengikuti jam transaksi user, melainkan berlaku penuh per tanggal hingga jam 00:00 hari berikutnya.
+ */
+function calculateSubscriptionExpiry(currentExpiry, daysToAdd = 30) {
+  const now = new Date();
+  const base = (currentExpiry && new Date(currentExpiry) > now)
+    ? new Date(currentExpiry)
+    : now;
+
+  const jakartaOffsetMs = 7 * 60 * 60 * 1000;
+  const baseJakarta = new Date(base.getTime() + jakartaOffsetMs);
+
+  // Tambahkan 30 hari + 1 hari dan set jam ke 00:00:00 WIB
+  baseJakarta.setUTCDate(baseJakarta.getUTCDate() + daysToAdd + 1);
+  baseJakarta.setUTCHours(0, 0, 0, 0);
+
+  return new Date(baseJakarta.getTime() - jakartaOffsetMs);
+}
+
 // ─── GET /api/subscriptions/status ───────────────────────────────────────────
 // Mengambil status langganan dan jumlah invoice bulan ini
 router.get('/status', verifyToken, async (req, res) => {
@@ -68,9 +88,20 @@ router.get('/status', verifyToken, async (req, res) => {
       },
     });
 
-    const isPro =
+    const now = new Date();
+    let isPro =
       user.tier === 'pro' &&
-      (!user.subscription_ends_at || new Date(user.subscription_ends_at) > new Date());
+      (!user.subscription_ends_at || new Date(user.subscription_ends_at) > now);
+
+    // Jika masa aktif Pro telah berakhir, otomatis turunkan status tier ke Free
+    if (user.tier === 'pro' && user.subscription_ends_at && new Date(user.subscription_ends_at) <= now) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { tier: 'free' },
+      });
+      user.tier = 'free';
+      isPro = false;
+    }
 
     return res.json({
       tier: isPro ? 'pro' : 'free',
@@ -194,9 +225,8 @@ async function handleSubscriptionStatusCheck(req, res) {
         (txStatus === 'capture' && (fraudStatus === 'accept' || !fraudStatus));
 
       if (isSuccess) {
-        // Upgrade ke Pro tier selama 30 hari
-        const now = new Date();
-        const expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        // Upgrade atau perpanjang Pro tier selama 30 hari per tanggal penuh di jam 00:00+1
+        const expiryDate = calculateSubscriptionExpiry(user.subscription_ends_at, 30);
 
         const updatedUser = await prisma.user.update({
           where: { id: user.id },
@@ -206,7 +236,7 @@ async function handleSubscriptionStatusCheck(req, res) {
           },
         });
 
-        console.log(`[subscriptions] ✅ User ${updatedUser.email} berhasil di-upgrade ke PRO tier hingga ${expiryDate.toISOString()}.`);
+        console.log(`[subscriptions] ✅ User ${updatedUser.email} berhasil diperpanjang / di-upgrade ke PRO tier hingga ${expiryDate.toISOString()}.`);
 
         return res.json({
           status: 'settlement',
@@ -317,8 +347,8 @@ router.post('/webhook', async (req, res) => {
       (transaction_status === 'capture' && fraud_status === 'accept');
 
     if (isSuccess && userId) {
-      const now = new Date();
-      const expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const expiryDate = calculateSubscriptionExpiry(user?.subscription_ends_at, 30);
 
       await prisma.user.update({
         where: { id: userId },
@@ -328,7 +358,7 @@ router.post('/webhook', async (req, res) => {
         },
       });
 
-      console.log(`[subscriptions.webhook] ✅ Status Pro aktif untuk user ${userId} hingga ${expiryDate.toISOString()}`);
+      console.log(`[subscriptions.webhook] ✅ Status Pro diperpanjang untuk user ${userId} hingga ${expiryDate.toISOString()}`);
     }
 
     return res.status(200).json({ status: 'OK' });

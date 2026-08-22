@@ -33,6 +33,15 @@ router.get('/', async (req, res) => {
       return res.status(404).json({ message: 'User tidak ditemukan.' });
     }
 
+    const now = new Date();
+    if (user.tier === 'pro' && user.subscription_ends_at && new Date(user.subscription_ends_at) <= now) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { tier: 'free' },
+      });
+      user.tier = 'free';
+    }
+
     return res.json(user);
   } catch (err) {
     console.error('[GET /settings]', err);

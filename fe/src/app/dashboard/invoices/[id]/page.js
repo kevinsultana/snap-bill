@@ -264,9 +264,9 @@ export default function InvoiceDetailPage() {
         ? `
           <div style="margin: 16px 0; padding: 20px; background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0; text-align: center;">
             <div style="font-size: 36px; margin-bottom: 8px;">📄</div>
-            <p style="color: #0f172a; font-weight: 700; font-size: 14px; margin: 0 0 8px;">Dokumen Bukti Transfer (PDF)</p>
+            <p style="color: #0f172a; font-weight: 700; font-size: 14px; margin: 0 0 8px;">${t('invoices.receipt_pdf_doc')}</p>
             <a href="${invoice.receipt_url}" target="_blank" rel="noopener noreferrer" style="color: #4f46e5; font-weight: 700; text-decoration: underline; font-size: 13px;">
-              👁️ Klik untuk Membuka Dokumen Bukti ↗
+              👁️ ${t('invoices.receipt_click_pdf')}
             </a>
           </div>
         `
@@ -280,13 +280,13 @@ export default function InvoiceDetailPage() {
               />
             </div>
             <a href="${invoice.receipt_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; margin-top: 8px; color: #4f46e5; font-weight: 600; font-size: 12px;">
-              🔍 Buka gambar ukuran penuh ↗
+              🔍 ${t('invoices.receipt_open_full')}
             </a>
           </div>
         `
       : `
         <div style="margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0; text-align: center; color: #64748b;">
-          <p style="margin: 0;">Bukti transfer belum diunggah atau tidak ditemukan.</p>
+          <p style="margin: 0;">${t('invoices.receipt_not_uploaded')}</p>
         </div>
       `;
 
@@ -538,8 +538,8 @@ export default function InvoiceDetailPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 24 }}>📎</span>
               <div>
-                <p style={{ margin: 0, fontWeight: 800, fontSize: 13, color: '#1e1b4b' }}>Bukti Transfer Terlampir</p>
-                <p style={{ margin: 0, fontSize: 12, color: '#4338ca' }}>Klien telah mengunggah bukti pembayaran via portal publik.</p>
+                <p style={{ margin: 0, fontWeight: 800, fontSize: 13, color: '#1e1b4b' }}>{t('invoices.receipt_attached_title')}</p>
+                <p style={{ margin: 0, fontSize: 12, color: '#4338ca' }}>{t('invoices.receipt_attached_desc')}</p>
               </div>
             </div>
             <a
@@ -549,7 +549,7 @@ export default function InvoiceDetailPage() {
               className="btn-secondary"
               style={{ fontSize: 12, padding: '6px 14px' }}
             >
-              👁️ Lihat Bukti ↗
+              👁️ {t('invoices.receipt_btn_view')}
             </a>
           </div>
         )}

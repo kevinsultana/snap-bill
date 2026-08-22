@@ -14,14 +14,57 @@ function parsePrice(value) {
   return num;
 }
 
-// GET /api/items — list semua item milik user
+// GET /api/items — list item milik user (mendukung pagination & search)
 router.get('/', async (req, res) => {
   try {
-    const items = await prisma.item.findMany({
-      where: { user_id: req.user.id },
-      orderBy: { created_at: 'desc' },
+    const { page, limit = 10, search, all } = req.query;
+
+    // Jika 'all=true' atau tanpa pagination/search parameter, kembalikan array penuh untuk dropdown & compatibility
+    if (all === 'true' || (!page && !search && req.query.paginate !== 'true')) {
+      const items = await prisma.item.findMany({
+        where: { user_id: req.user.id },
+        orderBy: { created_at: 'desc' },
+      });
+      if (req.query.paginate !== 'true' && !page) {
+        return res.json(items);
+      }
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const take = Math.max(1, parseInt(limit, 10) || 10);
+    const skip = (pageNum - 1) * take;
+
+    const where = {
+      user_id: req.user.id,
+    };
+
+    if (search && search.trim() !== '') {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const [total, totalAll, data] = await Promise.all([
+      prisma.item.count({ where }),
+      prisma.item.count({ where: { user_id: req.user.id } }),
+      prisma.item.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip,
+        take,
+      }),
+    ]);
+
+    return res.json({
+      data,
+      total,
+      totalAll,
+      page: pageNum,
+      limit: take,
+      totalPages: Math.ceil(total / take) || 1,
     });
-    return res.json(items);
   } catch (err) {
     console.error('[GET /items]', err);
     return res.status(500).json({ message: 'Terjadi kesalahan server.' });

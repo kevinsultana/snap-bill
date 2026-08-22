@@ -7,14 +7,59 @@ const router = express.Router();
 // Semua route butuh autentikasi
 router.use(verifyToken);
 
-// GET /api/clients — list semua klien milik user
+// GET /api/clients — list klien milik user (mendukung pagination & search)
 router.get('/', async (req, res) => {
   try {
-    const clients = await prisma.client.findMany({
-      where: { user_id: req.user.id },
-      orderBy: { created_at: 'desc' },
+    const { page, limit = 10, search, all } = req.query;
+
+    // Jika 'all=true' atau tanpa pagination/search parameter, kembalikan array penuh untuk dropdown & compatibility
+    if (all === 'true' || (!page && !search && req.query.paginate !== 'true')) {
+      const clients = await prisma.client.findMany({
+        where: { user_id: req.user.id },
+        orderBy: { created_at: 'desc' },
+      });
+      if (req.query.paginate !== 'true' && !page) {
+        return res.json(clients);
+      }
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const take = Math.max(1, parseInt(limit, 10) || 10);
+    const skip = (pageNum - 1) * take;
+
+    const where = {
+      user_id: req.user.id,
+    };
+
+    if (search && search.trim() !== '') {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
+        { phone: { contains: q, mode: 'insensitive' } },
+        { address: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const [total, totalAll, data] = await Promise.all([
+      prisma.client.count({ where }),
+      prisma.client.count({ where: { user_id: req.user.id } }),
+      prisma.client.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip,
+        take,
+      }),
+    ]);
+
+    return res.json({
+      data,
+      total,
+      totalAll,
+      page: pageNum,
+      limit: take,
+      totalPages: Math.ceil(total / take) || 1,
     });
-    return res.json(clients);
   } catch (err) {
     console.error('[GET /clients]', err);
     return res.status(500).json({ message: 'Terjadi kesalahan server.' });

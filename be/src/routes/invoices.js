@@ -35,18 +35,124 @@ async function generateInvoiceNumber(userId) {
   return `${prefix}${String(lastNum + 1).padStart(4, '0')}`;
 }
 
-// ─── GET /api/invoices ────────────────────────────────────────────────────────
+// ─── GET /api/invoices (Pagination, Server Search & DB Counts) ────────────────
 router.get('/', async (req, res) => {
   try {
-    const invoices = await prisma.invoice.findMany({
-      where: { user_id: req.user.id },
-      include: {
-        client: { select: { id: true, name: true, email: true } },
-        items: true,
-      },
-      orderBy: { created_at: 'desc' },
+    const { page, limit = 10, search, status, channel, all } = req.query;
+
+    // Jika 'all=true' atau tanpa pagination/search parameter, kembalikan array penuh untuk dashboard/compatibility
+    if (all === 'true' || (!page && !search && !status && !channel && req.query.paginate !== 'true')) {
+      const invoices = await prisma.invoice.findMany({
+        where: { user_id: req.user.id },
+        include: {
+          client: { select: { id: true, name: true, email: true } },
+          items: true,
+        },
+        orderBy: { created_at: 'desc' },
+      });
+      if (req.query.paginate !== 'true' && !page) {
+        return res.json(invoices);
+      }
+    }
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const take = Math.max(1, parseInt(limit, 10) || 10);
+    const skip = (pageNum - 1) * take;
+
+    const where = { user_id: req.user.id };
+    const andConditions = [];
+
+    if (status && status !== 'all') {
+      andConditions.push({ status });
+    }
+
+    if (channel === 'manual') {
+      andConditions.push({
+        OR: [{ receipt_url: { not: null } }, { status: 'pending_verification' }],
+      });
+    } else if (channel === 'midtrans') {
+      andConditions.push({
+        payment_url: { not: null },
+        receipt_url: null,
+        status: { not: 'pending_verification' },
+      });
+    }
+
+    if (search && search.trim() !== '') {
+      const q = search.trim();
+      andConditions.push({
+        OR: [
+          { invoice_number: { contains: q, mode: 'insensitive' } },
+          { client: { name: { contains: q, mode: 'insensitive' } } },
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
+
+    // Ambil total data & rincian count dari DB secara paralel
+    const [statusGroups, allInvoicesCount, midtransCount, manualCount, totalFiltered, data] = await Promise.all([
+      prisma.invoice.groupBy({
+        by: ['status'],
+        where: { user_id: req.user.id },
+        _count: { id: true },
+      }),
+      prisma.invoice.count({ where: { user_id: req.user.id } }),
+      prisma.invoice.count({
+        where: {
+          user_id: req.user.id,
+          payment_url: { not: null },
+          receipt_url: null,
+          status: { not: 'pending_verification' },
+        },
+      }),
+      prisma.invoice.count({
+        where: {
+          user_id: req.user.id,
+          OR: [{ receipt_url: { not: null } }, { status: 'pending_verification' }],
+        },
+      }),
+      prisma.invoice.count({ where }),
+      prisma.invoice.findMany({
+        where,
+        include: {
+          client: { select: { id: true, name: true, email: true } },
+          items: true,
+        },
+        orderBy: { created_at: 'desc' },
+        skip,
+        take,
+      }),
+    ]);
+
+    const statusCounts = {
+      draft: 0,
+      unpaid: 0,
+      pending_verification: 0,
+      paid: 0,
+      overdue: 0,
+      cancelled: 0,
+    };
+    statusGroups.forEach((g) => {
+      if (g.status) statusCounts[g.status] = g._count.id;
     });
-    return res.json(invoices);
+
+    return res.json({
+      data,
+      total: totalFiltered,
+      totalAll: allInvoicesCount,
+      page: pageNum,
+      limit: take,
+      totalPages: Math.ceil(totalFiltered / take) || 1,
+      counts: statusCounts,
+      channelCounts: {
+        all: allInvoicesCount,
+        midtrans: midtransCount,
+        manual: manualCount,
+      },
+    });
   } catch (err) {
     console.error('[GET /invoices]', err);
     return res.status(500).json({ message: 'Terjadi kesalahan server.' });

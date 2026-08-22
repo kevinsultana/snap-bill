@@ -15,6 +15,8 @@ function formatRupiah(value) {
   }).format(Number(value || 0));
 }
 
+import Pagination from '@/components/Pagination';
+
 function formatDate(dateStr, lang = 'id') {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
@@ -28,7 +30,15 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterChannel, setFilterChannel] = useState('all'); // 'all' | 'midtrans' | 'manual'
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalAll, setTotalAll] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({});
+  const [channelCounts, setChannelCounts] = useState({ all: 0, midtrans: 0, manual: 0 });
 
   const STATUS_CONFIG = {
     draft:                { label: t('invoices.status_draft'),                color: 'badge-gray'    },
@@ -41,21 +51,55 @@ export default function InvoicesPage() {
 
   const [userSettings, setUserSettings] = useState(null);
 
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   const fetchInvoices = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await api.get('/api/invoices');
-      setInvoices(res.data);
+      const res = await api.get('/api/invoices', {
+        params: {
+          page,
+          limit: 10,
+          search: debouncedSearch,
+          status: filterStatus,
+          channel: filterChannel,
+          paginate: 'true',
+        },
+      });
+      if (res.data && Array.isArray(res.data.data)) {
+        setInvoices(res.data.data);
+        setTotal(res.data.total || 0);
+        setTotalAll(res.data.totalAll || 0);
+        setTotalPages(res.data.totalPages || 1);
+        if (res.data.counts) setStatusCounts(res.data.counts);
+        if (res.data.channelCounts) setChannelCounts(res.data.channelCounts);
+      } else if (Array.isArray(res.data)) {
+        setInvoices(res.data);
+        setTotal(res.data.length);
+        setTotalAll(res.data.length);
+        setTotalPages(1);
+      }
     } catch {
       toast('error', 'Gagal memuat data invoice');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, debouncedSearch, filterStatus, filterChannel]);
 
   useEffect(() => {
     fetchInvoices();
-    api.get('/api/settings').then((r) => setUserSettings(r.data)).catch(() => {});
   }, [fetchInvoices]);
+
+  useEffect(() => {
+    api.get('/api/settings').then((r) => setUserSettings(r.data)).catch(() => {});
+  }, []);
 
   const isPro = userSettings?.tier === 'pro' && (!userSettings?.subscription_ends_at || new Date(userSettings.subscription_ends_at) > new Date());
 
@@ -193,9 +237,9 @@ export default function InvoicesPage() {
         ? `
           <div style="margin: 16px 0; padding: 20px; background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0; text-align: center;">
             <div style="font-size: 36px; margin-bottom: 8px;">📄</div>
-            <p style="color: #0f172a; font-weight: 700; font-size: 14px; margin: 0 0 8px;">Dokumen Bukti Transfer (PDF)</p>
+            <p style="color: #0f172a; font-weight: 700; font-size: 14px; margin: 0 0 8px;">${t('invoices.receipt_pdf_doc')}</p>
             <a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="color: #4f46e5; font-weight: 700; text-decoration: underline; font-size: 13px;">
-              👁️ Klik untuk Membuka Dokumen Bukti ↗
+              👁️ ${t('invoices.receipt_click_pdf')}
             </a>
           </div>
         `
@@ -209,13 +253,13 @@ export default function InvoicesPage() {
               />
             </div>
             <a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; margin-top: 8px; color: #4f46e5; font-weight: 600; font-size: 12px;">
-              🔍 Buka gambar ukuran penuh ↗
+              🔍 ${t('invoices.receipt_open_full')}
             </a>
           </div>
         `
       : `
         <div style="margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0; text-align: center; color: #64748b;">
-          <p style="margin: 0;">Bukti transfer belum diunggah.</p>
+          <p style="margin: 0;">${t('invoices.receipt_not_uploaded')}</p>
         </div>
       `;
 
@@ -292,19 +336,22 @@ export default function InvoicesPage() {
     }
   };
 
-  // Filter & search
-  const filtered = invoices.filter((inv) => {
-    const matchSearch =
-      inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-      (inv.client?.name || '').toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === 'all' || inv.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
+  // Helper penentu metode / saluran pembayaran
+  const getPaymentChannel = (inv) => {
+    if (inv.receipt_url || inv.status === 'pending_verification') return 'manual';
+    if (inv.payment_url) return 'midtrans';
+    return 'unspecified';
+  };
 
-  const counts = invoices.reduce((acc, inv) => {
-    acc[inv.status] = (acc[inv.status] || 0) + 1;
-    return acc;
-  }, {});
+  const handleChannelSelect = (ch) => {
+    setFilterChannel(ch);
+    setPage(1);
+  };
+
+  const handleStatusSelect = (st) => {
+    setFilterStatus(st);
+    setPage(1);
+  };
 
   return (
     <div className="page-container">
@@ -322,26 +369,110 @@ export default function InvoicesPage() {
       {/* Glass Card Container */}
       <div className="glass-card" style={{ padding: '24px' }}>
 
-        {/* Status Filter Pills */}
+        {/* ── 1. Payment Channel Segmented Tabs (Pemisah Midtrans vs Manual) ── */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18, borderBottom: '1px solid rgba(226, 232, 240, 0.8)', paddingBottom: 16 }}>
+          <button
+            type="button"
+            style={{
+              padding: '8px 18px',
+              fontSize: 13,
+              borderRadius: 12,
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              border: '1px solid',
+              background: filterChannel === 'all' ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : 'rgba(255, 255, 255, 0.85)',
+              color: filterChannel === 'all' ? '#ffffff' : 'var(--text-secondary)',
+              borderColor: filterChannel === 'all' ? '#6366f1' : '#cbd5e1',
+              boxShadow: filterChannel === 'all' ? '0 4px 14px rgba(99, 102, 241, 0.25)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onClick={() => handleChannelSelect('all')}
+          >
+            <span>📋</span>
+            <span>{t('invoices.channel_all')}</span>
+            <span style={{ background: filterChannel === 'all' ? 'rgba(255, 255, 255, 0.25)' : '#f1f5f9', color: filterChannel === 'all' ? '#ffffff' : '#64748b', padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 800 }}>
+              {channelCounts.all ?? totalAll}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            style={{
+              padding: '8px 18px',
+              fontSize: 13,
+              borderRadius: 12,
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              border: '1px solid',
+              background: filterChannel === 'midtrans' ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255, 255, 255, 0.85)',
+              color: filterChannel === 'midtrans' ? '#ffffff' : 'var(--text-secondary)',
+              borderColor: filterChannel === 'midtrans' ? '#10b981' : '#cbd5e1',
+              boxShadow: filterChannel === 'midtrans' ? '0 4px 14px rgba(16, 185, 129, 0.25)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onClick={() => handleChannelSelect('midtrans')}
+          >
+            <span>⚡</span>
+            <span>{t('invoices.channel_midtrans')}</span>
+            <span style={{ background: filterChannel === 'midtrans' ? 'rgba(255, 255, 255, 0.25)' : '#f1f5f9', color: filterChannel === 'midtrans' ? '#ffffff' : '#059669', padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 800 }}>
+              {channelCounts.midtrans || 0}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            style={{
+              padding: '8px 18px',
+              fontSize: 13,
+              borderRadius: 12,
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              border: '1px solid',
+              background: filterChannel === 'manual' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255, 255, 255, 0.85)',
+              color: filterChannel === 'manual' ? '#ffffff' : 'var(--text-secondary)',
+              borderColor: filterChannel === 'manual' ? '#3b82f6' : '#cbd5e1',
+              boxShadow: filterChannel === 'manual' ? '0 4px 14px rgba(59, 130, 246, 0.25)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onClick={() => handleChannelSelect('manual')}
+          >
+            <span>🏦</span>
+            <span>{t('invoices.channel_manual')}</span>
+            <span style={{ background: filterChannel === 'manual' ? 'rgba(255, 255, 255, 0.25)' : '#f1f5f9', color: filterChannel === 'manual' ? '#ffffff' : '#2563eb', padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 800 }}>
+              {channelCounts.manual || 0}
+            </span>
+          </button>
+        </div>
+
+        {/* ── 2. Status Filter Pills ────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
           <button
             className={`btn-toggle-type ${filterStatus === 'all' ? 'active' : ''}`}
             style={{ padding: '6px 14px', fontSize: 12, borderRadius: 9999 }}
-            onClick={() => setFilterStatus('all')}
+            onClick={() => handleStatusSelect('all')}
           >
-            {t('common.all')} ({invoices.length})
+            {t('common.all')} ({totalAll})
           </button>
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
             <button
               key={key}
               className={`btn-toggle-type ${filterStatus === key ? 'active' : ''}`}
               style={{ padding: '6px 14px', fontSize: 12, borderRadius: 9999 }}
-              onClick={() => setFilterStatus(filterStatus === key ? 'all' : key)}
+              onClick={() => handleStatusSelect(filterStatus === key ? 'all' : key)}
             >
               <span className={`status-badge ${cfg.color}`} style={{ padding: '2px 8px', fontSize: 11 }}>
                 {cfg.label}
               </span>
-              <span style={{ marginLeft: 6, fontWeight: 700 }}>{counts[key] || 0}</span>
+              <span style={{ marginLeft: 6, fontWeight: 700 }}>{statusCounts[key] || 0}</span>
             </button>
           ))}
         </div>
@@ -359,7 +490,7 @@ export default function InvoicesPage() {
             />
           </div>
           <span className="glass-pill" style={{ color: 'var(--text-secondary)' }}>
-            {t('common.total')}: <b>{filtered.length}</b> invoice
+            {t('common.total')}: <b>{total}</b> invoice
           </span>
         </div>
 
@@ -369,39 +500,81 @@ export default function InvoicesPage() {
             <div className="loading-screen" style={{ minHeight: '30vh' }}>
               <div className="loading-spinner" />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : invoices.length === 0 ? (
             <div className="table-empty">
               <span className="table-empty-icon">🧾</span>
-              <p>{search || filterStatus !== 'all' ? t('invoices.empty_desc') : t('dashboard.empty_invoices_title')}</p>
+              <p>{search || filterStatus !== 'all' || filterChannel !== 'all' ? t('invoices.empty_desc') : t('dashboard.empty_invoices_title')}</p>
             </div>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>{t('dashboard.table_invoice_num')}</th>
-                  <th>{t('dashboard.table_client')}</th>
-                  <th>{t('invoices.form_issue_date')}</th>
-                  <th>{t('dashboard.table_due_date')}</th>
-                  <th className="td-right">{t('dashboard.table_total')}</th>
-                  <th>{t('dashboard.table_status')}</th>
-                  <th style={{ textAlign: 'right' }}>{t('dashboard.table_action')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((inv) => {
-                  const cfg = STATUS_CONFIG[inv.status] || STATUS_CONFIG.draft;
-                  return (
-                    <tr key={inv.id}>
-                      <td className="td-invoice-num">#{inv.invoice_number}</td>
-                      <td className="td-name">{inv.client?.name || '—'}</td>
-                      <td className="td-secondary">{formatDate(inv.issue_date, lang)}</td>
-                      <td className="td-secondary">{formatDate(inv.due_date, lang)}</td>
-                      <td className="td-right td-price" style={{ color: 'var(--text-main)' }}>
-                        {formatRupiah(inv.total)}
-                      </td>
-                      <td>
-                        <span className={`status-badge ${cfg.color}`}>{cfg.label}</span>
-                      </td>
+            <>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>{t('dashboard.table_invoice_num')}</th>
+                    <th>{t('dashboard.table_client')}</th>
+                    <th>{t('invoices.table_payment_method')}</th>
+                    <th>{t('invoices.form_issue_date')}</th>
+                    <th>{t('dashboard.table_due_date')}</th>
+                    <th className="td-right">{t('dashboard.table_total')}</th>
+                    <th>{t('dashboard.table_status')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('dashboard.table_action')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.map((inv) => {
+                    const cfg = STATUS_CONFIG[inv.status] || STATUS_CONFIG.draft;
+                    const channel = getPaymentChannel(inv);
+                    return (
+                      <tr key={inv.id}>
+                        <td className="td-invoice-num">#{inv.invoice_number}</td>
+                        <td className="td-name">{inv.client?.name || '—'}</td>
+                        <td>
+                          {channel === 'midtrans' ? (
+                            <span
+                              className="status-badge"
+                              style={{
+                                background: 'rgba(16, 185, 129, 0.12)',
+                                color: '#059669',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                fontSize: 11,
+                                fontWeight: 800,
+                                padding: '3px 8px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <span>⚡</span> {t('invoices.method_midtrans')}
+                            </span>
+                          ) : channel === 'manual' ? (
+                            <span
+                              className="status-badge"
+                              style={{
+                                background: 'rgba(59, 130, 246, 0.12)',
+                                color: '#2563eb',
+                                border: '1px solid rgba(59, 130, 246, 0.25)',
+                                fontSize: 11,
+                                fontWeight: 800,
+                                padding: '3px 8px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <span>🏦</span> {t('invoices.method_manual')}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+                          )}
+                        </td>
+                        <td className="td-secondary">{formatDate(inv.issue_date, lang)}</td>
+                        <td className="td-secondary">{formatDate(inv.due_date, lang)}</td>
+                        <td className="td-right td-price" style={{ color: 'var(--text-main)' }}>
+                          {formatRupiah(inv.total)}
+                        </td>
+                        <td>
+                          <span className={`status-badge ${cfg.color}`}>{cfg.label}</span>
+                        </td>
                       <td style={{ textAlign: 'right' }}>
                         <div className="td-actions" style={{ justifyContent: 'flex-end' }}>
                           {inv.status === 'pending_verification' && (
@@ -491,10 +664,21 @@ export default function InvoicesPage() {
                         </div>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Pagination Component */}
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                limit={10}
+                onPageChange={setPage}
+                lang={lang}
+              />
+            </>
           )}
         </div>
 

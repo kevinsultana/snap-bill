@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { openFormModal, confirmDelete } from '@/lib/modals';
 import { toast } from '@/lib/toast';
 import { useTranslation } from '@/lib/i18n/useTranslation';
+import Pagination from '@/components/Pagination';
 
 function formatRupiah(value) {
   return new Intl.NumberFormat('id-ID', {
@@ -15,10 +16,15 @@ function formatRupiah(value) {
 }
 
 export default function ItemsPage() {
-  const { t } = useTranslation();
-  const [items, setItems]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch]   = useState('');
+  const { t, lang } = useTranslation();
+  const [items, setItems]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage]           = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal]         = useState(0);
+  const [totalAll, setTotalAll]   = useState(0);
 
   const ITEM_FIELDS = [
     { name: 'name',        label: t('items.form_name'),  placeholder: 'Contoh: Jasa Desain Logo & Branding', required: true },
@@ -26,18 +32,47 @@ export default function ItemsPage() {
     { name: 'price',       label: t('items.form_price'), placeholder: 'Contoh: 500.000', type: 'currency', required: true },
   ];
 
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   const fetchItems = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await api.get('/api/items');
-      setItems(res.data);
+      const res = await api.get('/api/items', {
+        params: {
+          page,
+          limit: 10,
+          search: debouncedSearch,
+          paginate: 'true',
+        },
+      });
+      if (res.data && Array.isArray(res.data.data)) {
+        setItems(res.data.data);
+        setTotal(res.data.total || 0);
+        setTotalAll(res.data.totalAll || 0);
+        setTotalPages(res.data.totalPages || 1);
+      } else if (Array.isArray(res.data)) {
+        setItems(res.data);
+        setTotal(res.data.length);
+        setTotalAll(res.data.length);
+        setTotalPages(1);
+      }
     } catch {
       toast('error', 'Gagal memuat data item');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, debouncedSearch]);
 
-  useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
 
   // --- Add ---
   const handleAdd = () => {
@@ -87,12 +122,6 @@ export default function ItemsPage() {
     }
   };
 
-  const filtered = items.filter(
-    (i) =>
-      i.name.toLowerCase().includes(search.toLowerCase()) ||
-      (i.description || '').toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
     <div className="page-container">
       {/* Header */}
@@ -121,7 +150,7 @@ export default function ItemsPage() {
             />
           </div>
           <span className="glass-pill" style={{ color: 'var(--text-secondary)' }}>
-            {t('common.total')}: <b>{filtered.length}</b> item
+            {t('common.total')}: <b>{total}</b> item
           </span>
         </div>
 
@@ -131,55 +160,67 @@ export default function ItemsPage() {
             <div className="loading-screen" style={{ minHeight: '30vh' }}>
               <div className="loading-spinner" />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="table-empty">
               <span className="table-empty-icon">📦</span>
               <p>{search ? t('invoices.empty_title') : t('items.empty_title')}</p>
             </div>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>{t('items.table_name')}</th>
-                  <th>{t('items.table_desc')}</th>
-                  <th className="td-right">{t('items.table_price')}</th>
-                  <th style={{ textAlign: 'right' }}>{t('common.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((item, idx) => (
-                  <tr key={item.id}>
-                    <td className="td-num">{idx + 1}</td>
-                    <td className="td-name">{item.name}</td>
-                    <td className="td-secondary" style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.description || '—'}
-                    </td>
-                    <td className="td-right td-price" style={{ color: 'var(--emerald-dark)' }}>
-                      {formatRupiah(item.price)}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="td-actions" style={{ justifyContent: 'flex-end' }}>
-                        <button
-                          className="btn-action btn-edit"
-                          onClick={() => handleEdit(item)}
-                          title={t('common.edit')}
-                        >
-                          ✏️ {t('common.edit')}
-                        </button>
-                        <button
-                          className="btn-action btn-delete"
-                          onClick={() => handleDelete(item)}
-                          title={t('common.delete')}
-                        >
-                          🗑️ {t('common.delete')}
-                        </button>
-                      </div>
-                    </td>
+            <>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>{t('items.table_name')}</th>
+                    <th>{t('items.table_desc')}</th>
+                    <th className="td-right">{t('items.table_price')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('common.actions')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {items.map((item, idx) => (
+                    <tr key={item.id}>
+                      <td className="td-num">{(page - 1) * 10 + idx + 1}</td>
+                      <td className="td-name">{item.name}</td>
+                      <td className="td-secondary" style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.description || '—'}
+                      </td>
+                      <td className="td-right td-price" style={{ color: 'var(--emerald-dark)' }}>
+                        {formatRupiah(item.price)}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="td-actions" style={{ justifyContent: 'flex-end' }}>
+                          <button
+                            className="btn-action btn-edit"
+                            onClick={() => handleEdit(item)}
+                            title={t('common.edit')}
+                          >
+                            ✏️ {t('common.edit')}
+                          </button>
+                          <button
+                            className="btn-action btn-delete"
+                            onClick={() => handleDelete(item)}
+                            title={t('common.delete')}
+                          >
+                            🗑️ {t('common.delete')}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Pagination Component */}
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                limit={10}
+                onPageChange={setPage}
+                lang={lang}
+              />
+            </>
           )}
         </div>
       </div>
