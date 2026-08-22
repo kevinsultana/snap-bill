@@ -4,6 +4,7 @@ const prisma = require('../db/prisma');
 const { uploadMemory, uploadReceipt } = require('../services/minio.service');
 const { generateInvoicePDF } = require('../services/pdf.service');
 const { createSnapTransaction } = require('../services/midtrans.service');
+const { sendPaymentSuccessEmail } = require('../services/email.service');
 
 const router = express.Router();
 
@@ -219,10 +220,19 @@ router.post('/invoices/:token/check-status', async (req, res) => {
             include: {
               client: true,
               items: true,
+              user: true,
             },
           });
 
           console.log(`[check-status] ✅ Invoice #${invoice.invoice_number} berhasil diupdate ke LUNAS.`);
+
+          // Kirim email terima kasih & kuitansi ke klien
+          sendPaymentSuccessEmail({
+            invoice: updatedInvoice,
+            paymentMethod: 'Midtrans Online Payment',
+          }).catch((emailErr) => {
+            console.warn('[check-status] ⚠️ Gagal mengirim email terima kasih:', emailErr.message);
+          });
 
           return res.json({
             status: 'paid',
@@ -288,13 +298,26 @@ router.post('/midtrans-webhook', async (req, res) => {
       });
 
       if (inv && inv.status !== 'paid') {
-        await prisma.invoice.update({
+        const updatedInv = await prisma.invoice.update({
           where: { id: inv.id },
           data: {
             status: 'paid',
           },
+          include: {
+            client: true,
+            user: true,
+            items: true,
+          },
         });
         console.log(`[public.midtrans-webhook] ✅ Invoice #${invoiceNumber} otomatis diubah ke LUNAS (Paid).`);
+
+        // Kirim email terima kasih & kuitansi ke klien
+        sendPaymentSuccessEmail({
+          invoice: updatedInv,
+          paymentMethod: 'Midtrans Online Payment',
+        }).catch((emailErr) => {
+          console.warn('[midtrans-webhook] ⚠️ Gagal mengirim email terima kasih:', emailErr.message);
+        });
       }
     } else if (isCancelledOrExpired && invoiceNumber) {
       const inv = await prisma.invoice.findFirst({

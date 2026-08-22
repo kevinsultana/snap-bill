@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const prisma = require('../db/prisma');
 const { verifyToken } = require('../middleware/auth');
 const { generateInvoicePDF } = require('../services/pdf.service');
-const { sendEmail } = require('../services/email.service');
+const { sendEmail, sendPaymentSuccessEmail } = require('../services/email.service');
 const { createSnapTransaction } = require('../services/midtrans.service');
 
 const router = express.Router();
@@ -533,11 +533,22 @@ router.post('/:id/verify', async (req, res) => {
       include: {
         client: true,
         items: true,
+        user: true,
       },
     });
 
     const actionText = action === 'approve' ? 'disetujui (LUNAS)' : 'ditolak (kembali ke Belum Dibayar)';
     console.log(`[invoices.verify] ✅ Pembayaran Invoice #${existing.invoice_number} ${actionText}.`);
+
+    // Kirim email terima kasih & kuitansi jika disetujui (LUNAS)
+    if (action === 'approve') {
+      sendPaymentSuccessEmail({
+        invoice: updatedInvoice,
+        paymentMethod: 'Transfer Bank (Verifikasi Manual)',
+      }).catch((emailErr) => {
+        console.warn('[invoices.verify] ⚠️ Gagal mengirim email terima kasih:', emailErr.message);
+      });
+    }
 
     return res.json({
       message: `Pembayaran invoice berhasil ${actionText}.`,

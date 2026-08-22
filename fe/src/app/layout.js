@@ -1,4 +1,5 @@
 import { Plus_Jakarta_Sans, Inter } from 'next/font/google';
+import { Toaster } from 'react-hot-toast';
 import './globals.css';
 
 const jakarta = Plus_Jakarta_Sans({
@@ -35,6 +36,14 @@ export default function RootLayout({ children }) {
           <div className="glow-blob blob-2" />
           <div className="glow-blob blob-3" />
         </div>
+        <Toaster
+          position="top-right"
+          reverseOrder={false}
+          gutter={10}
+          toastOptions={{
+            duration: 3200,
+          }}
+        />
         <div className="app-content-wrapper">
           {children}
         </div>

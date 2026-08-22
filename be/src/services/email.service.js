@@ -120,6 +120,155 @@ async function sendEmail({ to, subject, text, html, attachments = [] }) {
   throw new Error(`Semua provider email gagal. Detail: [${errorDetails}]`);
 }
 
+/**
+ * Mengirim email konfirmasi terima kasih & kuitansi lunas kepada klien
+ * saat invoice telah dibayarkan (baik via Midtrans otomatis maupun verifikasi transfer manual).
+ *
+ * @param {Object} params
+ * @param {Object} [params.invoice] - Objek invoice lengkap
+ * @param {string} [params.invoiceId] - ID invoice jika objek belum lengkap
+ * @param {string} [params.paymentMethod] - Metode pembayaran (misal: Midtrans Online Payment / Transfer Bank)
+ */
+async function sendPaymentSuccessEmail({ invoice, invoiceId, paymentMethod = 'Pembayaran Online' }) {
+  try {
+    const prisma = require('../db/prisma');
+    const { generateInvoicePDF } = require('./pdf.service');
+
+    let fullInvoice = invoice;
+    if (!fullInvoice || !fullInvoice.client || !fullInvoice.user || !fullInvoice.items) {
+      const idToFind = invoiceId || invoice?.id;
+      if (!idToFind) return;
+      fullInvoice = await prisma.invoice.findUnique({
+        where: { id: idToFind },
+        include: {
+          client: true,
+          user: true,
+          items: true,
+        },
+      });
+    }
+
+    if (!fullInvoice || !fullInvoice.client?.email) {
+      console.log(`[email.service] ℹ️ Klien untuk Invoice #${fullInvoice?.invoice_number} tidak memiliki email, skip pengiriman email terima kasih.`);
+      return;
+    }
+
+    const clientEmail = fullInvoice.client.email;
+    const businessName = fullInvoice.user?.business_name || 'SnapBill';
+    const invoiceNumber = fullInvoice.invoice_number;
+    const totalFormatted = `Rp ${Number(fullInvoice.total).toLocaleString('id-ID')}`;
+    const paymentDateFormatted = new Date().toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    // Generate PDF kuitansi/invoice lunas
+    let pdfBuffer = null;
+    try {
+      pdfBuffer = await generateInvoicePDF(fullInvoice);
+    } catch (pdfErr) {
+      console.warn(`[email.service] ⚠️ Gagal membuat lampiran PDF untuk Invoice #${invoiceNumber}:`, pdfErr.message);
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const payUrl = fullInvoice.public_link_token ? `${frontendUrl}/pay/${fullInvoice.public_link_token}` : null;
+
+    const emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6;">
+        <!-- Header Green Gradient -->
+        <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 32px 24px; border-radius: 12px 12px 0 0; text-align: center; color: white;">
+          <div style="font-size: 42px; line-height: 1; margin-bottom: 8px;">🎉</div>
+          <h1 style="margin: 0; font-size: 22px; font-weight: 700;">Pembayaran Berhasil Diterima!</h1>
+          <p style="margin: 6px 0 0 0; opacity: 0.92; font-size: 14px;">Kuitansi Pembayaran Invoice #${invoiceNumber}</p>
+        </div>
+        
+        <!-- Body -->
+        <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p style="font-size: 15px; margin-top: 0;">Halo <b>${fullInvoice.client.name}</b>,</p>
+          <p style="font-size: 14px; color: #334155;">
+            Terima kasih banyak! Pembayaran untuk tagihan Anda kepada <b>${businessName}</b> telah kami terima dan diverifikasi secara resmi.
+          </p>
+
+          <!-- Payment Summary Card -->
+          <div style="margin: 24px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">No. Invoice:</td>
+                <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #0f172a;">#${invoiceNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Tanggal Pembayaran:</td>
+                <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0f172a;">${paymentDateFormatted}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Metode Pembayaran:</td>
+                <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0f172a;">${paymentMethod}</td>
+              </tr>
+              <tr style="border-top: 1px dashed #cbd5e1;">
+                <td style="padding: 10px 0 4px 0; font-size: 14px; font-weight: 700; color: #0f172a;">Total Lunas:</td>
+                <td style="padding: 10px 0 4px 0; text-align: right; font-size: 16px; font-weight: 800; color: #10b981;">${totalFormatted}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #64748b;">Status:</td>
+                <td style="padding: 4px 0; text-align: right;">
+                  <span style="background: #d1fae5; color: #065f46; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+                    ✓ LUNAS (PAID)
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          ${
+            payUrl
+              ? `
+          <div style="margin: 28px 0; text-align: center;">
+            <a href="${payUrl}" style="background: #10b981; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+              📄 Buka Portal & Kuitansi Online
+            </a>
+          </div>
+          `
+              : ''
+          }
+
+          <p style="font-size: 13px; color: #64748b; margin-bottom: 0;">
+            Salinan faktur PDF resmi terlampir pada email ini sebagai bukti transaksi yang sah.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
+            Email ini dikirim secara otomatis oleh <b>SnapBill</b> untuk <b>${businessName}</b>.
+          </p>
+        </div>
+      </div>
+    `;
+
+    const attachments = pdfBuffer
+      ? [
+          {
+            filename: `Kuitansi-Invoice-${invoiceNumber}-LUNAS.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ]
+      : [];
+
+    const sendRes = await sendEmail({
+      to: clientEmail,
+      subject: `[LUNAS] Terima Kasih Atas Pembayaran Invoice #${invoiceNumber} - ${businessName}`,
+      html: emailHtml,
+      attachments,
+    });
+
+    console.log(`[email.service] 💌 Email terima kasih pembayaran Invoice #${invoiceNumber} berhasil dikirim ke ${clientEmail} via ${sendRes.provider}`);
+    return sendRes;
+  } catch (err) {
+    console.error(`[email.service] ⚠️ Gagal mengirim email terima kasih pembayaran:`, err.message);
+  }
+}
+
 module.exports = {
   sendEmail,
+  sendPaymentSuccessEmail,
 };
