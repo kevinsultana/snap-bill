@@ -360,7 +360,12 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
       if (mode === 'create') {
         const res = await api.post('/api/invoices', payload);
         toast('success', 'Invoice draft berhasil dibuat!');
-        router.push(`/dashboard/invoices/${res.data.id}`);
+        const newId = res.data?.invoice?.id || res.data?.id;
+        if (newId) {
+          router.push(`/dashboard/invoices/${newId}`);
+        } else {
+          router.push('/dashboard/invoices');
+        }
       } else {
         await api.put(`/api/invoices/${invoiceId}`, payload);
         toast('success', 'Invoice berhasil diperbarui!');
@@ -490,8 +495,8 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
               </div>
 
               {/* Table Wrapper */}
-              <div style={{ overflowX: 'auto', borderRadius: 14, border: '1px solid #e2e8f0', background: 'rgba(255, 255, 255, 0.65)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 580 }}>
+              <div className="table-responsive" style={{ borderRadius: 14, border: '1px solid #e2e8f0', background: 'rgba(255, 255, 255, 0.65)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 640 }}>
                   <thead>
                     <tr style={{ background: 'rgba(241, 245, 249, 0.95)', borderBottom: '1px solid #e2e8f0' }}>
                       <th style={{ padding: '12px 14px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '44%' }}>

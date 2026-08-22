@@ -295,7 +295,11 @@ router.post('/', async (req, res) => {
       });
     });
 
-    return res.status(201).json({ message: 'Draft invoice berhasil dibuat.', invoice });
+    return res.status(201).json({
+      ...invoice,
+      message: 'Draft invoice berhasil dibuat.',
+      invoice,
+    });
   } catch (err) {
     console.error('[POST /invoices]', err);
     return res.status(500).json({ message: 'Terjadi kesalahan server.' });

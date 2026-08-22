@@ -249,8 +249,8 @@ export default function PublicPayPage() {
     <div className="pay-portal-container">
 
       {/* Top Header Card */}
-      <div className="glass-card" style={{ padding: '24px 28px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div className="glass-card pay-portal-header-card" style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           {user.logo_url ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -365,7 +365,7 @@ export default function PublicPayPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
           {/* Info Card */}
-          <div className="glass-card" style={{ padding: 24 }}>
+          <div className="glass-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, paddingBottom: 16, borderBottom: '1px solid #e2e8f0' }}>
               <div>
                 <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{t('dashboard.table_invoice_num')}</p>
@@ -399,7 +399,7 @@ export default function PublicPayPage() {
           </div>
 
           {/* Items Table Card */}
-          <div className="glass-card" style={{ padding: 24, overflow: 'hidden' }}>
+          <div className="glass-card" style={{ overflow: 'hidden' }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-main)', marginBottom: 16 }}>
               📦 {t('invoices.form_section_items')}
             </h3>
@@ -461,7 +461,7 @@ export default function PublicPayPage() {
 
           {/* Pending Verification Notice Card (Saat bukti transfer sedang diverifikasi) */}
           {invoice.status === 'pending_verification' && (
-            <div className="glass-card" style={{ padding: 28, textAlign: 'center', border: '1px solid rgba(99, 102, 241, 0.25)', background: 'linear-gradient(135deg, rgba(245, 247, 255, 0.95), rgba(238, 242, 255, 0.95))' }}>
+            <div className="glass-card" style={{ textAlign: 'center', border: '1px solid rgba(99, 102, 241, 0.25)', background: 'linear-gradient(135deg, rgba(245, 247, 255, 0.95), rgba(238, 242, 255, 0.95))' }}>
               <div
                 style={{
                   width: 60,
@@ -507,7 +507,7 @@ export default function PublicPayPage() {
 
           {/* 1. Midtrans Snap Online Payment */}
           {invoice.status !== 'paid' && invoice.status !== 'pending_verification' && user.tier === 'pro' && user.has_midtrans && (
-            <div className="glass-card glass-card-highlight" style={{ padding: 24 }}>
+            <div className="glass-card glass-card-highlight">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
                   <span>💳</span> {t('pay_portal.auto_payment_title')}
@@ -541,7 +541,7 @@ export default function PublicPayPage() {
 
           {/* 2. Manual Bank Transfer Option */}
           {invoice.status !== 'paid' && invoice.status !== 'pending_verification' && (
-            <div className="glass-card" style={{ padding: 24 }}>
+            <div className="glass-card">
               <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 6px' }}>
                 <span>🏦</span> {t('pay_portal.manual_transfer_title')}
               </h3>

@@ -129,7 +129,7 @@ export default function ClientsPage() {
       </div>
 
       {/* Glass Card Container */}
-      <div className="glass-card" style={{ padding: '20px 24px' }}>
+      <div className="glass-card">
         {/* Search & count */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div className="search-bar-wrap">
