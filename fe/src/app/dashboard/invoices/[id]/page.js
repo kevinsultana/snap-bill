@@ -468,7 +468,8 @@ export default function InvoiceDetailPage() {
             )}
           </button>
 
-          {invoice.status !== 'draft' && invoice.status !== 'cancelled' && (
+          {/* Kirim Ulang Email Tagihan (Hanya jika belum lunas, bukan draft, dan bukan cancelled) */}
+          {invoice.status !== 'draft' && invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
             <button
               type="button"
               onClick={handleResendEmail}
@@ -522,7 +523,8 @@ export default function InvoiceDetailPage() {
             </button>
           )}
 
-          {publicPayUrl && (
+          {/* Salin link bayar & Buka Portal Klien (Hanya jika belum lunas dan bukan cancelled) */}
+          {publicPayUrl && invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
             <>
               <button type="button" onClick={copyPublicLink} className="btn-secondary" title="Salin Tautan Publik">
                 📋 Salin Link Bayar
