@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/clients', label: 'Klien', icon: '👥' },
   { href: '/dashboard/items', label: 'Item / Layanan', icon: '📦' },
   { href: '/dashboard/invoices', label: 'Invoice', icon: '🧾' },
+  { href: '/dashboard/subscription', label: 'Langganan', icon: '💎' },
   { href: '/dashboard/settings', label: 'Pengaturan', icon: '⚙️' },
 ];
 
@@ -25,7 +26,7 @@ function DashboardLayoutContent({ children }) {
   const [upgrading, setUpgrading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const fetchUserData = () => {
+  const fetchUserData = useCallback(() => {
     return Promise.all([
       api.get('/api/settings'),
       api.get('/api/subscriptions/status').catch(() => ({ data: null })),
@@ -36,78 +37,29 @@ function DashboardLayoutContent({ children }) {
       })
       .catch(() => router.push('/login'))
       .finally(() => setChecking(false));
-  };
+  }, [router]);
 
   useEffect(() => {
     fetchUserData();
-  }, [router]);
+  }, [pathname, searchParams, fetchUserData]);
+
+  // Listen to subscription_updated custom event from any page
+  useEffect(() => {
+    const handleSubUpdate = () => {
+      fetchUserData();
+    };
+    window.addEventListener('subscription_updated', handleSubUpdate);
+    return () => window.removeEventListener('subscription_updated', handleSubUpdate);
+  }, [fetchUserData]);
 
   // Close mobile drawer on route change
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  // Handle return from Midtrans payment redirect
-  useEffect(() => {
-    if (searchParams?.get('subscribed') === 'success') {
-      api.post('/api/subscriptions/verify-status')
-        .then(() => {
-          Swal.fire({
-            icon: 'success',
-            title: '🎉 Selamat Datang di SnapBill PRO!',
-            text: 'Langganan Pro Anda telah aktif. Anda kini dapat membuat invoice tanpa batas!',
-            confirmButtonColor: '#6366f1',
-          });
-          fetchUserData();
-        })
-        .catch(() => {});
-    }
-  }, [searchParams]);
-
-  // Handle Upgrade to Pro Checkout
-  const handleUpgradePro = async () => {
-    const result = await Swal.fire({
-      title: '⚡ Upgrade ke SnapBill PRO',
-      html: `
-        <div style="text-align: left; font-size: 13px; color: #475569; line-height: 1.6;">
-          <p style="margin: 0 0 12px; font-size: 15px; color: #0f172a; font-weight: 700;">
-            Hanya <b>Rp 99.000 / bulan</b> untuk fitur bisnis tanpa batas:
-          </p>
-          <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px;">
-            <li><b style="color: #10b981;">✓</b> <b>Unlimited Invoices</b> (Tanpa batas kuota)</li>
-            <li><b style="color: #10b981;">✓</b> Integrasi Pembayaran Otomatis Midtrans (BYOK)</li>
-            <li><b style="color: #10b981;">✓</b> Upload Bukti Transfer Bank & Verifikasi Cepat</li>
-            <li><b style="color: #10b981;">✓</b> Notifikasi Email Klien & Generate PDF Puppeteer</li>
-          </ul>
-        </div>
-      `,
-      icon: 'info',
-      showCancelButton: true,
-      confirmButtonText: '💳 Bayar via Midtrans (Rp 99.000)',
-      cancelButtonText: 'Nanti Saja',
-      confirmButtonColor: '#6366f1',
-      cancelButtonColor: '#94a3b8',
-      customClass: { popup: 'swal-custom-popup' },
-    });
-
-    if (!result.isConfirmed) return;
-
-    setUpgrading(true);
-    try {
-      const res = await api.post('/api/subscriptions/create-snap');
-      if (res.data.redirect_url) {
-        window.location.href = res.data.redirect_url;
-      }
-    } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Memproses Langganan',
-        text: err.response?.data?.message || 'Terjadi kendala saat menghubungkan ke payment gateway.',
-        confirmButtonColor: '#6366f1',
-      });
-    } finally {
-      setUpgrading(false);
-    }
+  // Redirect ke halaman langganan untuk upgrade
+  const handleUpgradePro = () => {
+    router.push('/dashboard/subscription');
   };
 
   const handleLogout = async () => {
@@ -163,13 +115,16 @@ function DashboardLayoutContent({ children }) {
         {/* Tier & Subscription Card in Sidebar */}
         <div className="sidebar-tier-box">
           {isPro ? (
-            <div className="tier-pro-badge">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>👑</span>
-                <b>PRO ACTIVE</b>
+            <Link href="/dashboard/subscription" className="tier-pro-badge" style={{ textDecoration: 'none', display: 'block' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>👑</span>
+                  <b>PRO ACTIVE</b>
+                </div>
+                <span style={{ fontSize: 10, color: '#b45309' }}>Lihat ↗</span>
               </div>
-              <span style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>Unlimited Invoices</span>
-            </div>
+              <span style={{ fontSize: 11, color: '#92400e', fontWeight: 600, display: 'block', marginTop: 2 }}>Unlimited Invoices</span>
+            </Link>
           ) : (
             <div className="tier-free-box">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>

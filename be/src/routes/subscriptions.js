@@ -121,7 +121,9 @@ router.post('/create-snap', verifyToken, async (req, res) => {
         },
       ],
       callbacks: {
-        finish: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?subscribed=success`,
+        finish: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/subscription?subscribed=check&order_id=${orderId}`,
+        unfinish: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/subscription?subscribed=pending&order_id=${orderId}`,
+        error: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/subscription?subscribed=error&order_id=${orderId}`,
       },
     };
 
@@ -142,36 +144,151 @@ router.post('/create-snap', verifyToken, async (req, res) => {
   }
 });
 
-// ─── POST /api/subscriptions/verify-status ───────────────────────────────────
-// Verifikasi manual setelah redirect sukses dari Midtrans
-router.post('/verify-status', verifyToken, async (req, res) => {
-  try {
-    // Tambahkan 30 hari masa aktif Pro
-    const now = new Date();
-    const expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+// ─── POST /api/subscriptions/check-status & /verify-status ───────────────────
+// Memeriksa status transaksi langganan ke Midtrans Core API secara otentik
+router.post('/check-status', verifyToken, async (req, res) => {
+  return handleSubscriptionStatusCheck(req, res);
+});
 
+router.post('/verify-status', verifyToken, async (req, res) => {
+  return handleSubscriptionStatusCheck(req, res);
+});
+
+async function handleSubscriptionStatusCheck(req, res) {
+  try {
+    const { order_id } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User tidak ditemukan.' });
+    }
+
+    if (!order_id) {
+      const isPro =
+        user.tier === 'pro' &&
+        (!user.subscription_ends_at || new Date(user.subscription_ends_at) > new Date());
+
+      return res.json({
+        status: isPro ? 'settlement' : 'none',
+        isPro,
+        tier: user.tier,
+        subscription_ends_at: user.subscription_ends_at,
+        message: isPro ? 'Akun Anda aktif sebagai Pro.' : 'Belum ada transaksi aktif.',
+      });
+    }
+
+    const snap = getPlatformSnap();
+
+    try {
+      const statusResponse = await snap.transaction.status(order_id);
+      const txStatus = (statusResponse.transaction_status || '').toLowerCase();
+      const fraudStatus = (statusResponse.fraud_status || '').toLowerCase();
+
+      console.log(`[subscriptions.check-status] Status Midtrans untuk ${order_id}: ${txStatus} (fraud: ${fraudStatus})`);
+
+      const isSuccess =
+        txStatus === 'settlement' ||
+        (txStatus === 'capture' && (fraudStatus === 'accept' || !fraudStatus));
+
+      if (isSuccess) {
+        // Upgrade ke Pro tier selama 30 hari
+        const now = new Date();
+        const expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        const updatedUser = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            tier: 'pro',
+            subscription_ends_at: expiryDate,
+          },
+        });
+
+        console.log(`[subscriptions] ✅ User ${updatedUser.email} berhasil di-upgrade ke PRO tier hingga ${expiryDate.toISOString()}.`);
+
+        return res.json({
+          status: 'settlement',
+          isPro: true,
+          message: '🎉 Selamat! Pembayaran langganan Pro Anda berhasil terverifikasi lunas.',
+          user: {
+            id: updatedUser.id,
+            email: updatedUser.email,
+            tier: updatedUser.tier,
+            subscription_ends_at: updatedUser.subscription_ends_at,
+          },
+        });
+      }
+
+      if (txStatus === 'pending') {
+        return res.json({
+          status: 'pending',
+          isPro: user.tier === 'pro',
+          order_id,
+          message: 'Pembayaran masih menunggu penyelesaian (Pending). Silakan lakukan transfer sebelum batas waktu.',
+          payment_type: statusResponse.payment_type,
+          va_numbers: statusResponse.va_numbers,
+          bill_key: statusResponse.bill_key,
+          biller_code: statusResponse.biller_code,
+          gross_amount: statusResponse.gross_amount,
+        });
+      }
+
+      if (txStatus === 'expire' || txStatus === 'cancel' || txStatus === 'deny') {
+        return res.json({
+          status: 'failed',
+          isPro: user.tier === 'pro',
+          order_id,
+          message: `Transaksi pembayaran ${txStatus === 'expire' ? 'telah kedaluwarsa' : 'dibatalkan atau ditolak'}.`,
+        });
+      }
+
+      return res.json({
+        status: txStatus,
+        isPro: user.tier === 'pro',
+        order_id,
+        message: `Status transaksi saat ini: ${txStatus}.`,
+      });
+    } catch (midtransErr) {
+      console.warn(`[subscriptions.check-status] ⚠️ Midtrans API error untuk ${order_id}:`, midtransErr.message);
+      return res.status(400).json({
+        status: 'error',
+        message: `Gagal memeriksa status ke Midtrans: ${midtransErr.message}`,
+      });
+    }
+  } catch (err) {
+    console.error('[POST /subscriptions/check-status]', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan server saat memeriksa status langganan.' });
+  }
+}
+
+// ─── POST /api/subscriptions/cancel ──────────────────────────────────────────
+// Batalkan langganan Pro dan kembalikan akun ke tier Free
+router.post('/cancel', verifyToken, async (req, res) => {
+  try {
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
       data: {
-        tier: 'pro',
-        subscription_ends_at: expiryDate,
+        tier: 'free',
+        subscription_ends_at: null,
       },
     });
 
-    console.log(`[subscriptions] ✅ User ${updatedUser.email} berhasil di-upgrade ke PRO tier hingga ${expiryDate.toISOString()}.`);
+    console.log(`[subscriptions] 🚫 Langganan Pro untuk user ${updatedUser.email} dibatalkan.`);
 
     return res.json({
-      message: 'Selamat! Akun Anda berhasil di-upgrade ke Paket PRO.',
+      message: 'Langganan Pro berhasil dibatalkan. Akun Anda kembali ke paket Free.',
       user: {
         id: updatedUser.id,
         email: updatedUser.email,
         tier: updatedUser.tier,
-        subscription_ends_at: updatedUser.subscription_ends_at,
+        subscription_ends_at: null,
       },
     });
   } catch (err) {
-    console.error('[POST /subscriptions/verify-status]', err);
-    return res.status(500).json({ message: 'Gagal memperbarui status langganan.' });
+    console.error('[POST /subscriptions/cancel]', err);
+    return res.status(500).json({ message: 'Gagal membatalkan langganan.' });
   }
 });
 
