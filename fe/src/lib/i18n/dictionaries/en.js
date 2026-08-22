@@ -312,7 +312,7 @@ const en = {
     pending_title: 'Pending Payment Completion',
     pending_desc: 'Your Pro subscription transaction is awaiting payment at Midtrans.',
     btn_reopen_payment: '💳 Open Payment ↗',
-    btn_check_status: '🔄 Check Status',
+    btn_check_status: 'Check Status',
     btn_new_session: '⚡ New Session',
 
     plan_choice_title: 'SnapBill Service Plans',

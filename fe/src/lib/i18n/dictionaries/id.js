@@ -312,7 +312,7 @@ const id = {
     pending_title: 'Menunggu Penyelesaian Pembayaran (Pending)',
     pending_desc: 'Transaksi langganan Pro Anda sedang menunggu pembayaran di Midtrans.',
     btn_reopen_payment: '💳 Buka Pembayaran ↗',
-    btn_check_status: '🔄 Cek Status',
+    btn_check_status: 'Cek Status',
     btn_new_session: '⚡ Buat Sesi Baru',
 
     plan_choice_title: 'Pilihan Paket Layanan SnapBill',
