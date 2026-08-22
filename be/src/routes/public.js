@@ -91,9 +91,9 @@ router.get('/invoices/:token', async (req, res) => {
   }
 });
 
-// ─── POST /api/public/invoices/:token/pay-snap ────────────────────────────────
+// ─── POST /api/public/invoices/:token/pay & /pay-snap ─────────────────────────
 // On-demand Midtrans Snap payment session generator
-router.post('/invoices/:token/pay-snap', async (req, res) => {
+async function handlePaySnap(req, res) {
   try {
     const { token } = req.params;
     const invoice = await prisma.invoice.findFirst({
@@ -139,6 +139,7 @@ router.post('/invoices/:token/pay-snap', async (req, res) => {
     return res.json({
       token: snapRes.token,
       redirect_url: snapRes.redirect_url,
+      payment_url: snapRes.redirect_url,
     });
   } catch (err) {
     console.error('[POST /public/invoices/:token/pay-snap]', err);
@@ -146,7 +147,10 @@ router.post('/invoices/:token/pay-snap', async (req, res) => {
       message: err.message || 'Gagal membuat sesi pembayaran Midtrans.',
     });
   }
-});
+}
+
+router.post('/invoices/:token/pay', handlePaySnap);
+router.post('/invoices/:token/pay-snap', handlePaySnap);
 
 // ─── POST /api/public/invoices/:token/check-status ────────────────────────────
 // Mengecek status pembayaran langsung ke Midtrans API dan update database jika sukses
@@ -374,70 +378,69 @@ router.get('/invoices/:token/pdf', async (req, res) => {
   }
 });
 
-// ─── POST /api/public/invoices/:token/upload-receipt ──────────────────────────
+// ─── POST /api/public/invoices/:token/receipt & /upload-receipt ──────────────
 // Upload bukti transfer ke MinIO dan ubah status menjadi pending_verification
-router.post(
-  '/invoices/:token/upload-receipt',
-  uploadMemory.single('receipt'),
-  async (req, res) => {
-    try {
-      const { token } = req.params;
+async function handleReceiptUpload(req, res) {
+  try {
+    const { token } = req.params;
 
-      if (!token) {
-        return res.status(400).json({ message: 'Token invoice tidak valid.' });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({ message: 'Harap pilih file bukti transfer yang ingin diunggah.' });
-      }
-
-      // Pastikan invoice dengan token ini ada
-      const invoice = await prisma.invoice.findFirst({
-        where: { public_link_token: token },
-      });
-
-      if (!invoice) {
-        return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
-      }
-
-      if (invoice.status === 'paid') {
-        return res.status(400).json({ message: 'Invoice ini sudah lunas, tidak perlu mengunggah bukti transfer lagi.' });
-      }
-
-      // Upload file ke MinIO
-      const uploadResult = await uploadReceipt(
-        req.file.buffer,
-        req.file.originalname,
-        req.file.mimetype
-      );
-
-      // Update database: receipt_url dan ubah status ke pending_verification
-      const updatedInvoice = await prisma.invoice.update({
-        where: { id: invoice.id },
-        data: {
-          receipt_url: uploadResult.url,
-          status: 'pending_verification',
-        },
-        include: {
-          client: true,
-          items: true,
-        },
-      });
-
-      console.log(`[public.route] ✅ Bukti transfer Invoice #${invoice.invoice_number} berhasil diunggah.`);
-
-      return res.json({
-        message: 'Bukti pembayaran berhasil diunggah! Status pembayaran kini menunggu verifikasi.',
-        invoice: updatedInvoice,
-        receipt_url: uploadResult.url,
-      });
-    } catch (err) {
-      console.error('[POST /api/public/invoices/:token/upload-receipt]', err);
-      return res.status(500).json({
-        message: err.message || 'Terjadi kesalahan saat mengunggah bukti pembayaran.',
-      });
+    if (!token) {
+      return res.status(400).json({ message: 'Token invoice tidak valid.' });
     }
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'Harap pilih file bukti transfer yang ingin diunggah.' });
+    }
+
+    // Pastikan invoice dengan token ini ada
+    const invoice = await prisma.invoice.findFirst({
+      where: { public_link_token: token },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
+    }
+
+    if (invoice.status === 'paid') {
+      return res.status(400).json({ message: 'Invoice ini sudah lunas, tidak perlu mengunggah bukti transfer lagi.' });
+    }
+
+    // Upload file ke MinIO
+    const uploadResult = await uploadReceipt(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype
+    );
+
+    // Update database: receipt_url dan ubah status ke pending_verification
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        receipt_url: uploadResult.url,
+        status: 'pending_verification',
+      },
+      include: {
+        client: true,
+        items: true,
+      },
+    });
+
+    console.log(`[public.route] ✅ Bukti transfer Invoice #${invoice.invoice_number} berhasil diunggah.`);
+
+    return res.json({
+      message: 'Bukti pembayaran berhasil diunggah! Status pembayaran kini menunggu verifikasi.',
+      invoice: updatedInvoice,
+      receipt_url: uploadResult.url,
+    });
+  } catch (err) {
+    console.error('[POST /api/public/invoices/:token/receipt]', err);
+    return res.status(500).json({
+      message: err.message || 'Terjadi kesalahan saat mengunggah bukti pembayaran.',
+    });
   }
-);
+}
+
+router.post('/invoices/:token/receipt', uploadMemory.single('receipt'), handleReceiptUpload);
+router.post('/invoices/:token/upload-receipt', uploadMemory.single('receipt'), handleReceiptUpload);
 
 module.exports = router;
