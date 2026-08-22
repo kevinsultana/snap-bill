@@ -459,8 +459,54 @@ export default function PublicPayPage() {
         {/* ── Right Column: Payment Options ───────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
+          {/* Pending Verification Notice Card (Saat bukti transfer sedang diverifikasi) */}
+          {invoice.status === 'pending_verification' && (
+            <div className="glass-card" style={{ padding: 28, textAlign: 'center', border: '1px solid rgba(99, 102, 241, 0.25)', background: 'linear-gradient(135deg, rgba(245, 247, 255, 0.95), rgba(238, 242, 255, 0.95))' }}>
+              <div
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(129, 140, 248, 0.25))',
+                  color: 'var(--indigo)',
+                  fontSize: 28,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px',
+                  border: '1px solid rgba(99, 102, 241, 0.2)',
+                }}
+              >
+                ⏳
+              </div>
+              <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-main)', marginBottom: 8 }}>
+                {t('pay_portal.status_pending_verif_title')}
+              </h3>
+              <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+                {t('pay_portal.status_pending_verif_desc')}
+              </p>
+
+              {invoice.receipt_url && (
+                <div style={{ borderTop: '1px solid rgba(226, 232, 240, 0.9)', paddingTop: 16 }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>
+                    Bukti Pembayaran Terkirim
+                  </p>
+                  <a
+                    href={invoice.receipt_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-secondary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, padding: '8px 16px', margin: '0 auto' }}
+                  >
+                    <span>👁️</span> Lihat Bukti Pembayaran ↗
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 1. Midtrans Snap Online Payment */}
-          {invoice.status !== 'paid' && user.tier === 'pro' && user.has_midtrans && (
+          {invoice.status !== 'paid' && invoice.status !== 'pending_verification' && user.tier === 'pro' && user.has_midtrans && (
             <div className="glass-card glass-card-highlight" style={{ padding: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
@@ -494,7 +540,7 @@ export default function PublicPayPage() {
           )}
 
           {/* 2. Manual Bank Transfer Option */}
-          {invoice.status !== 'paid' && (
+          {invoice.status !== 'paid' && invoice.status !== 'pending_verification' && (
             <div className="glass-card" style={{ padding: 24 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 6px' }}>
                 <span>🏦</span> {t('pay_portal.manual_transfer_title')}
