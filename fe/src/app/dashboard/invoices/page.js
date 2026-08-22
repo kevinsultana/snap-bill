@@ -15,6 +15,7 @@ const STATUS_CONFIG = {
   pending_verification: { label: 'Menunggu Verifikasi', color: 'badge-blue'   },
   paid:                 { label: 'Lunas',              color: 'badge-emerald' },
   overdue:              { label: 'Jatuh Tempo',        color: 'badge-red'     },
+  cancelled:            { label: 'Dibatalkan',         color: 'badge-gray'    },
 };
 
 function StatusBadge({ status }) {
@@ -100,6 +101,97 @@ export default function InvoicesPage() {
           <div style="margin-top: 6px; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; word-break: break-all; font-family: monospace; font-size: 12px; color: #4f46e5; user-select: all;">
             ${result.value.public_link}
           </div>
+        `,
+        confirmButtonText: 'Selesai',
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
+      fetchInvoices();
+    }
+  };
+
+  // ─── Batalkan Invoice (Cancel) ─────────────────────────────────────────────
+  const handleCancelInvoice = async (inv) => {
+    const result = await Swal.fire({
+      title: 'Batalkan Invoice ini?',
+      html: `
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 10px;">
+          Invoice <b style="color: #0f172a;">#${inv.invoice_number}</b> akan ditandai sebagai <b>Dibatalkan</b> dan sesi pembayaran Midtrans akan dinonaktifkan.
+        </p>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: '🚫 Ya, Batalkan',
+      cancelButtonText: 'Tutup',
+      confirmButtonColor: '#f43f5e',
+      cancelButtonColor: '#94a3b8',
+      customClass: { popup: 'swal-custom-popup' },
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          Swal.showLoading();
+          const res = await api.post(`/api/invoices/${inv.id}/cancel`);
+          return res.data;
+        } catch (err) {
+          Swal.showValidationMessage(err.response?.data?.message || 'Gagal membatalkan invoice.');
+          return false;
+        }
+      },
+    });
+
+    if (result.isConfirmed) {
+      toast('info', `Invoice #${inv.invoice_number} berhasil dibatalkan.`);
+      fetchInvoices();
+    }
+  };
+
+  // ─── Ajukan Ulang / Refresh Sesi Midtrans ──────────────────────────────────
+  const handleRefreshMidtrans = async (inv) => {
+    const result = await Swal.fire({
+      title: 'Ajukan Ulang Sesi Midtrans?',
+      html: `
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 10px;">
+          Sistem akan membuat transaksi Midtrans baru secara otomatis dari backend untuk Invoice <b style="color: #0f172a;">#${inv.invoice_number}</b>.
+        </p>
+        <p style="color: #64748b; font-size: 12px; margin: 0;">
+          Gunakan fitur ini jika sesi Midtrans sebelumnya tercancel, kedaluwarsa, atau ditolak.
+        </p>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: '🔄 Ya, Buat Sesi Baru',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#94a3b8',
+      customClass: { popup: 'swal-custom-popup' },
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          Swal.showLoading();
+          const res = await api.post(`/api/invoices/${inv.id}/refresh-midtrans`);
+          return res.data;
+        } catch (err) {
+          Swal.showValidationMessage(err.response?.data?.message || 'Gagal memperbarui sesi Midtrans.');
+          return false;
+        }
+      },
+    });
+
+    if (result.isConfirmed && result.value) {
+      await Swal.fire({
+        icon: 'success',
+        title: 'Sesi Midtrans Baru Siap! 🎉',
+        html: `
+          <p style="color: #475569; font-size: 14px; margin: 0 0 8px;">
+            ${result.value.message || 'Sesi transaksi Midtrans baru berhasil dibuat.'}
+          </p>
+          ${result.value.payment_url ? `
+            <div style="margin-top: 6px; padding: 10px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 12px; word-break: break-all; color: #4f46e5;">
+              ${result.value.payment_url}
+            </div>
+          ` : ''}
         `,
         confirmButtonText: 'Selesai',
         confirmButtonColor: '#6366f1',
@@ -380,6 +472,43 @@ export default function InvoicesPage() {
                         >
                           👁️ Lihat
                         </Link>
+
+                        {/* Unpaid / Overdue / Pending Verification -> Refresh Midtrans & Cancel */}
+                        {(inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'pending_verification') && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn-action"
+                              style={{ color: 'var(--indigo)', borderColor: 'rgba(99, 102, 241, 0.3)' }}
+                              onClick={() => handleRefreshMidtrans(inv)}
+                              title="Buat Ulang Sesi Midtrans / Ajukan Ulang"
+                            >
+                              🔄 Ajukan Ulang
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-action"
+                              style={{ color: 'var(--rose)', borderColor: 'rgba(244, 63, 94, 0.3)' }}
+                              onClick={() => handleCancelInvoice(inv)}
+                              title="Batalkan Invoice"
+                            >
+                              🚫 Batal
+                            </button>
+                          </>
+                        )}
+
+                        {/* Cancelled -> Reactivate & Refresh Midtrans */}
+                        {inv.status === 'cancelled' && (
+                          <button
+                            type="button"
+                            className="btn-action"
+                            style={{ color: 'var(--emerald)', borderColor: 'rgba(16, 185, 129, 0.3)' }}
+                            onClick={() => handleRefreshMidtrans(inv)}
+                            title="Aktifkan Kembali & Buat Ulang Sesi Midtrans"
+                          >
+                            🔄 Aktifkan Kembali
+                          </button>
+                        )}
 
                         {/* Draft -> Delete Button */}
                         {inv.status === 'draft' && (

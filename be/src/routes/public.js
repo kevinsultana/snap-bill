@@ -204,18 +204,17 @@ router.post('/invoices/:token/check-status', async (req, res) => {
         const statusResponse = await snap.transaction.status(order_id);
         console.log(`[check-status] Status Midtrans untuk ${order_id}: ${statusResponse.transaction_status}`);
 
-        const txStatus = statusResponse.transaction_status;
-        const fraudStatus = statusResponse.fraud_status;
+        const txStatus = (statusResponse.transaction_status || '').toLowerCase();
+        const fraudStatus = (statusResponse.fraud_status || '').toLowerCase();
         const isSuccess =
           txStatus === 'settlement' ||
-          (txStatus === 'capture' && fraudStatus === 'accept');
+          (txStatus === 'capture' && (fraudStatus === 'accept' || !fraudStatus));
 
         if (isSuccess) {
           const updatedInvoice = await prisma.invoice.update({
             where: { id: invoice.id },
             data: {
               status: 'paid',
-              paid_at: new Date(),
             },
             include: {
               client: true,
@@ -223,10 +222,21 @@ router.post('/invoices/:token/check-status', async (req, res) => {
             },
           });
 
+          console.log(`[check-status] ✅ Invoice #${invoice.invoice_number} berhasil diupdate ke LUNAS.`);
+
           return res.json({
             status: 'paid',
             invoice: updatedInvoice,
             message: '🎉 Pembayaran terverifikasi lunas oleh Midtrans!',
+          });
+        }
+
+        if (txStatus === 'cancel' || txStatus === 'expire' || txStatus === 'deny') {
+          await prisma.invoice.update({
+            where: { id: invoice.id },
+            data: {
+              payment_url: null,
+            },
           });
         }
       } catch (midtransErr) {
@@ -260,9 +270,17 @@ router.post('/midtrans-webhook', async (req, res) => {
     const parts = order_id.split('-');
     const invoiceNumber = parts.slice(0, 3).join('-');
 
+    const txStatus = (transaction_status || '').toLowerCase();
+    const fStatus = (fraud_status || '').toLowerCase();
+
     const isSuccess =
-      transaction_status === 'settlement' ||
-      (transaction_status === 'capture' && fraud_status === 'accept');
+      txStatus === 'settlement' ||
+      (txStatus === 'capture' && (fStatus === 'accept' || !fStatus));
+
+    const isCancelledOrExpired =
+      txStatus === 'cancel' ||
+      txStatus === 'expire' ||
+      txStatus === 'deny';
 
     if (isSuccess && invoiceNumber) {
       const inv = await prisma.invoice.findFirst({
@@ -274,10 +292,24 @@ router.post('/midtrans-webhook', async (req, res) => {
           where: { id: inv.id },
           data: {
             status: 'paid',
-            paid_at: new Date(),
           },
         });
         console.log(`[public.midtrans-webhook] ✅ Invoice #${invoiceNumber} otomatis diubah ke LUNAS (Paid).`);
+      }
+    } else if (isCancelledOrExpired && invoiceNumber) {
+      const inv = await prisma.invoice.findFirst({
+        where: { invoice_number: invoiceNumber },
+      });
+
+      if (inv && inv.status !== 'paid') {
+        // Reset payment_url agar saat klien klik bayar lagi, sesi Midtrans baru otomatis ter-generate
+        await prisma.invoice.update({
+          where: { id: inv.id },
+          data: {
+            payment_url: null,
+          },
+        });
+        console.log(`[public.midtrans-webhook] ℹ️ Sesi Midtrans Invoice #${invoiceNumber} ${transaction_status}. payment_url direset untuk pembuatan sesi baru.`);
       }
     }
 

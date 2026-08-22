@@ -120,11 +120,6 @@ export default function PublicPayPage() {
 
   // Handle Pay Snap Online (Midtrans BYOK)
   const handlePaySnap = async () => {
-    if (invoice?.payment_url) {
-      window.open(invoice.payment_url, '_blank');
-      return;
-    }
-
     setPayingSnap(true);
     try {
       const res = await axios.post(`${API_URL}/api/public/invoices/${token}/pay-snap`);
@@ -136,7 +131,7 @@ export default function PublicPayPage() {
       Swal.fire({
         icon: 'error',
         title: 'Gagal Membuka Pembayaran',
-        text: err.response?.data?.message || 'Gagal memproses pembayaran otomatis.',
+        text: err.response?.data?.message || 'Gagal memproses sesi pembayaran otomatis.',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
       });

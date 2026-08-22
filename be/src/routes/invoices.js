@@ -549,6 +549,126 @@ router.post('/:id/verify', async (req, res) => {
   }
 });
 
+// ─── POST /api/invoices/:id/cancel ── Batalkan Invoice (status -> cancelled) ───
+router.post('/:id/cancel', async (req, res) => {
+  try {
+    const existing = await prisma.invoice.findFirst({
+      where: { id: req.params.id, user_id: req.user.id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
+    }
+
+    if (existing.status === 'paid') {
+      return res.status(400).json({ message: 'Invoice yang sudah lunas tidak dapat dibatalkan.' });
+    }
+
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: req.params.id },
+      data: {
+        status: 'cancelled',
+        payment_url: null,
+      },
+      include: {
+        client: true,
+        items: true,
+        user: true,
+      },
+    });
+
+    console.log(`[invoices.cancel] 🚫 Invoice #${existing.invoice_number} berhasil dibatalkan.`);
+
+    return res.json({
+      message: `Invoice #${existing.invoice_number} berhasil dibatalkan.`,
+      invoice: updatedInvoice,
+    });
+  } catch (err) {
+    console.error('[POST /invoices/:id/cancel]', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan server saat membatalkan invoice.' });
+  }
+});
+
+// ─── POST /api/invoices/:id/refresh-midtrans ── Ajukan ulang / Buat ulang sesi Midtrans ───
+router.post('/:id/refresh-midtrans', async (req, res) => {
+  try {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: req.params.id, user_id: req.user.id },
+      include: {
+        client: true,
+        items: true,
+        user: true,
+      },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
+    }
+
+    if (invoice.status === 'paid') {
+      return res.status(400).json({ message: 'Invoice ini sudah lunas.' });
+    }
+
+    // Pastikan token public link sudah ada
+    let publicToken = invoice.public_link_token;
+    if (!publicToken) {
+      publicToken = crypto.randomBytes(16).toString('hex');
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { public_link_token: publicToken },
+      });
+    }
+
+    let newPaymentUrl = null;
+    const isPro =
+      invoice.user?.tier === 'pro' &&
+      (!invoice.user.subscription_ends_at || new Date(invoice.user.subscription_ends_at) > new Date());
+
+    if (isPro && invoice.user?.midtrans_server_key) {
+      try {
+        const snapRes = await createSnapTransaction({
+          serverKey: invoice.user.midtrans_server_key,
+          clientKey: invoice.user.midtrans_client_key || '',
+          invoice: { ...invoice, public_link_token: publicToken },
+          client: invoice.client,
+          items: invoice.items,
+        });
+        newPaymentUrl = snapRes.redirect_url;
+      } catch (midtransErr) {
+        console.warn('[refresh-midtrans] ⚠️ Gagal membuat sesi Midtrans baru:', midtransErr.message);
+        return res.status(500).json({
+          message: `Gagal membuat transaksi baru ke Midtrans: ${midtransErr.message}`,
+        });
+      }
+    }
+
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        status: 'unpaid',
+        payment_url: newPaymentUrl,
+        public_link_token: publicToken,
+      },
+      include: {
+        client: true,
+        items: true,
+        user: true,
+      },
+    });
+
+    console.log(`[invoices.refresh-midtrans] 🔄 Sesi Midtrans baru berhasil dibuat untuk Invoice #${invoice.invoice_number}`);
+
+    return res.json({
+      message: `Invoice #${invoice.invoice_number} aktif kembali dan sesi pembayaran Midtrans berhasil dibuat ulang!`,
+      invoice: updatedInvoice,
+      payment_url: newPaymentUrl,
+    });
+  } catch (err) {
+    console.error('[POST /invoices/:id/refresh-midtrans]', err);
+    return res.status(500).json({ message: 'Terjadi kesalahan server saat memperbarui sesi Midtrans.' });
+  }
+});
+
 // ─── DELETE /api/invoices/:id ── Hanya boleh hapus draft ─────────────────────
 router.delete('/:id', async (req, res) => {
   try {

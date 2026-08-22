@@ -12,6 +12,7 @@ const STATUS_CONFIG = {
   pending_verification: { label: 'Menunggu Verifikasi', color: 'badge-blue'   },
   paid:                 { label: 'Lunas',              color: 'badge-emerald' },
   overdue:              { label: 'Jatuh Tempo',        color: 'badge-red'     },
+  cancelled:            { label: 'Dibatalkan',         color: 'badge-gray'    },
 };
 
 function formatRupiah(value) {
