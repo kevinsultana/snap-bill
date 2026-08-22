@@ -31,6 +31,7 @@ export default function InvoiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   const fetchInvoice = () => {
     return api.get(`/api/invoices/${id}`)
@@ -64,6 +65,75 @@ export default function InvoiceDetailPage() {
       toast('error', 'Gagal men-generate file PDF invoice.');
     } finally {
       setDownloadingPdf(false);
+    }
+  };
+
+  // Resend Email to client
+  const handleResendEmail = async () => {
+    if (!invoice?.client?.email) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Email Klien Belum Ada',
+        text: 'Klien ini tidak memiliki alamat email yang terdaftar pada sistem.',
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Kirim Ulang Email Tagihan?',
+      html: `
+        <div style="text-align: left; font-family: 'Plus Jakarta Sans', sans-serif;">
+          <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 12px;">
+            Email tagihan untuk Invoice <b style="color: #0f172a;">#${invoice.invoice_number}</b> akan dikirimkan ulang ke:
+          </p>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px;">
+            <p style="margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b;">Penerima Email</p>
+            <p style="margin: 2px 0 0; font-size: 14px; font-weight: 800; color: #4f46e5;">${invoice.client.name} &lt;${invoice.client.email}&gt;</p>
+          </div>
+          <p style="color: #64748b; font-size: 12px; margin: 0;">
+            Email akan berisi rincian tagihan, link portal pembayaran publik, dan lampiran file <b>PDF Invoice</b> resmi.
+          </p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: '📧 Ya, Kirim Ulang',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#94a3b8',
+      customClass: { popup: 'swal-custom-popup' },
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          Swal.showLoading();
+          const res = await api.post(`/api/invoices/${id}/resend-email`);
+          return res.data;
+        } catch (err) {
+          Swal.showValidationMessage(
+            err.response?.data?.message || 'Gagal mengirim ulang email invoice.'
+          );
+          return false;
+        }
+      },
+    });
+
+    if (result.isConfirmed && result.value) {
+      await Swal.fire({
+        icon: 'success',
+        title: 'Email Berhasil Terkirim! 🎉',
+        html: `
+          <p style="color: #475569; font-size: 14px; margin: 0 0 8px;">
+            ${result.value.message || 'Email tagihan invoice telah berhasil dikirimkan ke klien.'}
+          </p>
+          ${result.value.provider ? `<p style="font-size: 12px; color: #10b981; font-weight: 700; margin: 0;">Status: Terkirim via ${result.value.provider}</p>` : ''}
+        `,
+        confirmButtonText: 'Selesai',
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
     }
   };
 
@@ -305,6 +375,20 @@ export default function InvoiceDetailPage() {
               </>
             )}
           </button>
+
+          {invoice.status !== 'draft' && (
+            <button
+              type="button"
+              onClick={handleResendEmail}
+              disabled={resendingEmail}
+              className="btn-secondary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              title="Kirim Ulang Email Tagihan ke Klien"
+            >
+              <span>📧</span>
+              <span>Kirim Ulang Email</span>
+            </button>
+          )}
 
           {publicPayUrl && (
             <>

@@ -393,6 +393,110 @@ router.post('/:id/submit', async (req, res) => {
   }
 });
 
+// ─── POST /api/invoices/:id/resend-email ── Kirim ulang email invoice ke klien ───
+router.post('/:id/resend-email', async (req, res) => {
+  try {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: req.params.id, user_id: req.user.id },
+      include: {
+        client: true,
+        items: true,
+        user: true,
+      },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
+    }
+
+    const clientEmail = invoice.client?.email;
+    if (!clientEmail) {
+      return res.status(400).json({
+        message: 'Klien ini tidak memiliki alamat email yang terdaftar. Harap lengkapi email klien terlebih dahulu.',
+      });
+    }
+
+    // Pastikan token public link sudah ada
+    let publicToken = invoice.public_link_token;
+    if (!publicToken) {
+      publicToken = crypto.randomBytes(16).toString('hex');
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { public_link_token: publicToken },
+      });
+    }
+
+    // Generate PDF Invoice
+    let pdfBuffer = null;
+    try {
+      pdfBuffer = await generateInvoicePDF({ ...invoice, public_link_token: publicToken });
+    } catch (pdfErr) {
+      console.warn('[resend-email] ⚠️ Gagal generate PDF invoice:', pdfErr.message);
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const payUrl = `${frontendUrl}/pay/${publicToken}`;
+
+    const emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6;">
+        <div style="background: linear-gradient(135deg, #6366f1, #4f46e5); padding: 28px; border-radius: 12px 12px 0 0; text-align: center; color: white;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 700;">Pengingat Tagihan Invoice</h1>
+          <p style="margin: 6px 0 0 0; opacity: 0.9; font-size: 14px;">Invoice #${invoice.invoice_number} dari ${invoice.user?.business_name || 'SnapBill'}</p>
+        </div>
+        
+        <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p>Halo <b>${invoice.client?.name}</b>,</p>
+          <p>Ini adalah pengingat/salinan tagihan Anda untuk Invoice <b>#${invoice.invoice_number}</b> dengan total <b>Rp ${Number(invoice.total).toLocaleString('id-ID')}</b>.</p>
+          
+          <div style="margin: 28px 0; text-align: center;">
+            <a href="${payUrl}" style="background: #6366f1; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);">
+              💳 Bayar / Buka Portal Tagihan
+            </a>
+          </div>
+          
+          <p style="font-size: 13px; color: #64748b;">
+            Atau salin tautan berikut ke browser Anda:<br/>
+            <a href="${payUrl}" style="color: #6366f1; word-break: break-all;">${payUrl}</a>
+          </p>
+          
+          <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
+            Email ini dikirim secara otomatis oleh SnapBill. File invoice PDF terlampir pada email ini.
+          </p>
+        </div>
+      </div>
+    `;
+
+    const attachments = pdfBuffer
+      ? [
+          {
+            filename: `Invoice-${invoice.invoice_number}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ]
+      : [];
+
+    const sendRes = await sendEmail({
+      to: clientEmail,
+      subject: `[Pengingat] Tagihan Invoice #${invoice.invoice_number} dari ${invoice.user?.business_name || 'SnapBill'}`,
+      html: emailHtml,
+      attachments,
+    });
+
+    return res.json({
+      success: true,
+      message: `Email invoice #${invoice.invoice_number} berhasil dikirimkan ulang ke ${clientEmail}.`,
+      provider: sendRes?.provider,
+    });
+  } catch (err) {
+    console.error('[POST /invoices/:id/resend-email]', err);
+    return res.status(500).json({
+      message: err.message || 'Gagal mengirim ulang email invoice. Periksa konfigurasi email SMTP di backend.',
+    });
+  }
+});
+
 // ─── POST /api/invoices/:id/verify ── Verifikasi bukti transfer (Approve / Reject) ───
 router.post('/:id/verify', async (req, res) => {
   try {
