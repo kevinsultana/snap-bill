@@ -449,7 +449,7 @@ export default function InvoiceDetailPage() {
 
           {(invoice.status === 'unpaid' || invoice.status === 'overdue' || invoice.status === 'pending_verification') && (
             <>
-              {isPro && (
+              {isPro && invoice.payment_url && !invoice.receipt_url && invoice.status !== 'pending_verification' && (
                 <button
                   type="button"
                   onClick={handleRefreshMidtrans}

@@ -617,7 +617,7 @@ export default function InvoicesPage() {
 
                           {(inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'pending_verification') && (
                             <>
-                              {isPro && (
+                              {isPro && inv.payment_url && !inv.receipt_url && inv.status !== 'pending_verification' && (
                                 <button
                                   type="button"
                                   className="btn-action"
