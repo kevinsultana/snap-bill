@@ -5,15 +5,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { toast } from '@/lib/toast';
 import Swal from 'sweetalert2';
-
-const STATUS_CONFIG = {
-  draft:                { label: 'Draft',              color: 'badge-gray'    },
-  unpaid:               { label: 'Belum Dibayar',      color: 'badge-amber'   },
-  pending_verification: { label: 'Menunggu Verifikasi', color: 'badge-blue'   },
-  paid:                 { label: 'Lunas',              color: 'badge-emerald' },
-  overdue:              { label: 'Jatuh Tempo',        color: 'badge-red'     },
-  cancelled:            { label: 'Dibatalkan',         color: 'badge-gray'    },
-};
+import { useTranslation } from '@/lib/i18n/useTranslation';
 
 function formatRupiah(value) {
   return new Intl.NumberFormat('id-ID', {
@@ -23,9 +15,9 @@ function formatRupiah(value) {
   }).format(Number(value || 0));
 }
 
-function formatDate(dateStr) {
+function formatDate(dateStr, lang = 'id') {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('id-ID', {
+  return new Date(dateStr).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -33,11 +25,21 @@ function formatDate(dateStr) {
 }
 
 export default function DashboardPage() {
+  const { t, lang } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [clients, setClients] = useState([]);
   const [subStatus, setSubStatus] = useState(null);
+
+  const STATUS_CONFIG = {
+    draft:                { label: t('invoices.status_draft'),                color: 'badge-gray'    },
+    unpaid:               { label: t('invoices.status_unpaid'),               color: 'badge-amber'   },
+    pending_verification: { label: t('invoices.status_pending_verification'), color: 'badge-blue'   },
+    paid:                 { label: t('invoices.status_paid'),                 color: 'badge-emerald' },
+    overdue:              { label: t('invoices.status_overdue'),              color: 'badge-red'     },
+    cancelled:            { label: t('invoices.status_cancelled'),            color: 'badge-gray'    },
+  };
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -99,112 +101,99 @@ export default function DashboardPage() {
       `;
 
     Swal.fire({
-      title: '🔍 Review Pembayaran Klien',
+      title: t('invoices.verify_modal_title'),
       html: `
-        <div style="text-align: left; font-family: 'Plus Jakarta Sans', sans-serif;">
-          <div style="background: #f1f5f9; padding: 14px 18px; border-radius: 14px; border: 1px solid #e2e8f0; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.05em;">Invoice</p>
-              <p style="margin: 2px 0 0; font-size: 16px; font-weight: 800; color: #4f46e5;">#${inv.invoice_number}</p>
-              <p style="margin: 2px 0 0; font-size: 13px; color: #334155; font-weight: 600;">${inv.client?.name || '—'}</p>
-            </div>
-            <div style="text-align: right;">
-              <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.05em;">Total Tagihan</p>
-              <p style="margin: 2px 0 0; font-size: 18px; font-weight: 800; color: #047857;">${formatRupiah(inv.total)}</p>
-            </div>
-          </div>
+        <div style="text-align: left; font-size: 14px;">
+          <p style="margin-bottom: 6px;"><b>No. Invoice:</b> #${inv.invoice_number}</p>
+          <p style="margin-bottom: 6px;"><b>Klien:</b> ${inv.client?.name || '—'}</p>
+          <p style="margin-bottom: 12px;"><b>Total Tagihan:</b> <span style="font-weight: 800; color: #059669;">${formatRupiah(inv.total)}</span></p>
+          <p style="margin: 10px 0 4px; font-weight: 600; color: #475569;">${t('invoices.receipt_image')}</p>
           ${receiptContent}
         </div>
       `,
-      showDenyButton: true,
       showCancelButton: true,
-      confirmButtonText: '✅ Approve (Lunas)',
-      denyButtonText: '❌ Reject (Tolak)',
-      cancelButtonText: 'Tutup',
+      showDenyButton: true,
+      confirmButtonText: t('invoices.verify_approve'),
+      denyButtonText: t('invoices.verify_reject'),
+      cancelButtonText: t('common.close'),
       confirmButtonColor: '#10b981',
       denyButtonColor: '#f43f5e',
       cancelButtonColor: '#94a3b8',
-      customClass: { popup: 'swal-custom-popup swal-review-popup' },
-      showLoaderOnConfirm: true,
-      showLoaderOnDeny: true,
-      allowOutsideClick: () => !Swal.isLoading(),
-      preConfirm: async () => {
-        try {
-          Swal.showLoading();
-          await api.post(`/api/invoices/${inv.id}/verify`, { action: 'approve' });
-          return { action: 'approve' };
-        } catch (err) {
-          Swal.showValidationMessage(err.response?.data?.message || 'Gagal menyetujui pembayaran.');
-          return false;
-        }
-      },
-      preDeny: async () => {
-        try {
-          Swal.showLoading();
-          await api.post(`/api/invoices/${inv.id}/verify`, { action: 'reject' });
-          return { action: 'reject' };
-        } catch (err) {
-          Swal.showValidationMessage(err.response?.data?.message || 'Gagal menolak pembayaran.');
-          return false;
-        }
-      },
-    }).then((result) => {
+      customClass: { popup: 'swal-custom-popup' },
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        toast('success', `Invoice #${inv.invoice_number} berhasil disetujui (LUNAS)!`);
-        fetchDashboardData();
+        try {
+          await api.post(`/api/invoices/${inv.id}/approve-receipt`);
+          toast('success', 'Pembayaran disetujui! Invoice berstatus LUNAS.');
+          fetchDashboardData();
+        } catch {
+          toast('error', 'Gagal menyetujui pembayaran.');
+        }
       } else if (result.isDenied) {
-        toast('info', `Pembayaran Invoice #${inv.invoice_number} ditolak.`);
-        fetchDashboardData();
+        try {
+          await api.post(`/api/invoices/${inv.id}/reject-receipt`);
+          toast('info', 'Bukti pembayaran ditolak. Status kembali belum bayar.');
+          fetchDashboardData();
+        } catch {
+          toast('error', 'Gagal menolak bukti transfer.');
+        }
       }
     });
   };
 
+  // Metrik & KPI
+  const paidInvoices = invoices.filter((i) => i.status === 'paid');
+  const totalPaidRevenue = paidInvoices.reduce((sum, i) => sum + Number(i.total || 0), 0);
+  const pendingVerifyInvoices = invoices.filter((i) => i.status === 'pending_verification');
+  const unpaidInvoices = invoices.filter((i) => i.status === 'unpaid' || i.status === 'overdue');
+  const pendingRevenue = [...unpaidInvoices, ...pendingVerifyInvoices].reduce((sum, i) => sum + Number(i.total || 0), 0);
+
+  const paidCount = paidInvoices.length;
+  const unpaidCount = unpaidInvoices.length;
+  const draftCount = invoices.filter((i) => i.status === 'draft').length;
+
+  const isPro = subStatus?.tier === 'pro' || user?.tier === 'pro';
+
+  // Invoices terbaru (maks 5)
+  const recentInvoices = invoices.slice(0, 5);
+
+  let bankAccounts = [];
+  try {
+    bankAccounts = typeof user?.bank_accounts === 'string'
+      ? JSON.parse(user.bank_accounts || '[]')
+      : user?.bank_accounts || [];
+  } catch {
+    bankAccounts = [];
+  }
+
   if (loading) {
     return (
-      <div className="loading-screen">
+      <div className="loading-screen" style={{ minHeight: '60vh' }}>
         <div className="loading-spinner" />
       </div>
     );
   }
 
-  // Metrik Finansial
-  const totalPaidRevenue = invoices
-    .filter((i) => i.status === 'paid')
-    .reduce((sum, i) => sum + Number(i.total || 0), 0);
-
-  const pendingRevenue = invoices
-    .filter((i) => ['unpaid', 'pending_verification', 'overdue'].includes(i.status))
-    .reduce((sum, i) => sum + Number(i.total || 0), 0);
-
-  const paidCount = invoices.filter((i) => i.status === 'paid').length;
-  const pendingVerifyInvoices = invoices.filter((i) => i.status === 'pending_verification');
-  const unpaidCount = invoices.filter((i) => ['unpaid', 'overdue'].includes(i.status)).length;
-  const draftCount = invoices.filter((i) => i.status === 'draft').length;
-
-  const isPro = subStatus?.tier === 'pro' || user?.tier === 'pro';
-  const recentInvoices = invoices.slice(0, 5);
-  const bankAccounts = Array.isArray(user?.bank_accounts) ? user.bank_accounts : [];
-
   return (
     <div className="page-container">
 
-      {/* ── 1. Header & Welcome Greeting ───────────────────────────── */}
-      <div className="dash-welcome-header">
+      {/* ── 1. Header Section ──────────────────────────────────────── */}
+      <div className="page-header">
         <div>
           <h1 className="page-title">
-            Selamat datang, <span style={{ color: 'var(--indigo)' }}>{user?.business_name || user?.email?.split('@')[0]}</span> 👋
+            {t('dashboard.welcome')} {user?.business_name || user?.email?.split('@')[0]}! 👋
           </h1>
           <p className="page-desc">
-            Berikut ringkasan performa finansial, tagihan aktif, dan status bisnis Anda.
+            {t('dashboard.overview_desc')}
           </p>
         </div>
 
         <div className="header-actions">
           <Link href="/dashboard/invoices/create" className="btn-primary">
-            + Buat Invoice Baru
+            {t('dashboard.btn_create_invoice')}
           </Link>
           <Link href="/dashboard/clients" className="btn-secondary">
-            + Tambah Klien
+            {t('clients.btn_add')}
           </Link>
         </div>
       </div>
@@ -238,7 +227,7 @@ export default function DashboardPage() {
         {/* Pendapatan Lunas */}
         <div className="dash-stat-card glass-card-interactive">
           <div className="dash-stat-top">
-            <span className="dash-stat-label">Total Pendapatan (Lunas)</span>
+            <span className="dash-stat-label">{t('dashboard.total_revenue')}</span>
             <div className="dash-stat-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#059669' }}>
               💰
             </div>
@@ -248,7 +237,7 @@ export default function DashboardPage() {
           </p>
           <div className="dash-stat-footer">
             <span className="dash-stat-sub">
-              <b>{paidCount}</b> dari {invoices.length} invoice lunas
+              <b>{paidCount}</b> / {invoices.length} invoice lunas
             </span>
           </div>
         </div>
@@ -256,7 +245,7 @@ export default function DashboardPage() {
         {/* Menunggu Pembayaran */}
         <div className="dash-stat-card glass-card-interactive">
           <div className="dash-stat-top">
-            <span className="dash-stat-label">Belum Dibayar & Pending</span>
+            <span className="dash-stat-label">{t('dashboard.pending_revenue')}</span>
             <div className="dash-stat-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#b45309' }}>
               ⏳
             </div>
@@ -266,7 +255,7 @@ export default function DashboardPage() {
           </p>
           <div className="dash-stat-footer">
             <span className="dash-stat-sub">
-              <b>{unpaidCount + pendingVerifyInvoices.length}</b> invoice aktif belum selesai
+              <b>{unpaidCount + pendingVerifyInvoices.length}</b> {t('dashboard.active_invoices')}
             </span>
           </div>
         </div>
@@ -274,17 +263,17 @@ export default function DashboardPage() {
         {/* Total Klien */}
         <div className="dash-stat-card glass-card-interactive">
           <div className="dash-stat-top">
-            <span className="dash-stat-label">Total Klien Terdaftar</span>
+            <span className="dash-stat-label">{t('dashboard.total_clients')}</span>
             <div className="dash-stat-icon-wrap" style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#4f46e5' }}>
               👥
             </div>
           </div>
           <p className="dash-stat-value">
-            {clients.length} <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-muted)' }}>Klien</span>
+            {clients.length} <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-muted)' }}>{t('nav.clients')}</span>
           </p>
           <div className="dash-stat-footer">
             <Link href="/dashboard/clients" className="dash-stat-link">
-              Kelola master klien ➜
+              {t('clients.title')} ➜
             </Link>
           </div>
         </div>
@@ -292,17 +281,17 @@ export default function DashboardPage() {
         {/* Total Invoice & Draft */}
         <div className="dash-stat-card glass-card-interactive">
           <div className="dash-stat-top">
-            <span className="dash-stat-label">Total Faktur Diterbitkan</span>
+            <span className="dash-stat-label">{t('nav.invoices')}</span>
             <div className="dash-stat-icon-wrap" style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#7e22ce' }}>
               🧾
             </div>
           </div>
           <p className="dash-stat-value">
-            {invoices.length} <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-muted)' }}>Faktur</span>
+            {invoices.length} <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-muted)' }}>{t('nav.invoices')}</span>
           </p>
           <div className="dash-stat-footer">
             <span className="dash-stat-sub">
-              Termasuk <b>{draftCount}</b> draf invoice
+              Draft: <b>{draftCount}</b>
             </span>
           </div>
         </div>
@@ -317,20 +306,20 @@ export default function DashboardPage() {
           <div className="dash-card glass-card">
             <div className="dash-card-header">
               <div>
-                <h3 className="dash-card-title">🧾 Invoice Terbaru</h3>
-                <p className="dash-card-desc">5 faktur tagihan yang paling baru diterbitkan.</p>
+                <h3 className="dash-card-title">{t('dashboard.recent_invoices_title')}</h3>
+                <p className="dash-card-desc">5 faktur tagihan terbaru.</p>
               </div>
               <Link href="/dashboard/invoices" className="btn-secondary" style={{ fontSize: 13, padding: '6px 14px' }}>
-                Lihat Semua ({invoices.length}) ➜
+                {t('dashboard.all_invoices_link')}
               </Link>
             </div>
 
             {recentInvoices.length === 0 ? (
               <div className="table-empty">
                 <span className="table-empty-icon">🧾</span>
-                <p>Belum ada invoice. Buat invoice pertama Anda sekarang!</p>
+                <p>{t('dashboard.empty_invoices_title')}</p>
                 <Link href="/dashboard/invoices/create" className="btn-primary" style={{ marginTop: 14 }}>
-                  + Buat Invoice
+                  {t('dashboard.btn_create_invoice')}
                 </Link>
               </div>
             ) : (
@@ -338,12 +327,12 @@ export default function DashboardPage() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>No. Invoice</th>
-                      <th>Klien</th>
-                      <th>Jatuh Tempo</th>
-                      <th className="td-right">Total</th>
-                      <th>Status</th>
-                      <th>Aksi</th>
+                      <th>{t('dashboard.table_invoice_num')}</th>
+                      <th>{t('dashboard.table_client')}</th>
+                      <th>{t('dashboard.table_due_date')}</th>
+                      <th className="td-right">{t('dashboard.table_total')}</th>
+                      <th>{t('dashboard.table_status')}</th>
+                      <th>{t('dashboard.table_action')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -353,7 +342,7 @@ export default function DashboardPage() {
                         <tr key={inv.id}>
                           <td className="td-invoice-num">#{inv.invoice_number}</td>
                           <td className="td-name">{inv.client?.name || '—'}</td>
-                          <td className="td-secondary">{formatDate(inv.due_date)}</td>
+                          <td className="td-secondary">{formatDate(inv.due_date, lang)}</td>
                           <td className="td-price">{formatRupiah(inv.total)}</td>
                           <td>
                             <span className={`status-badge ${cfg.color}`}>{cfg.label}</span>
@@ -370,7 +359,7 @@ export default function DashboardPage() {
                               </button>
                             )}
                             <Link href={`/dashboard/invoices/${inv.id}`} className="btn-action btn-view">
-                              👁️ Detail
+                              👁️ {t('common.view')}
                             </Link>
                           </td>
                         </tr>
@@ -389,7 +378,7 @@ export default function DashboardPage() {
           {/* Subscription Tier Widget */}
           <div className="dash-card glass-card">
             <h3 className="dash-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>💎</span> Paket Berlangganan
+              <span>💎</span> {t('nav.subscription')}
             </h3>
 
             {isPro ? (
@@ -398,9 +387,9 @@ export default function DashboardPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 20 }}>👑</span>
                     <div>
-                      <b style={{ fontSize: 14, color: '#78350f' }}>SNAPBILL PRO ACTIVE</b>
+                      <b style={{ fontSize: 14, color: '#78350f' }}>{t('subscription.active_pro_badge')}</b>
                       <p style={{ margin: '2px 0 0', fontSize: 12, color: '#92400e', opacity: 0.95 }}>
-                        Nikmati kuota invoice tanpa batas & fitur lengkap.
+                        {t('subscription.pro_hero_desc')}
                       </p>
                     </div>
                   </div>
@@ -409,9 +398,9 @@ export default function DashboardPage() {
             ) : (
               <div style={{ marginTop: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Kuota Bulan Ini:</span>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('subscription.invoices_created_this_month')}:</span>
                   <span style={{ fontWeight: 800, color: 'var(--indigo)' }}>
-                    {subStatus?.invoiceCountThisMonth ?? 0} / 10 Invoice
+                    {subStatus?.invoiceCountThisMonth ?? 0} / 10
                   </span>
                 </div>
                 <div className="tier-progress-bar" style={{ height: 8 }}>
@@ -421,14 +410,14 @@ export default function DashboardPage() {
                   />
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 16px' }}>
-                  Tersisa {Math.max(0, 10 - (subStatus?.invoiceCountThisMonth ?? 0))} invoice di paket Free.
+                  {t('subscription.remaining_quota', { count: Math.max(0, 10 - (subStatus?.invoiceCountThisMonth ?? 0)) })}
                 </p>
                 <Link
-                  href="/dashboard/settings"
+                  href="/dashboard/subscription"
                   className="btn-primary"
                   style={{ width: '100%', justifyContent: 'center' }}
                 >
-                  ⚡ Upgrade ke Pro (Rp 99rb)
+                  {t('subscription.btn_upgrade_hero')}
                 </Link>
               </div>
             )}
@@ -437,19 +426,16 @@ export default function DashboardPage() {
           {/* Setup Health Checklist */}
           <div className="dash-card glass-card">
             <h3 className="dash-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>⚙️</span> Kesiapan Penagihan
+              <span>⚙️</span> {t('settings.title')}
             </h3>
-            <p className="dash-card-desc" style={{ marginBottom: 16 }}>
-              Status integrasi pembayaran dan profil bisnis Anda.
-            </p>
 
-            <div className="dash-checklist">
+            <div className="dash-checklist" style={{ marginTop: 14 }}>
               <div className="dash-check-item">
                 <span className="dash-check-icon">{user?.business_name ? '✅' : '⚠️'}</span>
                 <div style={{ flex: 1 }}>
-                  <p className="dash-check-label">Identitas Bisnis / Brand</p>
+                  <p className="dash-check-label">{t('settings.business_name')}</p>
                   <p className="dash-check-sub">
-                    {user?.business_name ? user.business_name : 'Nama bisnis belum diisi di profil.'}
+                    {user?.business_name ? user.business_name : 'Belum diisi'}
                   </p>
                 </div>
               </div>
@@ -457,9 +443,9 @@ export default function DashboardPage() {
               <div className="dash-check-item">
                 <span className="dash-check-icon">{bankAccounts.length > 0 ? '✅' : '⚠️'}</span>
                 <div style={{ flex: 1 }}>
-                  <p className="dash-check-label">Rekening Bank Transfer</p>
+                  <p className="dash-check-label">{t('settings.bank_section_title')}</p>
                   <p className="dash-check-sub">
-                    {bankAccounts.length > 0 ? `${bankAccounts.length} rekening terdaftar.` : 'Belum ada rekening untuk pembayaran manual.'}
+                    {bankAccounts.length > 0 ? `${bankAccounts.length} rekening` : 'Belum ada'}
                   </p>
                 </div>
               </div>
@@ -467,9 +453,9 @@ export default function DashboardPage() {
               <div className="dash-check-item">
                 <span className="dash-check-icon">{user?.midtrans_server_key ? '✅' : 'ℹ️'}</span>
                 <div style={{ flex: 1 }}>
-                  <p className="dash-check-label">Gateway Midtrans (BYOK)</p>
+                  <p className="dash-check-label">Midtrans BYOK</p>
                   <p className="dash-check-sub">
-                    {user?.midtrans_server_key ? 'Terhubung untuk QRIS & VA.' : 'Opsional: Masukkan Server Key di Pengaturan.'}
+                    {user?.midtrans_server_key ? t('subscription.midtrans_active') : t('subscription.midtrans_inactive')}
                   </p>
                 </div>
               </div>
@@ -480,7 +466,7 @@ export default function DashboardPage() {
               className="btn-secondary"
               style={{ width: '100%', justifyContent: 'center', marginTop: 16 }}
             >
-              🛠️ Kelola Pengaturan ➜
+              🛠️ {t('nav.settings')} ➜
             </Link>
           </div>
 

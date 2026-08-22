@@ -7,6 +7,7 @@ import CreatableSelect from 'react-select/creatable';
 import Swal from 'sweetalert2';
 import api from '@/lib/api';
 import toast from '@/lib/toast';
+import { useTranslation } from '@/lib/i18n/useTranslation';
 
 // Helper pemformat ribuan (e.g. 1000000 -> "1.000.000")
 function formatThousand(val) {
@@ -92,6 +93,7 @@ const EMPTY_LINE = { item_name: '', quantity: '1', unit_price: '' };
  */
 export default function InvoiceForm({ mode = 'create', invoiceId, initialData }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [clients, setClients] = useState([]);
   const [savedItems, setSavedItems] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -174,16 +176,16 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
     const currentPrice = lines[idx]?.unit_price ? parseRawNumber(lines[idx].unit_price) : '';
 
     const { value: formValues } = await Swal.fire({
-      title: '📦 Tambah Item Baru ke Katalog',
+      title: t('invoices.form_modal_add_item_title'),
       html: `
         <div style="text-align: left; font-size: 13.5px; color: #334155; line-height: 1.5;">
           <p style="margin: 0 0 14px; font-size: 13px; color: #64748b;">
-            Daftarkan item ini ke katalog agar dapat digunakan kembali dengan cepat pada invoice lainnya.
+            ${t('invoices.form_modal_add_item_desc')}
           </p>
 
           <div style="margin-bottom: 14px;">
             <label style="display: block; font-weight: 700; font-size: 12px; margin-bottom: 4px; color: #1e293b;">
-              Nama Item / Layanan <span style="color: #f43f5e;">*</span>
+              ${t('invoices.form_item_name')} <span style="color: #f43f5e;">*</span>
             </label>
             <input
               id="swal-item-name"
@@ -196,7 +198,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
           <div style="margin-bottom: 14px;">
             <label style="display: block; font-weight: 700; font-size: 12px; margin-bottom: 4px; color: #1e293b;">
-              Harga Standar (Rp) <span style="color: #f43f5e;">*</span>
+              ${t('invoices.form_price')} <span style="color: #f43f5e;">*</span>
             </label>
             <div style="position: relative;">
               <span style="position: absolute; left: 12px; top: 11px; font-weight: 700; color: #64748b; font-size: 13px; z-index: 2;">Rp</span>
@@ -212,7 +214,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
           <div style="margin-bottom: 6px;">
             <label style="display: block; font-weight: 700; font-size: 12px; margin-bottom: 4px; color: #1e293b;">
-              Deskripsi (Opsional)
+              ${t('items.table_desc')} (${t('common.optional')})
             </label>
             <textarea
               id="swal-item-desc"
@@ -224,8 +226,8 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
         </div>
       `,
       showCancelButton: true,
-      confirmButtonText: '💾 Simpan & Terapkan',
-      cancelButtonText: 'Batal',
+      confirmButtonText: t('invoices.form_modal_btn_save_apply'),
+      cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup' },
@@ -250,18 +252,39 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
           Swal.showValidationMessage('Nama item wajib diisi');
           return false;
         }
-        const price = parseRawNumber(rawPrice);
-        if (isNaN(price) || price < 0) {
-          Swal.showValidationMessage('Harga harus berupa angka valid');
+
+        const priceNum = parseRawNumber(rawPrice);
+        if (priceNum <= 0) {
+          Swal.showValidationMessage('Harga standar harus lebih besar dari 0');
           return false;
         }
-        return { name, price, description: desc || null };
+
+        return {
+          name,
+          price: priceNum,
+          description: desc || '',
+        };
       },
     });
 
     if (!formValues) return;
 
-    // Terapkan nama item dan harga satuan ke baris invoice aktif
+    // Simpan ke endpoint backend /api/items
+    try {
+      const res = await api.post('/api/items', {
+        name: formValues.name,
+        price: formValues.price,
+        description: formValues.description,
+      });
+
+      const createdItem = res.data;
+      setSavedItems((prev) => [...prev, createdItem]);
+      toast('success', `Item "${formValues.name}" berhasil didaftarkan ke katalog!`);
+    } catch {
+      // Walau gagal simpan katalog, tetap isi baris invoice
+    }
+
+    // Set nilai pada baris invoice
     setLines((prev) =>
       prev.map((l, i) =>
         i === idx
@@ -273,54 +296,49 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
           : l
       )
     );
-
-    // Simpan ke database katalog item (/api/items)
-    try {
-      const res = await api.post('/api/items', {
-        name: formValues.name,
-        price: formValues.price,
-        description: formValues.description,
-      });
-
-      if (res.data?.item) {
-        setSavedItems((prev) => [res.data.item, ...prev]);
-        toast('success', `Item "${formValues.name}" berhasil didaftarkan ke katalog!`);
-      }
-    } catch (err) {
-      toast('error', err.response?.data?.message || 'Gagal menyimpan item ke katalog');
-    }
   };
+
+  // Convert saved items to react-select options
+  const itemOptions = savedItems.map((it) => ({
+    value: it.name,
+    label: `${it.name} — Rp ${formatThousand(it.price)}`,
+    name: it.name,
+    price: it.price,
+  }));
 
   // ─── Calculations ──────────────────────────────────────────────────────────
   const subtotal = lines.reduce((sum, l) => {
-    const qty = parseRawNumber(l.quantity) || 0;
-    const price = parseRawNumber(l.unit_price) || 0;
-    return sum + qty * price;
+    const q = parseRawNumber(l.quantity) || 0;
+    const p = parseRawNumber(l.unit_price) || 0;
+    return sum + q * p;
   }, 0);
 
-  // Hitung besaran diskon aktual dalam Rupiah
-  const numDiscountVal = parseRawNumber(discountValue) || 0;
-  let discountAmt = 0;
-  if (discountType === 'percent') {
-    discountAmt = (subtotal * Math.min(100, Math.max(0, numDiscountVal))) / 100;
-  } else {
-    discountAmt = Math.min(subtotal, Math.max(0, numDiscountVal));
-  }
+  // Kalkulasi potongan diskon
+  const rawDiscount = parseRawNumber(discountValue) || 0;
+  const discountAmt =
+    discountType === 'percent'
+      ? (subtotal * Math.min(100, Math.max(0, rawDiscount))) / 100
+      : Math.min(subtotal, Math.max(0, rawDiscount));
 
-  const taxAmt = ((subtotal - discountAmt) * (parseFloat(taxRate) || 0)) / 100;
-  const total = subtotal - discountAmt + taxAmt;
+  const afterDiscount = Math.max(0, subtotal - discountAmt);
+  const taxAmt = (afterDiscount * (parseFloat(taxRate) || 0)) / 100;
+  const total = afterDiscount + taxAmt;
 
   // ─── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!clientId) {
-      toast('error', 'Pilih klien terlebih dahulu');
+      toast('error', 'Pilih klien tujuan terlebih dahulu');
       return;
     }
-    const hasEmptyLine = lines.some((l) => !l.item_name.trim() || !l.unit_price);
-    if (hasEmptyLine) {
-      toast('error', 'Lengkapi semua nama item dan harga satuan');
+
+    const validLines = lines.filter(
+      (l) => l.item_name.trim() && parseRawNumber(l.quantity) > 0 && parseRawNumber(l.unit_price) >= 0
+    );
+
+    if (validLines.length === 0) {
+      toast('error', 'Masukkan minimal 1 item dengan nama, jumlah, dan harga satuan yang valid');
       return;
     }
 
@@ -332,54 +350,60 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
         due_date: dueDate || null,
         tax_rate: parseFloat(taxRate) || 0,
         discount: discountAmt,
-        items: lines.map((l) => ({
+        items: validLines.map((l) => ({
           item_name: l.item_name.trim(),
           quantity: parseRawNumber(l.quantity) || 1,
           unit_price: parseRawNumber(l.unit_price) || 0,
         })),
       };
 
-      if (mode === 'edit') {
+      if (mode === 'create') {
+        const res = await api.post('/api/invoices', payload);
+        toast('success', 'Invoice draft berhasil dibuat!');
+        router.push(`/dashboard/invoices/${res.data.id}`);
+      } else {
         await api.put(`/api/invoices/${invoiceId}`, payload);
         toast('success', 'Invoice berhasil diperbarui!');
-      } else {
-        await api.post('/api/invoices', payload);
-        toast('success', 'Draft invoice berhasil dibuat!');
+        router.push(`/dashboard/invoices/${invoiceId}`);
       }
-      router.push('/dashboard/invoices');
     } catch (err) {
-      toast('error', err.response?.data?.message || 'Gagal menyimpan invoice');
+      const msg = err.response?.data?.message || 'Gagal menyimpan invoice';
+      if (err.response?.status === 403 && err.response?.data?.tier_limit) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Batas Kuota Tercapai',
+          text: msg,
+          confirmButtonText: 'Upgrade ke PRO ⚡',
+          confirmButtonColor: '#6366f1',
+          showCancelButton: true,
+          cancelButtonText: 'Tutup',
+        }).then((res) => {
+          if (res.isConfirmed) router.push('/dashboard/subscription');
+        });
+      } else {
+        toast('error', msg);
+      }
     } finally {
       setSaving(false);
     }
   };
 
-  // Convert savedItems to React-Select options
-  const itemOptions = savedItems.map((it) => ({
-    value: it.name,
-    label: `${it.name} — Rp ${formatThousand(it.price)}`,
-    name: it.name,
-    price: it.price,
-    id: it.id,
-  }));
-
-  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="page-container">
       {/* Header */}
       <div className="page-header">
         <div>
           <h1 className="page-title">
-            {mode === 'edit' ? '✏️ Edit Invoice' : '🧾 Buat Invoice Baru'}
+            {mode === 'create' ? t('invoices.form_create_title') : t('invoices.form_edit_title')}
           </h1>
           <p className="page-desc">
-            {mode === 'edit'
-              ? 'Perbarui detail invoice draft dan simpan perubahan.'
-              : 'Isi detail tagihan, masukkan rincian item, dan terbitkan invoice profesional.'}
+            {mode === 'create'
+              ? 'Isi rincian transaksi tagihan dan terbitkan secara instan.'
+              : `Mengubah rincian draf invoice #${initialData?.invoice_number || ''}`}
           </p>
         </div>
         <Link href="/dashboard/invoices" className="btn-secondary">
-          ← Kembali ke Invoice
+          ← {t('invoices.detail_back')}
         </Link>
       </div>
 
@@ -391,13 +415,13 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             {/* 1. Informasi Invoice */}
             <div className="invoice-section">
               <h2 className="section-title">
-                <span className="section-icon">📋</span> 1. Informasi Klien & Tanggal
+                <span className="section-icon">📋</span> {t('invoices.form_section_info')}
               </h2>
 
               <div className="invoice-info-grid">
                 <div className="form-group">
                   <label className="form-label">
-                    Klien Tujuan <span className="req">*</span>
+                    {t('invoices.form_client')} <span className="req">*</span>
                   </label>
                   <select
                     className="form-input"
@@ -405,7 +429,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     onChange={(e) => setClientId(e.target.value)}
                     required
                   >
-                    <option value="">— Pilih Klien —</option>
+                    <option value="">— {t('invoices.form_client')} —</option>
                     {clients.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -414,18 +438,17 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   </select>
                   {clients.length === 0 && (
                     <p className="form-hint">
-                      Belum ada klien.{' '}
+                      {t('clients.empty_title')}.{' '}
                       <Link href="/dashboard/clients" className="auth-link">
-                        Tambah klien
-                      </Link>{' '}
-                      terlebih dahulu.
+                        {t('clients.btn_add')}
+                      </Link>
                     </p>
                   )}
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">
-                    Tanggal Terbit <span className="req">*</span>
+                    {t('invoices.form_issue_date')} <span className="req">*</span>
                   </label>
                   <input
                     type="date"
@@ -437,7 +460,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Jatuh Tempo Pembayaran</label>
+                  <label className="form-label">{t('invoices.form_due_date')}</label>
                   <input
                     type="date"
                     className="form-input"
@@ -453,7 +476,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             <div className="invoice-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <h2 className="section-title" style={{ margin: 0 }}>
-                  <span className="section-icon">📦</span> 2. Rincian Item & Layanan
+                  <span className="section-icon">📦</span> {t('invoices.form_section_items')}
                 </h2>
                 <button
                   type="button"
@@ -462,7 +485,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   style={{ fontSize: 13, padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
                 >
                   <span>➕</span>
-                  <span>Tambah Baris</span>
+                  <span>{t('invoices.form_add_line')}</span>
                 </button>
               </div>
 
@@ -472,16 +495,16 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   <thead>
                     <tr style={{ background: 'rgba(241, 245, 249, 0.95)', borderBottom: '1px solid #e2e8f0' }}>
                       <th style={{ padding: '12px 14px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '44%' }}>
-                        Nama Item / Layanan
+                        {t('invoices.form_item_name')}
                       </th>
                       <th style={{ padding: '12px 10px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '14%', textAlign: 'center' }}>
-                        Qty
+                        {t('invoices.form_qty')}
                       </th>
                       <th style={{ padding: '12px 12px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '23%' }}>
-                        Harga Satuan (Rp)
+                        {t('invoices.form_price')}
                       </th>
                       <th style={{ padding: '12px 14px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '15%', textAlign: 'right' }}>
-                        Subtotal
+                        {t('invoices.form_subtotal')}
                       </th>
                       <th style={{ padding: '12px 8px', width: '44px', textAlign: 'center' }} />
                     </tr>
@@ -513,8 +536,8 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                               value={currentSelectValue}
                               onChange={(opt) => handleSelectItemOption(idx, opt)}
                               onCreateOption={(input) => handleCreateNewItem(idx, input)}
-                              placeholder="Ketik atau pilih nama item..."
-                              formatCreateLabel={(inputValue) => `➕ Tambah "${inputValue}" ke katalog`}
+                              placeholder={t('invoices.form_select_item_placeholder')}
+                              formatCreateLabel={(inputValue) => t('invoices.form_create_item_option', { name: inputValue })}
                               noOptionsMessage={() => 'Ketik nama item baru untuk mendaftarkannya'}
                               menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                             />
@@ -602,7 +625,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   className="btn-add-line"
                   style={{ width: '100%', justifyContent: 'center' }}
                 >
-                  + Tambah Baris Item Baru
+                  {t('invoices.form_add_line_bottom')}
                 </button>
               </div>
             </div>
@@ -613,14 +636,14 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             {/* Adjustments (Discount & Tax) */}
             <div className="totals-adjustments-card">
               <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 4px' }}>
-                ⚙️ Penyesuaian Harga
+                {t('invoices.form_adjustments_title')}
               </h3>
 
               {/* Discount Selector */}
               <div className="form-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                   <label className="form-label" style={{ margin: 0 }}>
-                    Diskon
+                    {t('invoices.form_discount')}
                   </label>
                   <div className="discount-type-toggle">
                     <button
@@ -682,7 +705,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
               {/* Tax Rate */}
               <div className="form-group">
-                <label className="form-label">Pajak Pertambahan Nilai (%)</label>
+                <label className="form-label">{t('invoices.form_tax')}</label>
                 <div className="input-with-addon">
                   <span className="input-addon-badge">%</span>
                   <input
@@ -722,24 +745,24 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   marginBottom: 12,
                 }}
               >
-                Ringkasan Kalkulasi
+                {t('invoices.form_summary_title')}
               </h3>
 
               <div className="total-row">
-                <span>Subtotal Item</span>
+                <span>{t('common.subtotal')}</span>
                 <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{formatRupiah(subtotal)}</span>
               </div>
 
               {discountAmt > 0 && (
                 <div className="total-row total-discount">
-                  <span>Diskon {discountType === 'percent' ? `(${discountValue}%)` : ''}</span>
+                  <span>{t('common.discount')} {discountType === 'percent' ? `(${discountValue}%)` : ''}</span>
                   <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>− {formatRupiah(discountAmt)}</span>
                 </div>
               )}
 
               {taxAmt > 0 && (
                 <div className="total-row" style={{ color: 'var(--indigo-dark)' }}>
-                  <span>Pajak ({taxRate}%)</span>
+                  <span>{t('common.tax')} ({taxRate}%)</span>
                   <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>+ {formatRupiah(taxAmt)}</span>
                 </div>
               )}
@@ -755,7 +778,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                       letterSpacing: '0.04em',
                     }}
                   >
-                    Total Pembayaran
+                    {t('invoices.form_total_payment')}
                   </span>
                   <p className="grand-total-amount">{formatRupiah(total)}</p>
                 </div>
@@ -770,12 +793,12 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
               >
                 {saving ? (
                   <>
-                    <span className="btn-spinner" /> Menyimpan Invoice...
+                    <span className="btn-spinner" /> {t('common.saving')}
                   </>
                 ) : mode === 'edit' ? (
-                  '💾 Simpan Perubahan Invoice'
+                  t('invoices.form_btn_save_edit')
                 ) : (
-                  '💾 Simpan sebagai Draft Invoice'
+                  t('invoices.form_btn_save_draft')
                 )}
               </button>
             </div>

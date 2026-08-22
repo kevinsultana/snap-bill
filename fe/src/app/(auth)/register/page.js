@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import Swal from 'sweetalert2';
+import { useTranslation } from '@/lib/i18n/useTranslation';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     email: '',
     phone: '',
@@ -40,7 +43,7 @@ export default function RegisterPage() {
     if (form.password.length < 8) {
       Swal.fire({
         icon: 'warning',
-        title: 'Password Terlalu Pendek',
+        title: 'Password',
         text: 'Password minimal harus 8 karakter.',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
@@ -51,7 +54,7 @@ export default function RegisterPage() {
     if (form.password !== form.confirm) {
       Swal.fire({
         icon: 'warning',
-        title: 'Password Tidak Cocok',
+        title: 'Password',
         text: 'Pastikan konfirmasi password sama dengan password yang dimasukkan.',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
@@ -67,7 +70,7 @@ export default function RegisterPage() {
       if (!phoneRegex.test(cleanPhone) && !generalPhoneRegex.test(cleanPhone)) {
         Swal.fire({
           icon: 'warning',
-          title: 'Nomor Telepon Tidak Valid',
+          title: 'Phone',
           text: 'Gunakan format nomor telepon yang valid, contoh: 08123456789 atau +628123456789.',
           confirmButtonColor: '#6366f1',
           customClass: { popup: 'swal-custom-popup' },
@@ -119,20 +122,24 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page-container">
-      <div className="auth-glass-card" style={{ maxWidth: 480 }}>
+      <div className="auth-glass-card" style={{ maxWidth: 480, position: 'relative' }}>
+        <div style={{ position: 'absolute', top: 16, right: 16 }}>
+          <LanguageSwitcher size="small" />
+        </div>
+
         {/* Brand */}
         <div className="auth-brand">
           <div className="sidebar-logo" style={{ width: 40, height: 40, fontSize: 20 }}>⚡</div>
           <span className="sidebar-name" style={{ fontSize: 22 }}>Snap<b>Bill</b></span>
         </div>
 
-        <h1 className="auth-title">Daftar Akun Gratis</h1>
-        <p className="auth-subtitle">Paket Free mencakup 10 invoice/bulan. Tanpa kartu kredit.</p>
+        <h1 className="auth-title">{t('auth.register_title')}</h1>
+        <p className="auth-subtitle">{t('auth.register_subtitle')}</p>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
             <label htmlFor="email" className="form-label">
-              Email Bisnis / Pribadi <span className="req">*</span>
+              {t('auth.email')} <span className="req">*</span>
             </label>
             <input
               id="email"
@@ -143,13 +150,13 @@ export default function RegisterPage() {
               value={form.email}
               onChange={handleChange}
               className="form-input"
-              placeholder="nama@perusahaan.com"
+              placeholder={t('auth.email_placeholder')}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="phone" className="form-label">
-              Nomor WhatsApp / Telepon <span className="req">*</span>
+              {t('auth.phone')} <span className="req">*</span>
             </label>
             <input
               id="phone"
@@ -160,13 +167,13 @@ export default function RegisterPage() {
               value={form.phone}
               onChange={handleChange}
               className="form-input"
-              placeholder="Contoh: 081234567890"
+              placeholder={t('auth.phone_placeholder')}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="business_name" className="form-label">
-              Nama Bisnis / Brand (Opsional)
+              {t('auth.business_name')} ({t('common.optional')})
             </label>
             <input
               id="business_name"
@@ -175,13 +182,13 @@ export default function RegisterPage() {
               value={form.business_name}
               onChange={handleChange}
               className="form-input"
-              placeholder="Contoh: Studio Kreatif Nusantara"
+              placeholder={t('auth.business_name_placeholder')}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="password" className="form-label">
-              Password <span className="req">*</span>
+              {t('auth.password')} <span className="req">*</span>
             </label>
             <input
               id="password"
@@ -193,13 +200,13 @@ export default function RegisterPage() {
               value={form.password}
               onChange={handleChange}
               className="form-input"
-              placeholder="Minimal 8 karakter"
+              placeholder={t('auth.password_placeholder')}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="confirm" className="form-label">
-              Konfirmasi Password <span className="req">*</span>
+              Konfirmasi {t('auth.password')} <span className="req">*</span>
             </label>
             <input
               id="confirm"
@@ -211,18 +218,18 @@ export default function RegisterPage() {
               value={form.confirm}
               onChange={handleChange}
               className="form-input"
-              placeholder="Ulangi password"
+              placeholder={t('auth.password_placeholder')}
             />
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary" style={{ padding: '13px', marginTop: 8 }}>
-            {loading ? <span className="btn-spinner" /> : '🚀 Buat Akun & Mulai Gratis ➜'}
+            {loading ? <span className="btn-spinner" /> : `🚀 ${t('auth.btn_register')} ➜`}
           </button>
         </form>
 
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginTop: 20 }}>
-          Sudah memiliki akun?{' '}
-          <Link href="/login" className="auth-link">Masuk ke Dashboard</Link>
+          {t('auth.has_account')}{' '}
+          <Link href="/login" className="auth-link">{t('auth.login_link')}</Link>
         </p>
 
         <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(226, 232, 240, 0.8)', textAlign: 'center' }}>
@@ -238,10 +245,8 @@ export default function RegisterPage() {
               fontWeight: 600,
               transition: 'color 0.2s',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--indigo-dark)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
           >
-            <span>←</span> Kembali ke Beranda
+            <span>←</span> {t('common.back')}
           </Link>
         </div>
       </div>

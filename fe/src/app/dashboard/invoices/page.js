@@ -7,21 +7,7 @@ import api from '@/lib/api';
 import { confirmDelete } from '@/lib/modals';
 import { toast } from '@/lib/toast';
 import Swal from 'sweetalert2';
-
-// ─── Status badge config ─────────────────────────────────────────────────────
-const STATUS_CONFIG = {
-  draft:                { label: 'Draft',              color: 'badge-gray'    },
-  unpaid:               { label: 'Belum Dibayar',      color: 'badge-amber'   },
-  pending_verification: { label: 'Menunggu Verifikasi', color: 'badge-blue'   },
-  paid:                 { label: 'Lunas',              color: 'badge-emerald' },
-  overdue:              { label: 'Jatuh Tempo',        color: 'badge-red'     },
-  cancelled:            { label: 'Dibatalkan',         color: 'badge-gray'    },
-};
-
-function StatusBadge({ status }) {
-  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
-  return <span className={`status-badge ${cfg.color}`}>{cfg.label}</span>;
-}
+import { useTranslation } from '@/lib/i18n/useTranslation';
 
 function formatRupiah(value) {
   return new Intl.NumberFormat('id-ID', {
@@ -29,20 +15,31 @@ function formatRupiah(value) {
   }).format(Number(value || 0));
 }
 
-function formatDate(dateStr) {
+function formatDate(dateStr, lang = 'id') {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('id-ID', {
+  return new Date(dateStr).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
     day: '2-digit', month: 'short', year: 'numeric',
   });
 }
 
-// ─── Page Component ──────────────────────────────────────────────────────────
 export default function InvoicesPage() {
   const router = useRouter();
+  const { t, lang } = useTranslation();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+
+  const STATUS_CONFIG = {
+    draft:                { label: t('invoices.status_draft'),                color: 'badge-gray'    },
+    unpaid:               { label: t('invoices.status_unpaid'),               color: 'badge-amber'   },
+    pending_verification: { label: t('invoices.status_pending_verification'), color: 'badge-blue'   },
+    paid:                 { label: t('invoices.status_paid'),                 color: 'badge-emerald' },
+    overdue:              { label: t('invoices.status_overdue'),              color: 'badge-red'     },
+    cancelled:            { label: t('invoices.status_cancelled'),            color: 'badge-gray'    },
+  };
+
+  const [userSettings, setUserSettings] = useState(null);
 
   const fetchInvoices = useCallback(async () => {
     try {
@@ -55,7 +52,12 @@ export default function InvoicesPage() {
     }
   }, []);
 
-  useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
+  useEffect(() => {
+    fetchInvoices();
+    api.get('/api/settings').then((r) => setUserSettings(r.data)).catch(() => {});
+  }, [fetchInvoices]);
+
+  const isPro = userSettings?.tier === 'pro' && (!userSettings?.subscription_ends_at || new Date(userSettings.subscription_ends_at) > new Date());
 
   // ─── Submit Invoice ────────────────────────────────────────────────────────
   const handleSubmitInvoice = async (inv) => {
@@ -72,7 +74,7 @@ export default function InvoicesPage() {
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: '🚀 Ya, Terbitkan',
-      cancelButtonText: 'Batal',
+      cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup' },
@@ -122,7 +124,7 @@ export default function InvoicesPage() {
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: '🚫 Ya, Batalkan',
-      cancelButtonText: 'Tutup',
+      cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#f43f5e',
       cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup' },
@@ -141,27 +143,24 @@ export default function InvoicesPage() {
     });
 
     if (result.isConfirmed) {
-      toast('info', `Invoice #${inv.invoice_number} berhasil dibatalkan.`);
+      toast('success', `Invoice #${inv.invoice_number} berhasil dibatalkan.`);
       fetchInvoices();
     }
   };
 
-  // ─── Ajukan Ulang / Refresh Sesi Midtrans ──────────────────────────────────
+  // ─── Refresh / Re-Create Midtrans Session (Ajukan Ulang) ───────────────────
   const handleRefreshMidtrans = async (inv) => {
     const result = await Swal.fire({
       title: 'Ajukan Ulang Sesi Midtrans?',
       html: `
         <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 10px;">
-          Sistem akan membuat transaksi Midtrans baru secara otomatis dari backend untuk Invoice <b style="color: #0f172a;">#${inv.invoice_number}</b>.
-        </p>
-        <p style="color: #64748b; font-size: 12px; margin: 0;">
-          Gunakan fitur ini jika sesi Midtrans sebelumnya tercancel, kedaluwarsa, atau ditolak.
+          Sistem akan membuatkan token dan link pembayaran Midtrans yang baru untuk invoice <b style="color: #0f172a;">#${inv.invoice_number}</b>.
         </p>
       `,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: '🔄 Ya, Buat Sesi Baru',
-      cancelButtonText: 'Batal',
+      confirmButtonText: '🔄 Ya, Ajukan Ulang',
+      cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup' },
@@ -173,35 +172,19 @@ export default function InvoicesPage() {
           const res = await api.post(`/api/invoices/${inv.id}/refresh-midtrans`);
           return res.data;
         } catch (err) {
-          Swal.showValidationMessage(err.response?.data?.message || 'Gagal memperbarui sesi Midtrans.');
+          Swal.showValidationMessage(err.response?.data?.message || 'Gagal membuat sesi pembayaran baru.');
           return false;
         }
       },
     });
 
     if (result.isConfirmed && result.value) {
-      await Swal.fire({
-        icon: 'success',
-        title: 'Sesi Midtrans Baru Siap! 🎉',
-        html: `
-          <p style="color: #475569; font-size: 14px; margin: 0 0 8px;">
-            ${result.value.message || 'Sesi transaksi Midtrans baru berhasil dibuat.'}
-          </p>
-          ${result.value.payment_url ? `
-            <div style="margin-top: 6px; padding: 10px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 12px; word-break: break-all; color: #4f46e5;">
-              ${result.value.payment_url}
-            </div>
-          ` : ''}
-        `,
-        confirmButtonText: 'Selesai',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
+      toast('success', `Sesi Midtrans untuk #${inv.invoice_number} berhasil diperbarui!`);
       fetchInvoices();
     }
   };
 
-  // ─── Review Pembayaran (Approve / Reject Modal) ─────────────────────────────
+  // ─── Review Pembayaran (Approve / Reject) Modal ────────────────────────────
   const handleReviewPayment = (inv) => {
     const isPdf = inv.receipt_url && inv.receipt_url.toLowerCase().endsWith('.pdf');
 
@@ -218,11 +201,11 @@ export default function InvoicesPage() {
         `
         : `
           <div style="margin: 16px 0; text-align: center;">
-            <div style="max-height: 340px; overflow-y: auto; background: #f8fafc; padding: 10px; border-radius: 14px; border: 1px solid #e2e8f0;">
+            <div style="max-height: 320px; overflow-y: auto; background: #f8fafc; padding: 10px; border-radius: 14px; border: 1px solid #e2e8f0;">
               <img
                 src="${inv.receipt_url}"
-                alt="Bukti Transfer"
-                style="max-width: 100%; max-height: 300px; border-radius: 8px; object-fit: contain; margin: 0 auto; display: block;"
+                alt="Bukti Pembayaran"
+                style="max-width: 100%; max-height: 280px; border-radius: 8px; object-fit: contain; margin: 0 auto; display: block;"
               />
             </div>
             <a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; margin-top: 8px; color: #4f46e5; font-weight: 600; font-size: 12px;">
@@ -232,39 +215,26 @@ export default function InvoicesPage() {
         `
       : `
         <div style="margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0; text-align: center; color: #64748b;">
-          <p style="margin: 0;">Bukti transfer belum diunggah atau tidak ditemukan.</p>
+          <p style="margin: 0;">Bukti transfer belum diunggah.</p>
         </div>
       `;
 
     Swal.fire({
-      title: '🔍 Review Pembayaran',
+      title: t('invoices.verify_modal_title'),
       html: `
-        <div style="text-align: left; font-family: 'Plus Jakarta Sans', sans-serif;">
-          <div style="background: #f1f5f9; padding: 14px 18px; border-radius: 14px; border: 1px solid #e2e8f0; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700;">Invoice</p>
-              <p style="margin: 2px 0 0; font-size: 16px; font-weight: 800; color: #4f46e5;">#${inv.invoice_number}</p>
-              <p style="margin: 2px 0 0; font-size: 13px; color: #334155; font-weight: 600;">${inv.client?.name || '—'}</p>
-            </div>
-            <div style="text-align: right;">
-              <p style="margin: 0; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700;">Total Tagihan</p>
-              <p style="margin: 2px 0 0; font-size: 18px; font-weight: 800; color: #047857;">${formatRupiah(inv.total)}</p>
-            </div>
-          </div>
-
-          <p style="margin: 0; font-size: 13px; color: #475569; font-weight: 600;">Bukti Pembayaran yang Diunggah Klien:</p>
+        <div style="text-align: left; font-size: 14px;">
+          <p style="margin-bottom: 6px;"><b>No. Invoice:</b> #${inv.invoice_number}</p>
+          <p style="margin-bottom: 6px;"><b>Klien:</b> ${inv.client?.name || '—'}</p>
+          <p style="margin-bottom: 12px;"><b>Total Tagihan:</b> <span style="font-weight: 800; color: #059669;">${formatRupiah(inv.total)}</span></p>
+          <p style="margin: 10px 0 4px; font-weight: 600; color: #475569;">${t('invoices.receipt_image')}</p>
           ${receiptContent}
-
-          <p style="margin: 8px 0 0; font-size: 12px; color: #64748b; text-align: center;">
-            Pilih <b>Approve</b> untuk menyelesaikan pembayaran, atau <b>Reject</b> jika bukti tidak sesuai.
-          </p>
         </div>
       `,
       showDenyButton: true,
       showCancelButton: true,
-      confirmButtonText: '✅ Approve (Lunas)',
-      denyButtonText: '❌ Reject (Tolak)',
-      cancelButtonText: 'Tutup',
+      confirmButtonText: t('invoices.verify_approve'),
+      denyButtonText: t('invoices.verify_reject'),
+      cancelButtonText: t('common.close'),
       confirmButtonColor: '#10b981',
       denyButtonColor: '#f43f5e',
       cancelButtonColor: '#94a3b8',
@@ -331,7 +301,6 @@ export default function InvoicesPage() {
     return matchSearch && matchStatus;
   });
 
-  // Summary counts
   const counts = invoices.reduce((acc, inv) => {
     acc[inv.status] = (acc[inv.status] || 0) + 1;
     return acc;
@@ -342,11 +311,11 @@ export default function InvoicesPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">🧾 Daftar Invoice</h1>
-          <p className="page-desc">Kelola faktur tagihan bisnis, kirim ke klien, dan verifikasi bukti pembayaran.</p>
+          <h1 className="page-title">{t('invoices.title')}</h1>
+          <p className="page-desc">{t('invoices.desc')}</p>
         </div>
         <Link href="/dashboard/invoices/create" className="btn-primary" id="btn-create-invoice">
-          + Buat Invoice Baru
+          {t('invoices.btn_create')}
         </Link>
       </div>
 
@@ -360,7 +329,7 @@ export default function InvoicesPage() {
             style={{ padding: '6px 14px', fontSize: 12, borderRadius: 9999 }}
             onClick={() => setFilterStatus('all')}
           >
-            Semua ({invoices.length})
+            {t('common.all')} ({invoices.length})
           </button>
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
             <button
@@ -384,13 +353,13 @@ export default function InvoicesPage() {
             <input
               type="search"
               className="form-input search-input"
-              placeholder="Cari nomor invoice atau nama klien..."
+              placeholder={t('invoices.search_placeholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <span className="glass-pill" style={{ color: 'var(--text-secondary)' }}>
-            Menampilkan: <b>{filtered.length}</b> invoice
+            {t('common.total')}: <b>{filtered.length}</b> invoice
           </span>
         </div>
 
@@ -403,127 +372,127 @@ export default function InvoicesPage() {
           ) : filtered.length === 0 ? (
             <div className="table-empty">
               <span className="table-empty-icon">🧾</span>
-              <p>{search || filterStatus !== 'all' ? 'Tidak ada invoice yang cocok dengan filter.' : 'Belum ada invoice. Buat invoice pertama Anda sekarang!'}</p>
+              <p>{search || filterStatus !== 'all' ? t('invoices.empty_desc') : t('dashboard.empty_invoices_title')}</p>
             </div>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>No. Invoice</th>
-                  <th>Klien</th>
-                  <th>Tanggal</th>
-                  <th>Jatuh Tempo</th>
-                  <th className="td-right">Total Tagihan</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'right' }}>Aksi</th>
+                  <th>{t('dashboard.table_invoice_num')}</th>
+                  <th>{t('dashboard.table_client')}</th>
+                  <th>{t('invoices.form_issue_date')}</th>
+                  <th>{t('dashboard.table_due_date')}</th>
+                  <th className="td-right">{t('dashboard.table_total')}</th>
+                  <th>{t('dashboard.table_status')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('dashboard.table_action')}</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((inv) => (
-                  <tr key={inv.id}>
-                    <td className="td-invoice-num">#{inv.invoice_number}</td>
-                    <td className="td-name">{inv.client?.name || '—'}</td>
-                    <td className="td-secondary">{formatDate(inv.issue_date)}</td>
-                    <td className="td-secondary">{formatDate(inv.due_date)}</td>
-                    <td className="td-right td-price" style={{ color: 'var(--text-main)' }}>
-                      {formatRupiah(inv.total)}
-                    </td>
-                    <td><StatusBadge status={inv.status} /></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="td-actions" style={{ justifyContent: 'flex-end' }}>
-                        {/* Pending Verification -> Review Pembayaran Button */}
-                        {inv.status === 'pending_verification' && (
-                          <button
-                            type="button"
-                            className="btn-action btn-review"
-                            onClick={() => handleReviewPayment(inv)}
-                            title="Review Bukti Pembayaran Klien"
-                          >
-                            🔍 Review
-                          </button>
-                        )}
+                {filtered.map((inv) => {
+                  const cfg = STATUS_CONFIG[inv.status] || STATUS_CONFIG.draft;
+                  return (
+                    <tr key={inv.id}>
+                      <td className="td-invoice-num">#{inv.invoice_number}</td>
+                      <td className="td-name">{inv.client?.name || '—'}</td>
+                      <td className="td-secondary">{formatDate(inv.issue_date, lang)}</td>
+                      <td className="td-secondary">{formatDate(inv.due_date, lang)}</td>
+                      <td className="td-right td-price" style={{ color: 'var(--text-main)' }}>
+                        {formatRupiah(inv.total)}
+                      </td>
+                      <td>
+                        <span className={`status-badge ${cfg.color}`}>{cfg.label}</span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="td-actions" style={{ justifyContent: 'flex-end' }}>
+                          {inv.status === 'pending_verification' && (
+                            <button
+                              type="button"
+                              className="btn-action btn-review"
+                              onClick={() => handleReviewPayment(inv)}
+                              title="Review Bukti Pembayaran Klien"
+                            >
+                              🔍 Review
+                            </button>
+                          )}
 
-                        {/* Draft -> Submit Button */}
-                        {inv.status === 'draft' && (
-                          <button
-                            type="button"
-                            className="btn-action btn-submit"
-                            onClick={() => handleSubmitInvoice(inv)}
-                            title="Terbitkan ke Klien"
-                          >
-                            🚀 Submit
-                          </button>
-                        )}
+                          {inv.status === 'draft' && (
+                            <button
+                              type="button"
+                              className="btn-action btn-submit"
+                              onClick={() => handleSubmitInvoice(inv)}
+                              title="Terbitkan ke Klien"
+                            >
+                              🚀 Submit
+                            </button>
+                          )}
 
-                        {/* Draft -> Edit Button */}
-                        {inv.status === 'draft' && (
+                          {inv.status === 'draft' && (
+                            <Link
+                              href={`/dashboard/invoices/${inv.id}/edit`}
+                              className="btn-action btn-edit"
+                            >
+                              ✏️ {t('common.edit')}
+                            </Link>
+                          )}
+
                           <Link
-                            href={`/dashboard/invoices/${inv.id}/edit`}
-                            className="btn-action btn-edit"
+                            href={`/dashboard/invoices/${inv.id}`}
+                            className="btn-action btn-view"
                           >
-                            ✏️ Edit
+                            👁️ {t('common.view')}
                           </Link>
-                        )}
 
-                        {/* View Detail Link */}
-                        <Link
-                          href={`/dashboard/invoices/${inv.id}`}
-                          className="btn-action btn-view"
-                        >
-                          👁️ Lihat
-                        </Link>
+                          {(inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'pending_verification') && (
+                            <>
+                              {isPro && (
+                                <button
+                                  type="button"
+                                  className="btn-action"
+                                  style={{ color: 'var(--indigo)', borderColor: 'rgba(99, 102, 241, 0.3)' }}
+                                  onClick={() => handleRefreshMidtrans(inv)}
+                                  title="Buat Ulang Sesi Midtrans / Ajukan Ulang"
+                                >
+                                  🔄 {t('invoices.btn_resubmit_midtrans')}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="btn-action"
+                                style={{ color: 'var(--rose)', borderColor: 'rgba(244, 63, 94, 0.3)' }}
+                                onClick={() => handleCancelInvoice(inv)}
+                                title="Batalkan Invoice"
+                              >
+                                🚫 {t('invoices.btn_cancel_invoice')}
+                              </button>
+                            </>
+                          )}
 
-                        {/* Unpaid / Overdue / Pending Verification -> Refresh Midtrans & Cancel */}
-                        {(inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'pending_verification') && (
-                          <>
+                          {inv.status === 'cancelled' && isPro && (
                             <button
                               type="button"
                               className="btn-action"
-                              style={{ color: 'var(--indigo)', borderColor: 'rgba(99, 102, 241, 0.3)' }}
+                              style={{ color: 'var(--emerald)', borderColor: 'rgba(16, 185, 129, 0.3)' }}
                               onClick={() => handleRefreshMidtrans(inv)}
-                              title="Buat Ulang Sesi Midtrans / Ajukan Ulang"
+                              title="Aktifkan Kembali & Buat Ulang Sesi Midtrans"
                             >
-                              🔄 Ajukan Ulang
+                              🔄 {t('invoices.btn_reactivate_midtrans')}
                             </button>
+                          )}
+
+                          {inv.status === 'draft' && (
                             <button
-                              type="button"
-                              className="btn-action"
-                              style={{ color: 'var(--rose)', borderColor: 'rgba(244, 63, 94, 0.3)' }}
-                              onClick={() => handleCancelInvoice(inv)}
-                              title="Batalkan Invoice"
+                              className="btn-action btn-delete"
+                              onClick={() => handleDelete(inv)}
+                              title="Hapus Draft"
                             >
-                              🚫 Batal
+                              🗑️
                             </button>
-                          </>
-                        )}
-
-                        {/* Cancelled -> Reactivate & Refresh Midtrans */}
-                        {inv.status === 'cancelled' && (
-                          <button
-                            type="button"
-                            className="btn-action"
-                            style={{ color: 'var(--emerald)', borderColor: 'rgba(16, 185, 129, 0.3)' }}
-                            onClick={() => handleRefreshMidtrans(inv)}
-                            title="Aktifkan Kembali & Buat Ulang Sesi Midtrans"
-                          >
-                            🔄 Aktifkan Kembali
-                          </button>
-                        )}
-
-                        {/* Draft -> Delete Button */}
-                        {inv.status === 'draft' && (
-                          <button
-                            className="btn-action btn-delete"
-                            onClick={() => handleDelete(inv)}
-                            title="Hapus Draft"
-                          >
-                            🗑️
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

@@ -5,18 +5,19 @@ import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import toast from '@/lib/toast';
 import Swal from 'sweetalert2';
+import { useTranslation } from '@/lib/i18n/useTranslation';
 
-function formatDateFull(dateStr) {
+function formatDateFull(dateStr, lang = 'id') {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('id-ID', {
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }) + ' WIB';
+  }) + (lang === 'en' ? ' UTC' : ' WIB');
 }
 
 function getDaysRemaining(dateStr) {
@@ -32,6 +33,7 @@ function SubscriptionContent() {
   const searchParams = useSearchParams();
   const urlOrderId = searchParams?.get('order_id');
   const urlSubscribed = searchParams?.get('subscribed');
+  const { t, lang } = useTranslation();
 
   const [statusData, setStatusData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -87,8 +89,8 @@ function SubscriptionContent() {
         if (showToast) {
           Swal.fire({
             icon: 'info',
-            title: 'Menunggu Pembayaran',
-            text: 'Pembayaran Anda masih dalam status Pending. Silakan klik tombol "Buka Halaman Pembayaran" untuk melihat kode transfer / QRIS.',
+            title: t('subscription.pending_title'),
+            text: 'Pembayaran Anda masih dalam status Pending. Silakan klik tombol "Buka Pembayaran" untuk melihat kode transfer / QRIS.',
             confirmButtonColor: '#6366f1',
             customClass: { popup: 'swal-custom-popup' },
           });
@@ -101,152 +103,98 @@ function SubscriptionContent() {
         setPendingTransaction(null);
         setPendingPaymentUrl(null);
         if (showToast) {
-          toast('warning', data.message || 'Transaksi pembayaran dibatalkan atau telah kedaluwarsa.');
+          toast('error', `Transaksi ${data.status}. Silakan buat sesi pembayaran baru.`);
         }
       }
-    } catch (err) {
-      if (showToast) {
-        toast('error', err.response?.data?.message || 'Gagal mengecek status pembayaran ke Midtrans.');
-      }
+    } catch {
+      if (showToast) toast('error', 'Gagal memverifikasi status pembayaran ke Midtrans');
     } finally {
       setCheckingStatus(false);
     }
-  }, [fetchStatus]);
+  }, [fetchStatus, t]);
 
-  // Load awal: fetch status & auto-check query order_id / localStorage
+  // Initial load: ambil status langganan & cek jika ada pending order_id
   useEffect(() => {
+    fetchStatus();
+
     if (typeof window !== 'undefined') {
-      const savedPaymentUrl = localStorage.getItem('pending_sub_payment_url');
-      if (savedPaymentUrl) setPendingPaymentUrl(savedPaymentUrl);
+      const savedUrl = localStorage.getItem('pending_sub_payment_url');
+      if (savedUrl) setPendingPaymentUrl(savedUrl);
     }
 
-    fetchStatus().then((currentSub) => {
-      let activeOrderId = urlOrderId;
-      if (!activeOrderId && typeof window !== 'undefined') {
-        activeOrderId = localStorage.getItem('pending_sub_order_id');
+    if (urlSubscribed && urlOrderId) {
+      handleCheckStatus(urlOrderId, true);
+    } else if (typeof window !== 'undefined') {
+      const savedOrderId = localStorage.getItem('pending_sub_order_id');
+      if (savedOrderId) {
+        handleCheckStatus(savedOrderId, false);
       }
+    }
+  }, [fetchStatus, handleCheckStatus, urlOrderId, urlSubscribed]);
 
-      // Jika user sudah Pro, hapus pending order lama
-      if (currentSub?.tier === 'pro') {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('pending_sub_order_id');
-          localStorage.removeItem('pending_sub_payment_url');
-        }
-        setPendingTransaction(null);
-        setPendingPaymentUrl(null);
-        return;
-      }
-
-      if (activeOrderId) {
-        handleCheckStatus(activeOrderId, Boolean(urlOrderId || urlSubscribed));
-      }
-    });
-  }, [urlOrderId, urlSubscribed, fetchStatus, handleCheckStatus]);
-
-  // Upgrade ke Pro via Midtrans Checkout
+  // Handler Upgrade Paket Pro
   const handleUpgrade = async () => {
-    const result = await Swal.fire({
-      title: '⚡ Upgrade ke SnapBill PRO',
-      html: `
-        <div style="text-align: left; font-size: 13.5px; color: #475569; line-height: 1.6;">
-          <p style="margin: 0 0 12px; font-size: 15px; color: #0f172a; font-weight: 700;">
-            Hanya <b>Rp 99.000 / bulan</b> untuk membuka seluruh fitur bisnis tanpa batas:
-          </p>
-          <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px;">
-            <li><b style="color: #10b981;">✓</b> <b>Unlimited Invoices</b> (Buat invoice tanpa batas kuota bulanan)</li>
-            <li><b style="color: #10b981;">✓</b> <b>Midtrans Payment Gateway (BYOK)</b> untuk pembayaran instan klien</li>
-            <li><b style="color: #10b981;">✓</b> <b>Kuitansi Otomatis & Email Terima Kasih</b> saat invoice lunas</li>
-            <li><b style="color: #10b981;">✓</b> <b>Generate PDF Faktur Resmi Puppeteer</b> berkualitas tinggi</li>
-          </ul>
-        </div>
-      `,
-      icon: 'info',
-      showCancelButton: true,
-      confirmButtonText: '💳 Bayar via Midtrans (Rp 99.000)',
-      cancelButtonText: 'Batal',
-      confirmButtonColor: '#6366f1',
-      cancelButtonColor: '#94a3b8',
-      customClass: { popup: 'swal-custom-popup' },
-    });
-
-    if (!result.isConfirmed) return;
-
     setActionLoading(true);
     try {
       const res = await api.post('/api/subscriptions/create-snap');
-      if (res.data?.order_id && typeof window !== 'undefined') {
-        localStorage.setItem('pending_sub_order_id', res.data.order_id);
+      const { payment_url, order_id } = res.data;
+
+      if (typeof window !== 'undefined') {
+        if (order_id) localStorage.setItem('pending_sub_order_id', order_id);
+        if (payment_url) localStorage.setItem('pending_sub_payment_url', payment_url);
       }
-      if (res.data?.redirect_url) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('pending_sub_payment_url', res.data.redirect_url);
+      setPendingPaymentUrl(payment_url);
+      setPendingTransaction({ order_id, status: 'pending' });
+
+      if (payment_url) {
+        const win = window.open(payment_url, '_blank');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+          window.location.href = payment_url;
         }
-        setPendingPaymentUrl(res.data.redirect_url);
-        window.location.href = res.data.redirect_url;
       }
     } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Memproses Langganan',
-        text: err.response?.data?.message || 'Terjadi kendala saat menghubungkan ke payment gateway.',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
+      toast('error', err.response?.data?.message || 'Gagal memulai transaksi Midtrans');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Batalkan Langganan Pro
+  // Handler Pembatalan Langganan Pro
   const handleCancelSubscription = async () => {
     const result = await Swal.fire({
-      title: 'Batalkan Langganan Pro?',
-      html: `
-        <div style="text-align: left; font-size: 13.5px; color: #475569; line-height: 1.6;">
-          <p style="margin: 0 0 10px; color: #0f172a; font-weight: 700;">
-            Apakah Anda yakin ingin membatalkan paket SnapBill Pro Anda?
-          </p>
-          <p style="margin: 0 0 10px;">
-            Setelah dibatalkan:
-          </p>
-          <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; color: #64748b;">
-            <li>Akun Anda akan kembali ke <b>Paket Free</b> (limit 10 invoice/bulan).</li>
-            <li>Integrasi Midtrans BYOK untuk klien akan dinonaktifkan.</li>
-            <li>Semua invoice, item, dan data klien yang telah Anda buat <b>tetap tersimpan aman</b>.</li>
-          </ul>
-        </div>
-      `,
+      title: t('subscription.cancel_confirm_title'),
+      text: t('subscription.cancel_confirm_text'),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: '🚫 Ya, Batalkan Langganan',
-      cancelButtonText: 'Pertahankan Paket Pro',
+      confirmButtonText: t('subscription.cancel_confirm_btn'),
+      cancelButtonText: t('subscription.cancel_keep_btn'),
       confirmButtonColor: '#f43f5e',
       cancelButtonColor: '#6366f1',
       customClass: { popup: 'swal-custom-popup' },
-      showLoaderOnConfirm: true,
-      allowOutsideClick: () => !Swal.isLoading(),
-      preConfirm: async () => {
-        try {
-          Swal.showLoading();
-          const res = await api.post('/api/subscriptions/cancel');
-          return res.data;
-        } catch (err) {
-          Swal.showValidationMessage(err.response?.data?.message || 'Gagal membatalkan langganan.');
-          return false;
-        }
-      },
     });
 
     if (result.isConfirmed) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('pending_sub_order_id');
-        localStorage.removeItem('pending_sub_payment_url');
-        window.dispatchEvent(new CustomEvent('subscription_updated'));
+      setActionLoading(true);
+      try {
+        const res = await api.post('/api/subscriptions/cancel');
+        await fetchStatus();
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('subscription_updated'));
+        }
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Langganan Telah Dibatalkan',
+          text: res.data?.message || 'Akun Anda telah dikembalikan ke paket Free (kuota 10 invoice per bulan).',
+          confirmButtonColor: '#6366f1',
+          customClass: { popup: 'swal-custom-popup' },
+        });
+      } catch (err) {
+        toast('error', err.response?.data?.message || 'Gagal membatalkan langganan');
+      } finally {
+        setActionLoading(false);
       }
-      setPendingTransaction(null);
-      setPendingPaymentUrl(null);
-      toast('info', 'Langganan Pro berhasil dibatalkan. Akun Anda kembali ke Paket Free.');
-      fetchStatus();
     }
   };
 
@@ -260,9 +208,9 @@ function SubscriptionContent() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">💎 Paket & Langganan SaaS</h1>
+          <h1 className="page-title">{t('subscription.title')}</h1>
           <p className="page-desc">
-            Pantau masa aktif akun SnapBill Anda, upgrade kapasitas pembuatan invoice, atau kelola status langganan.
+            {t('subscription.desc')}
           </p>
         </div>
       </div>
@@ -292,14 +240,14 @@ function SubscriptionContent() {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#92400e' }}>
-                        Menunggu Penyelesaian Pembayaran (Pending)
+                        {t('subscription.pending_title')}
                       </h4>
                       <span style={{ background: '#f59e0b', color: '#ffffff', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 9999, textTransform: 'uppercase' }}>
                         Pending
                       </span>
                     </div>
                     <p style={{ margin: '4px 0 0', fontSize: 13, color: '#78350f', lineHeight: 1.5 }}>
-                      Transaksi langganan Pro Anda sedang menunggu pembayaran di Midtrans.
+                      {t('subscription.pending_desc')}
                     </p>
                     <div style={{ marginTop: 6, fontSize: 12, color: '#92400e', background: 'rgba(255, 255, 255, 0.6)', padding: '6px 12px', borderRadius: 8, display: 'inline-block' }}>
                       Order ID: <b style={{ fontFamily: 'var(--font-mono)' }}>{pendingTransaction.order_id}</b>
@@ -331,7 +279,7 @@ function SubscriptionContent() {
                       title="Buka kembali halaman pembayaran Midtrans"
                     >
                       <span>💳</span>
-                      <span>Buka Pembayaran ↗</span>
+                      <span>{t('subscription.btn_reopen_payment')}</span>
                     </a>
                   )}
 
@@ -351,7 +299,7 @@ function SubscriptionContent() {
                     }}
                   >
                     <span>🔄</span>
-                    <span>{checkingStatus ? 'Memeriksa...' : 'Cek Status'}</span>
+                    <span>{checkingStatus ? 'Memeriksa...' : t('subscription.btn_check_status')}</span>
                   </button>
 
                   <button
@@ -368,7 +316,7 @@ function SubscriptionContent() {
                     }}
                     title="Buat sesi transaksi baru jika ingin ganti metode pembayaran"
                   >
-                    ⚡ Buat Sesi Baru
+                    {t('subscription.btn_new_session')}
                   </button>
 
                   <button
@@ -435,17 +383,17 @@ function SubscriptionContent() {
                       textTransform: 'uppercase',
                     }}
                   >
-                    {isPro ? 'SnapBill PRO (Aktif)' : 'Paket Free (Gratis)'}
+                    {isPro ? t('subscription.active_pro_badge') : t('subscription.free_badge')}
                   </span>
                 </div>
 
                 <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 6px 0' }}>
-                  {isPro ? 'Anda Menikmati Akses Penuh Fitur Pro' : 'Tingkatkan Bisnis Anda dengan Paket Pro'}
+                  {isPro ? t('subscription.pro_hero_title') : t('subscription.free_hero_title')}
                 </h2>
                 <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, maxWidth: 580 }}>
                   {isPro
-                    ? 'Kuota invoice tanpa batas (unlimited) dan integrasi pembayaran otomatis Midtrans BYOK siap digunakan.'
-                    : 'Paket Free dibatasi maksimal 10 invoice per bulan. Upgrade ke Pro untuk invoice unlimited dan payment gateway.'}
+                    ? t('subscription.pro_hero_desc')
+                    : t('subscription.free_hero_desc')}
                 </p>
               </div>
 
@@ -464,7 +412,7 @@ function SubscriptionContent() {
                       fontWeight: 700,
                     }}
                   >
-                    🚫 Batalkan Langganan
+                    {t('subscription.btn_cancel_sub')}
                   </button>
                 ) : (
                   <button
@@ -474,7 +422,7 @@ function SubscriptionContent() {
                     className="btn-primary"
                     style={{ padding: '10px 22px', fontSize: 14, fontWeight: 700 }}
                   >
-                    {actionLoading ? 'Memproses...' : '⚡ Upgrade ke Pro (Rp 99rb)'}
+                    {actionLoading ? 'Memproses...' : t('subscription.btn_upgrade_hero')}
                   </button>
                 )}
               </div>
@@ -494,14 +442,14 @@ function SubscriptionContent() {
               {/* Masa Aktif */}
               <div style={{ background: '#ffffff', padding: '16px 18px', borderRadius: 14, border: '1px solid #e2e8f0' }}>
                 <p style={{ margin: 0, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.04em' }}>
-                  Masa Aktif Langganan
+                  {t('subscription.active_until')}
                 </p>
                 <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: isPro ? '#0f172a' : '#64748b' }}>
-                  {isPro ? formatDateFull(statusData?.subscription_ends_at) : 'Tidak ada masa aktif (Free)'}
+                  {isPro ? formatDateFull(statusData?.subscription_ends_at, lang) : t('subscription.no_expiry')}
                 </p>
                 {isPro && daysLeft !== null && (
                   <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 700, color: daysLeft <= 3 ? '#e11d48' : '#10b981' }}>
-                    ⏳ Sisa waktu: <b>{daysLeft} Hari Lagi</b>
+                    {t('subscription.days_left', { days: daysLeft })}
                   </span>
                 )}
               </div>
@@ -509,10 +457,10 @@ function SubscriptionContent() {
               {/* Kuota Invoice */}
               <div style={{ background: '#ffffff', padding: '16px 18px', borderRadius: 14, border: '1px solid #e2e8f0' }}>
                 <p style={{ margin: 0, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.04em' }}>
-                  Pembuatan Invoice Bulan Ini
+                  {t('subscription.invoices_created_this_month')}
                 </p>
                 <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: '#0f172a' }}>
-                  {isPro ? `${invoiceCount} Invoice (Unlimited ♾️)` : `${invoiceCount} / 10 Invoice`}
+                  {isPro ? `${invoiceCount} Invoice (${t('subscription.unlimited')})` : `${invoiceCount} / 10 Invoice`}
                 </p>
                 {!isPro && (
                   <div style={{ marginTop: 8 }}>
@@ -520,7 +468,7 @@ function SubscriptionContent() {
                       <div style={{ height: '100%', width: `${usedPercent}%`, background: usedPercent >= 80 ? '#f43f5e' : '#6366f1', borderRadius: 9999 }} />
                     </div>
                     <span style={{ fontSize: 10.5, color: '#64748b', marginTop: 2, display: 'block' }}>
-                      Sisa kuota: <b>{statusData?.remainingInvoices ?? 0} invoice</b>
+                      {t('subscription.remaining_quota', { count: statusData?.remainingInvoices ?? 0 })}
                     </span>
                   </div>
                 )}
@@ -529,13 +477,13 @@ function SubscriptionContent() {
               {/* Status Payment Gateway BYOK */}
               <div style={{ background: '#ffffff', padding: '16px 18px', borderRadius: 14, border: '1px solid #e2e8f0' }}>
                 <p style={{ margin: 0, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.04em' }}>
-                  Midtrans Payment BYOK
+                  {t('subscription.midtrans_status')}
                 </p>
                 <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: isPro ? '#10b981' : '#94a3b8' }}>
-                  {isPro ? '✓ Aktif & Siap Digunakan' : '✕ Memerlukan Paket Pro'}
+                  {isPro ? t('subscription.midtrans_active') : t('subscription.midtrans_inactive')}
                 </p>
                 <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, color: '#64748b' }}>
-                  {isPro ? 'Klien bisa bayar otomatis via QRIS & VA' : 'Upgrade untuk mengaktifkan Midtrans'}
+                  {isPro ? t('subscription.midtrans_active_desc') : t('subscription.midtrans_inactive_desc')}
                 </span>
               </div>
             </div>
@@ -543,7 +491,7 @@ function SubscriptionContent() {
 
           {/* Pricing Comparison Cards */}
           <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-main)', marginBottom: 16 }}>
-            Pilihan Paket Layanan SnapBill
+            {t('subscription.plan_choice_title')}
           </h3>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, marginBottom: 36 }}>
@@ -573,35 +521,35 @@ function SubscriptionContent() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Paket Anda Saat Ini
+                  {t('subscription.current_plan_badge')}
                 </span>
               )}
 
               <div style={{ marginBottom: 16 }}>
-                <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-main)' }}>Paket Free</h4>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>Untuk freelancer atau bisnis yang baru mulai.</p>
+                <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-main)' }}>{t('landing.pricing_free_title')}</h4>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>{t('landing.pricing_free_desc')}</p>
               </div>
 
               <div style={{ marginBottom: 20 }}>
                 <span style={{ fontSize: 32, fontWeight: 800, color: 'var(--text-main)' }}>Rp 0</span>
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}> / selamanya</span>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}> {t('landing.pricing_free_period')}</span>
               </div>
 
               <ul style={{ margin: '0 0 24px', paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13.5, color: '#334155' }}>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> Maksimal <b>10 Invoice</b> per bulan
+                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> <b>{t('landing.pricing_free_f1')}</b>
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> Manajemen Klien & Item Layanan
+                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_free_f2')}
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> Upload Bukti Transfer Manual
+                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_free_f3')}
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> Unduh Faktur Format PDF
+                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_free_f4')}
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8' }}>
-                  <span style={{ color: '#cbd5e1', fontWeight: 800 }}>✕</span> Tanpa Payment Gateway Midtrans
+                  <span style={{ color: '#cbd5e1', fontWeight: 800 }}>✕</span> Midtrans Gateway (BYOK)
                 </li>
               </ul>
 
@@ -612,7 +560,7 @@ function SubscriptionContent() {
                   className="btn-secondary"
                   style={{ width: '100%', textAlign: 'center', opacity: !isPro ? 0.7 : 1, cursor: !isPro ? 'default' : 'pointer' }}
                 >
-                  {!isPro ? 'Sedang Digunakan' : 'Paket Dasar Gratis'}
+                  {!isPro ? t('subscription.using_now_btn') : t('landing.pricing_free_title')}
                 </button>
               </div>
             </div>
@@ -645,37 +593,37 @@ function SubscriptionContent() {
                   boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
                 }}
               >
-                {isPro ? '✓ Paket Aktif' : '🔥 Paling Populer'}
+                {isPro ? '✓ Pro Aktif' : t('landing.pricing_pro_badge')}
               </span>
 
               <div style={{ marginBottom: 16 }}>
-                <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-main)' }}>Paket PRO</h4>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>Otomatisasi penagihan dan skala bisnis profesional.</p>
+                <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-main)' }}>{t('landing.pricing_pro_title')}</h4>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>{t('landing.pricing_pro_desc')}</p>
               </div>
 
               <div style={{ marginBottom: 20 }}>
                 <span style={{ fontSize: 32, fontWeight: 800, color: '#4f46e5' }}>Rp 99.000</span>
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}> / bulan</span>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}> {t('landing.pricing_pro_period')}</span>
               </div>
 
               <ul style={{ margin: '0 0 24px', paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13.5, color: '#1e293b' }}>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> <b>Unlimited Invoices</b> (Tanpa batasan kuota)
+                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> <b>{t('landing.pricing_pro_f1')}</b>
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> <b>Midtrans Payment Gateway (BYOK)</b>
+                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> <b>{t('landing.pricing_pro_f2')}</b>
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> Kuitansi Otomatis & Email Terima Kasih
+                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_pro_f3')}
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> Kirim Ulang Email Notifikasi ke Klien
+                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_pro_f4')}
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> Generate File Faktur PDF Resmi
+                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_pro_f5')}
                 </li>
                 <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> Prioritas Pemrosesan & Dukungan
+                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_pro_f6')}
                 </li>
               </ul>
 
@@ -687,7 +635,7 @@ function SubscriptionContent() {
                     className="btn-primary"
                     style={{ width: '100%', textAlign: 'center', background: '#10b981', borderColor: '#10b981', opacity: 0.9, cursor: 'default' }}
                   >
-                    ✓ Paket Pro Sedang Aktif
+                    {t('subscription.current_plan_active_btn')}
                   </button>
                 ) : (
                   <button
@@ -697,42 +645,9 @@ function SubscriptionContent() {
                     className="btn-primary"
                     style={{ width: '100%', textAlign: 'center', padding: '12px 20px', fontSize: 14, fontWeight: 700 }}
                   >
-                    {actionLoading ? 'Menghubungkan Midtrans...' : '⚡ Upgrade ke Pro Sekarang'}
+                    {actionLoading ? 'Menghubungkan Midtrans...' : t('subscription.upgrade_now_btn')}
                   </button>
                 )}
-              </div>
-            </div>
-          </div>
-
-          {/* FAQ & Information Box */}
-          <div className="glass-card" style={{ padding: '24px 28px' }}>
-            <h4 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800, color: 'var(--text-main)' }}>
-              💡 Pertanyaan Umum Seputar Langganan
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: 13.5, color: '#475569' }}>
-              <div>
-                <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#0f172a' }}>
-                  Bagaimana cara pembayaran langganan Pro dilakukan?
-                </p>
-                <p style={{ margin: 0, lineHeight: 1.5 }}>
-                  Pembayaran diproses secara instan melalui Midtrans. Anda dapat membayar menggunakan QRIS (GoPay, OVO, ShopeePay, DANA), Virtual Account Bank (BCA, Mandiri, BNI, BRI, Permata), maupun Kartu Kredit.
-                </p>
-              </div>
-              <div>
-                <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#0f172a' }}>
-                  Apakah data invoice saya akan hilang jika saya membatalkan langganan Pro?
-                </p>
-                <p style={{ margin: 0, lineHeight: 1.5 }}>
-                  <b>Tidak.</b> Seluruh data invoice, klien, dan item yang telah Anda buat akan tetap tersimpan aman di akun Anda dan dapat diakses kapan saja.
-                </p>
-              </div>
-              <div>
-                <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#0f172a' }}>
-                  Bisakah saya berlangganan kembali setelah membatalkan?
-                </p>
-                <p style={{ margin: 0, lineHeight: 1.5 }}>
-                  Tentu saja! Anda dapat melakukan upgrade kembali ke Paket Pro kapan pun Anda membutuhkan kuota unlimited dan fitur pembayaran Midtrans.
-                </p>
               </div>
             </div>
           </div>

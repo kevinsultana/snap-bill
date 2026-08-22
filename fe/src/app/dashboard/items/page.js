@@ -4,12 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { openFormModal, confirmDelete } from '@/lib/modals';
 import { toast } from '@/lib/toast';
-
-const ITEM_FIELDS = [
-  { name: 'name',        label: 'Nama Item / Layanan', placeholder: 'Contoh: Jasa Desain Logo & Branding', required: true },
-  { name: 'description', label: 'Deskripsi (Opsional)', placeholder: 'Deskripsi singkat layanan atau spesifikasi produk...', type: 'textarea', required: false },
-  { name: 'price',       label: 'Harga Satuan',        placeholder: 'Contoh: 500.000', type: 'currency', required: true },
-];
+import { useTranslation } from '@/lib/i18n/useTranslation';
 
 function formatRupiah(value) {
   return new Intl.NumberFormat('id-ID', {
@@ -20,9 +15,16 @@ function formatRupiah(value) {
 }
 
 export default function ItemsPage() {
+  const { t } = useTranslation();
   const [items, setItems]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
+
+  const ITEM_FIELDS = [
+    { name: 'name',        label: t('items.form_name'),  placeholder: 'Contoh: Jasa Desain Logo & Branding', required: true },
+    { name: 'description', label: t('items.form_desc'),  placeholder: 'Deskripsi singkat layanan atau spesifikasi produk...', type: 'textarea', required: false },
+    { name: 'price',       label: t('items.form_price'), placeholder: 'Contoh: 500.000', type: 'currency', required: true },
+  ];
 
   const fetchItems = useCallback(async () => {
     try {
@@ -40,12 +42,12 @@ export default function ItemsPage() {
   // --- Add ---
   const handleAdd = () => {
     openFormModal({
-      title: '➕ Tambah Item / Layanan',
+      title: t('items.modal_add_title'),
       fields: ITEM_FIELDS,
       onSubmit: async (values) => {
         try {
           await api.post('/api/items', values);
-          toast('success', 'Item berhasil ditambahkan!');
+          toast('success', t('items.toast_created'));
           fetchItems();
         } catch (err) {
           toast('error', err.response?.data?.message || 'Gagal menambahkan item');
@@ -57,13 +59,13 @@ export default function ItemsPage() {
   // --- Edit ---
   const handleEdit = (item) => {
     openFormModal({
-      title: '✏️ Edit Item / Layanan',
+      title: t('items.modal_edit_title'),
       fields: ITEM_FIELDS,
       initialValues: { ...item, price: Number(item.price) },
       onSubmit: async (values) => {
         try {
           await api.put(`/api/items/${item.id}`, values);
-          toast('success', 'Item berhasil diperbarui!');
+          toast('success', t('items.toast_updated'));
           fetchItems();
         } catch (err) {
           toast('error', err.response?.data?.message || 'Gagal memperbarui item');
@@ -78,7 +80,7 @@ export default function ItemsPage() {
     if (!confirmed) return;
     try {
       await api.delete(`/api/items/${item.id}`);
-      toast('success', 'Item berhasil dihapus');
+      toast('success', t('items.toast_deleted'));
       fetchItems();
     } catch (err) {
       toast('error', err.response?.data?.message || 'Gagal menghapus item');
@@ -96,11 +98,11 @@ export default function ItemsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">📦 Katalog Item & Layanan</h1>
-          <p className="page-desc">Simpan master produk atau layanan untuk mempercepat pembuatan invoice.</p>
+          <h1 className="page-title">{t('items.title')}</h1>
+          <p className="page-desc">{t('items.desc')}</p>
         </div>
         <button className="btn-primary" onClick={handleAdd} id="btn-add-item">
-          + Tambah Item
+          {t('items.btn_add')}
         </button>
       </div>
 
@@ -113,13 +115,13 @@ export default function ItemsPage() {
             <input
               type="search"
               className="form-input search-input"
-              placeholder="Cari nama produk atau deskripsi..."
+              placeholder={t('items.search_placeholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <span className="glass-pill" style={{ color: 'var(--text-secondary)' }}>
-            Total: <b>{filtered.length}</b> item
+            {t('common.total')}: <b>{filtered.length}</b> item
           </span>
         </div>
 
@@ -132,17 +134,17 @@ export default function ItemsPage() {
           ) : filtered.length === 0 ? (
             <div className="table-empty">
               <span className="table-empty-icon">📦</span>
-              <p>{search ? 'Tidak ada item yang cocok dengan pencarian.' : 'Belum ada item. Tambahkan item pertama Anda!'}</p>
+              <p>{search ? t('invoices.empty_title') : t('items.empty_title')}</p>
             </div>
           ) : (
             <table className="data-table">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Nama Item / Layanan</th>
-                  <th>Deskripsi</th>
-                  <th className="td-right">Harga Satuan</th>
-                  <th style={{ textAlign: 'right' }}>Aksi</th>
+                  <th>{t('items.table_name')}</th>
+                  <th>{t('items.table_desc')}</th>
+                  <th className="td-right">{t('items.table_price')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -161,16 +163,16 @@ export default function ItemsPage() {
                         <button
                           className="btn-action btn-edit"
                           onClick={() => handleEdit(item)}
-                          title="Edit"
+                          title={t('common.edit')}
                         >
-                          ✏️ Edit
+                          ✏️ {t('common.edit')}
                         </button>
                         <button
                           className="btn-action btn-delete"
                           onClick={() => handleDelete(item)}
-                          title="Hapus"
+                          title={t('common.delete')}
                         >
-                          🗑️ Hapus
+                          🗑️ {t('common.delete')}
                         </button>
                       </div>
                     </td>

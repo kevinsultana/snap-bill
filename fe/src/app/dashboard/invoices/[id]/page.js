@@ -6,33 +6,37 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { toast } from '@/lib/toast';
 import Swal from 'sweetalert2';
-
-const STATUS_CONFIG = {
-  draft:                { label: 'Draft',         color: 'badge-gray'    },
-  unpaid:               { label: 'Belum Dibayar', color: 'badge-amber'   },
-  pending_verification: { label: 'Verifikasi',    color: 'badge-blue'    },
-  paid:                 { label: 'Lunas',         color: 'badge-emerald' },
-  overdue:              { label: 'Jatuh Tempo',   color: 'badge-red'     },
-  cancelled:            { label: 'Dibatalkan',    color: 'badge-gray'    },
-};
+import { useTranslation } from '@/lib/i18n/useTranslation';
 
 function formatRupiah(v) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(v || 0));
 }
 
-function formatDate(d) {
+function formatDate(d, lang = 'id') {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+  return new Date(d).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
 export default function InvoiceDetailPage() {
   const { id } = useParams();
-  const router  = useRouter();
+  const router = useRouter();
+  const { t, lang } = useTranslation();
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
+
+  const STATUS_CONFIG = {
+    draft:                { label: t('invoices.status_draft'),                color: 'badge-gray'    },
+    unpaid:               { label: t('invoices.status_unpaid'),               color: 'badge-amber'   },
+    pending_verification: { label: t('invoices.status_pending_verification'), color: 'badge-blue'   },
+    paid:                 { label: t('invoices.status_paid'),                 color: 'badge-emerald' },
+    overdue:              { label: t('invoices.status_overdue'),              color: 'badge-red'     },
+    cancelled:            { label: t('invoices.status_cancelled'),            color: 'badge-gray'    },
+  };
+
+  const [userSettings, setUserSettings] = useState(null);
 
   const fetchInvoice = () => {
     return api.get(`/api/invoices/${id}`)
@@ -43,7 +47,10 @@ export default function InvoiceDetailPage() {
 
   useEffect(() => {
     fetchInvoice();
+    api.get('/api/settings').then((r) => setUserSettings(r.data)).catch(() => {});
   }, [id]);
+
+  const isPro = userSettings?.tier === 'pro' && (!userSettings?.subscription_ends_at || new Date(userSettings.subscription_ends_at) > new Date());
 
   // Download / Generate PDF
   const handleDownloadPdf = async () => {
@@ -74,7 +81,7 @@ export default function InvoiceDetailPage() {
     if (!invoice?.client?.email) {
       Swal.fire({
         icon: 'warning',
-        title: 'Email Klien Belum Ada',
+        title: 'Email',
         text: 'Klien ini tidak memiliki alamat email yang terdaftar pada sistem.',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
@@ -101,7 +108,7 @@ export default function InvoiceDetailPage() {
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: '📧 Ya, Kirim Ulang',
-      cancelButtonText: 'Batal',
+      cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup' },
@@ -150,7 +157,7 @@ export default function InvoiceDetailPage() {
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: '🚫 Ya, Batalkan Invoice',
-      cancelButtonText: 'Batal',
+      cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#f43f5e',
       cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup' },
@@ -182,14 +189,11 @@ export default function InvoiceDetailPage() {
         <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 10px;">
           Sistem akan membuat transaksi Midtrans baru secara otomatis dari backend untuk Invoice <b style="color: #0f172a;">#${invoice.invoice_number}</b>.
         </p>
-        <p style="color: #64748b; font-size: 12px; margin: 0;">
-          Gunakan fitur ini jika sesi Midtrans sebelumnya tercancel, kedaluwarsa, atau ditolak.
-        </p>
       `,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: '🔄 Ya, Buat Sesi Baru',
-      cancelButtonText: 'Batal',
+      cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup' },
@@ -208,23 +212,7 @@ export default function InvoiceDetailPage() {
     });
 
     if (result.isConfirmed && result.value) {
-      await Swal.fire({
-        icon: 'success',
-        title: 'Sesi Midtrans Baru Siap! 🎉',
-        html: `
-          <p style="color: #475569; font-size: 14px; margin: 0 0 8px;">
-            ${result.value.message || 'Sesi transaksi Midtrans baru berhasil dibuat.'}
-          </p>
-          ${result.value.payment_url ? `
-            <div style="margin-top: 6px; padding: 10px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 12px; word-break: break-all; color: #4f46e5;">
-              ${result.value.payment_url}
-            </div>
-          ` : ''}
-        `,
-        confirmButtonText: 'Selesai',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
+      toast('success', `Sesi Midtrans untuk #${invoice.invoice_number} berhasil diperbarui!`);
       fetchInvoice();
     }
   };
@@ -237,14 +225,11 @@ export default function InvoiceDetailPage() {
         <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 10px;">
           Invoice <b style="color: #0f172a;">#${invoice.invoice_number}</b> akan diterbitkan ke klien <b style="color: #0f172a;">${invoice.client?.name || ''}</b>.
         </p>
-        <p style="color: #64748b; font-size: 12px; margin: 0;">
-          Status akan diubah menjadi <b>Belum Dibayar</b>, PDF dibuat, dan email tagihan dikirim ke klien.
-        </p>
       `,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: '🚀 Ya, Terbitkan Sekarang',
-      cancelButtonText: 'Batal',
+      cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup' },
@@ -265,19 +250,7 @@ export default function InvoiceDetailPage() {
     });
 
     if (result.isConfirmed && result.value) {
-      await Swal.fire({
-        icon: 'success',
-        title: '🎉 Invoice Berhasil Diterbitkan!',
-        html: `
-          <p style="color: #475569; font-size: 13px; margin: 0 0 8px;">Link pembayaran publik untuk klien telah aktif:</p>
-          <div style="margin-top: 6px; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; word-break: break-all; font-family: monospace; font-size: 12px; color: #4f46e5; user-select: all;">
-            ${result.value.public_link}
-          </div>
-        `,
-        confirmButtonText: 'Lihat Detail',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
+      toast('success', 'Invoice berhasil diterbitkan!');
       fetchInvoice();
     }
   };
@@ -318,7 +291,7 @@ export default function InvoiceDetailPage() {
       `;
 
     Swal.fire({
-      title: '🔍 Review Pembayaran',
+      title: t('invoices.verify_modal_title'),
       html: `
         <div style="text-align: left; font-family: 'Plus Jakarta Sans', sans-serif;">
           <div style="background: #f1f5f9; padding: 14px 18px; border-radius: 14px; border: 1px solid #e2e8f0; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
@@ -333,19 +306,15 @@ export default function InvoiceDetailPage() {
             </div>
           </div>
 
-          <p style="margin: 0; font-size: 13px; color: #475569; font-weight: 600;">Bukti Pembayaran yang Diunggah Klien:</p>
+          <p style="margin: 0; font-size: 13px; color: #475569; font-weight: 600;">${t('invoices.receipt_image')}</p>
           ${receiptContent}
-
-          <p style="margin: 8px 0 0; font-size: 12px; color: #64748b; text-align: center;">
-            Pilih <b>Approve</b> untuk menyelesaikan pembayaran, atau <b>Reject</b> jika bukti tidak sesuai.
-          </p>
         </div>
       `,
       showDenyButton: true,
       showCancelButton: true,
-      confirmButtonText: '✅ Approve (Lunas)',
-      denyButtonText: '❌ Reject (Tolak)',
-      cancelButtonText: 'Tutup',
+      confirmButtonText: t('invoices.verify_approve'),
+      denyButtonText: t('invoices.verify_reject'),
+      cancelButtonText: t('common.close'),
       confirmButtonColor: '#10b981',
       denyButtonColor: '#f43f5e',
       cancelButtonColor: '#94a3b8',
@@ -397,8 +366,7 @@ export default function InvoiceDetailPage() {
       <div className="glass-card" style={{ padding: 40, textAlign: 'center' }}>
         <span style={{ fontSize: 44 }}>⚠️</span>
         <h3 style={{ margin: '14px 0 6px', color: 'var(--text-main)' }}>Invoice Tidak Ditemukan</h3>
-        <p style={{ color: 'var(--text-muted)', marginBottom: 20 }}>Faktur ini mungkin telah dihapus atau URL tidak valid.</p>
-        <Link href="/dashboard/invoices" className="btn-secondary">← Kembali ke Daftar Invoice</Link>
+        <Link href="/dashboard/invoices" className="btn-secondary">{t('invoices.detail_back')}</Link>
       </div>
     </div>
   );
@@ -414,13 +382,10 @@ export default function InvoiceDetailPage() {
           <h1 className="page-title">Faktur #{invoice.invoice_number}</h1>
           <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
             <span className={`status-badge ${cfg.color}`}>{cfg.label}</span>
-            {invoice.status === 'pending_verification' && (
-              <span style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 600 }}>• Menunggu Anda memeriksa bukti transfer</span>
-            )}
           </div>
         </div>
         <div className="header-actions">
-          <Link href="/dashboard/invoices" className="btn-secondary">← Kembali</Link>
+          <Link href="/dashboard/invoices" className="btn-secondary">{t('common.back')}</Link>
 
           {invoice.status === 'pending_verification' && (
             <button
@@ -429,20 +394,20 @@ export default function InvoiceDetailPage() {
               className="btn-action btn-review"
               style={{ padding: '9px 18px', fontSize: 13 }}
             >
-              🔍 Review Pembayaran
+              🔍 Review
             </button>
           )}
 
           {invoice.status === 'draft' && (
             <>
-              <Link href={`/dashboard/invoices/${invoice.id}/edit`} className="btn-secondary">✏️ Edit</Link>
+              <Link href={`/dashboard/invoices/${invoice.id}/edit`} className="btn-secondary">✏️ {t('common.edit')}</Link>
               <button
                 type="button"
                 onClick={handleSubmitInvoice}
                 disabled={submitting}
                 className="btn-primary"
               >
-                {submitting ? <span className="btn-spinner" /> : '🚀 Terbitkan ke Klien'}
+                {submitting ? <span className="btn-spinner" /> : '🚀 Submit'}
               </button>
             </>
           )}
@@ -463,12 +428,11 @@ export default function InvoiceDetailPage() {
             ) : (
               <>
                 <span>📄</span>
-                <span>Unduh PDF</span>
+                <span>{t('common.download_pdf')}</span>
               </>
             )}
           </button>
 
-          {/* Kirim Ulang Email Tagihan (Hanya jika belum lunas, bukan draft, dan bukan cancelled) */}
           {invoice.status !== 'draft' && invoice.status !== 'cancelled' && invoice.status !== 'paid' && (
             <button
               type="button"
@@ -479,23 +443,24 @@ export default function InvoiceDetailPage() {
               title="Kirim Ulang Email Tagihan ke Klien"
             >
               <span>📧</span>
-              <span>Kirim Ulang Email</span>
+              <span>{t('invoices.btn_resend_email')}</span>
             </button>
           )}
 
-          {/* Unpaid / Overdue / Pending Verification -> Refresh Midtrans & Cancel */}
           {(invoice.status === 'unpaid' || invoice.status === 'overdue' || invoice.status === 'pending_verification') && (
             <>
-              <button
-                type="button"
-                onClick={handleRefreshMidtrans}
-                className="btn-secondary"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--indigo)' }}
-                title="Buat Ulang Sesi Midtrans / Ajukan Ulang"
-              >
-                <span>🔄</span>
-                <span>Ajukan Ulang Midtrans</span>
-              </button>
+              {isPro && (
+                <button
+                  type="button"
+                  onClick={handleRefreshMidtrans}
+                  className="btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--indigo)' }}
+                  title="Buat Ulang Sesi Midtrans / Ajukan Ulang"
+                >
+                  <span>🔄</span>
+                  <span>{t('invoices.btn_resubmit_midtrans')}</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleCancelInvoice}
@@ -504,13 +469,12 @@ export default function InvoiceDetailPage() {
                 title="Batalkan Invoice"
               >
                 <span>🚫</span>
-                <span>Batalkan Invoice</span>
+                <span>{t('invoices.btn_cancel_invoice')}</span>
               </button>
             </>
           )}
 
-          {/* Cancelled -> Reactivate & Refresh Midtrans */}
-          {invoice.status === 'cancelled' && (
+          {invoice.status === 'cancelled' && isPro && (
             <button
               type="button"
               onClick={handleRefreshMidtrans}
@@ -519,15 +483,14 @@ export default function InvoiceDetailPage() {
               title="Aktifkan Kembali & Buat Sesi Midtrans Baru"
             >
               <span>🔄</span>
-              <span>Aktifkan & Ajukan Ulang</span>
+              <span>{t('invoices.btn_reactivate_midtrans')}</span>
             </button>
           )}
 
-          {/* Salin link bayar & Buka Portal Klien (Hanya jika belum lunas dan bukan cancelled) */}
           {publicPayUrl && invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
             <>
               <button type="button" onClick={copyPublicLink} className="btn-secondary" title="Salin Tautan Publik">
-                📋 Salin Link Bayar
+                📋 {t('invoices.btn_copy_paylink')}
               </button>
               <a
                 href={publicPayUrl}
@@ -535,7 +498,7 @@ export default function InvoiceDetailPage() {
                 rel="noopener noreferrer"
                 className="btn-primary"
               >
-                🔗 Buka Portal Klien ↗
+                🔗 {t('invoices.btn_open_client_portal')}
               </a>
             </>
           )}
@@ -548,21 +511,21 @@ export default function InvoiceDetailPage() {
         {/* Meta info grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 28, paddingBottom: 24, borderBottom: '1px solid #e2e8f0' }}>
           <div>
-            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>Klien Penagihan</p>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>{t('invoices.form_client')}</p>
             <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', marginTop: 2 }}>{invoice.client?.name}</p>
             {invoice.client?.email && <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{invoice.client.email}</p>}
             {invoice.client?.phone && <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{invoice.client.phone}</p>}
           </div>
           <div>
-            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>Tanggal Terbit</p>
-            <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginTop: 2 }}>{formatDate(invoice.issue_date)}</p>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>{t('invoices.form_issue_date')}</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginTop: 2 }}>{formatDate(invoice.issue_date, lang)}</p>
           </div>
           <div>
-            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>Jatuh Tempo</p>
-            <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginTop: 2 }}>{formatDate(invoice.due_date)}</p>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>{t('invoices.form_due_date')}</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginTop: 2 }}>{formatDate(invoice.due_date, lang)}</p>
           </div>
           <div>
-            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>Status</p>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>{t('common.status')}</p>
             <div style={{ marginTop: 4 }}>
               <span className={`status-badge ${cfg.color}`}>{cfg.label}</span>
             </div>
@@ -586,7 +549,7 @@ export default function InvoiceDetailPage() {
               className="btn-secondary"
               style={{ fontSize: 12, padding: '6px 14px' }}
             >
-              👁️ Lihat Bukti Pembayaran ↗
+              👁️ Lihat Bukti ↗
             </a>
           </div>
         )}
@@ -597,10 +560,10 @@ export default function InvoiceDetailPage() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Item / Layanan</th>
-                <th className="td-right">Qty</th>
-                <th className="td-right">Harga Satuan</th>
-                <th className="td-right">Subtotal</th>
+                <th>{t('invoices.form_item_name')}</th>
+                <th className="td-right">{t('invoices.form_qty')}</th>
+                <th className="td-right">{t('invoices.form_price')}</th>
+                <th className="td-right">{t('invoices.form_subtotal')}</th>
               </tr>
             </thead>
             <tbody>
@@ -620,23 +583,23 @@ export default function InvoiceDetailPage() {
         {/* Totals Summary */}
         <div style={{ maxWidth: 360, marginLeft: 'auto', background: 'linear-gradient(135deg, rgba(248, 250, 252, 0.9), rgba(241, 245, 249, 0.9))', padding: '20px 24px', borderRadius: 16, border: '1px solid #e2e8f0' }}>
           <div className="total-row">
-            <span>Subtotal</span>
+            <span>{t('common.subtotal')}</span>
             <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{formatRupiah(invoice.subtotal)}</span>
           </div>
           {Number(invoice.discount) > 0 && (
             <div className="total-row total-discount">
-              <span>Diskon</span>
+              <span>{t('common.discount')}</span>
               <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>− {formatRupiah(invoice.discount)}</span>
             </div>
           )}
           {Number(invoice.tax_rate) > 0 && (
             <div className="total-row" style={{ color: 'var(--indigo-dark)' }}>
-              <span>Pajak ({Number(invoice.tax_rate)}%)</span>
+              <span>{t('common.tax')} ({Number(invoice.tax_rate)}%)</span>
               <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>+ {formatRupiah((Number(invoice.subtotal) - Number(invoice.discount)) * Number(invoice.tax_rate) / 100)}</span>
             </div>
           )}
           <div className="total-row total-grand" style={{ borderTop: '2px dashed #cbd5e1', paddingTop: 14 }}>
-            <span>Total Tagihan</span>
+            <span>{t('invoices.form_total_payment')}</span>
             <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--indigo-dark)', fontFamily: 'var(--font-mono)' }}>
               {formatRupiah(invoice.total)}
             </span>

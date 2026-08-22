@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { useTranslation } from '@/lib/i18n/useTranslation';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function LandingPage() {
+  const { t } = useTranslation();
   const [openFaq, setOpenFaq] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -21,26 +24,33 @@ export default function LandingPage() {
 
   const faqs = [
     {
-      q: 'Apa itu model BYOK (Bring Your Own Key) Midtrans di SnapBill?',
-      a: 'Dengan model BYOK, dana pembayaran dari klien Anda langsung masuk 100% ke akun Midtrans Anda sendiri tanpa perantara dan tanpa potongan komisi dari SnapBill. Cukup masukkan Server Key Midtrans Anda di menu Pengaturan.',
+      q: t('landing.faq_1_q'),
+      a: t('landing.faq_1_a'),
     },
     {
-      q: 'Bagaimana jika klien ingin membayar melalui transfer bank manual?',
-      a: 'Sangat praktis! Anda dapat mendaftarkan hingga 5 nomor rekening bank (BCA, Mandiri, BNI, BRI, dll). Klien akan melihat nomor rekening di portal publik dan dapat mengunggah struk bukti transfer untuk Anda verifikasi langsung di Dashboard.',
+      q: t('landing.faq_2_q'),
+      a: t('landing.faq_2_a'),
     },
     {
-      q: 'Apa keunggulan Paket Pro dibanding Paket Free?',
-      a: 'Paket Free menyediakan kuota 10 invoice gratis setiap bulan selamanya. Paket Pro (Rp 99.000/bulan) memberikan kuota invoice tanpa batas (unlimited), integrasi Midtrans Snap otomatis, pengiriman email notifikasi klien, dan generate PDF berkecepatan tinggi.',
+      q: t('landing.faq_3_q'),
+      a: t('landing.faq_3_a'),
     },
     {
-      q: 'Apakah data klien dan faktur saya aman?',
-      a: 'Tentu. SnapBill dibangun dengan arsitektur Multi-Tenancy terisolasi. Data kontak klien, transaksi, dan bukti transfer Anda dienkripsi dan hanya dapat diakses oleh akun Anda sendiri.',
+      q: t('landing.faq_4_q'),
+      a: t('landing.faq_4_a'),
+    },
+    {
+      q: t('landing.faq_5_q'),
+      a: t('landing.faq_5_a'),
+    },
+    {
+      q: t('landing.faq_6_q'),
+      a: t('landing.faq_6_a'),
     },
   ];
 
   return (
     <div className="landing-wrapper">
-
       {/* ── 1. Sticky Navigation Bar ───────────────────────────────── */}
       <nav className="landing-nav">
         <div className="landing-nav-container">
@@ -50,26 +60,22 @@ export default function LandingPage() {
           </Link>
 
           <div className="landing-nav-links">
-            <a href="#fitur" className="nav-link">Fitur</a>
-            <a href="#cara-kerja" className="nav-link">Cara Kerja</a>
-            <a href="#harga" className="nav-link">Pilihan Harga</a>
-            <a href="#faq" className="nav-link">Tanya Jawab</a>
+            <a href="#fitur" className="nav-link">{t('landing.nav_features')}</a>
+            <a href="#harga" className="nav-link">{t('landing.nav_pricing')}</a>
+            <a href="#faq" className="nav-link">FAQ</a>
           </div>
 
-          <div className="landing-nav-actions">
+          <div className="landing-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <LanguageSwitcher size="small" />
+
             {isLoggedIn ? (
-              <Link href="/dashboard" className="btn-primary" style={{ padding: '8px 18px', fontSize: 13 }}>
-                📊 Buka Dashboard ➜
+              <Link href="/dashboard" className="btn-primary" style={{ padding: '7px 16px', fontSize: 13, fontWeight: 700 }}>
+                {t('nav.dashboard')} ➜
               </Link>
             ) : (
-              <>
-                <Link href="/login" className="btn-secondary" style={{ padding: '8px 16px', fontSize: 13 }}>
-                  Masuk
-                </Link>
-                <Link href="/register" className="btn-primary" style={{ padding: '8px 18px', fontSize: 13 }}>
-                  Daftar Gratis ➜
-                </Link>
-              </>
+              <Link href="/login" className="btn-primary" style={{ padding: '7px 18px', fontSize: 13, fontWeight: 700 }}>
+                {t('auth.btn_login')}
+              </Link>
             )}
           </div>
         </div>
@@ -78,35 +84,35 @@ export default function LandingPage() {
       {/* ── 2. Hero Section ────────────────────────────────────────── */}
       <section className="hero-section">
         <div className="hero-badge">
-          <span>⚡</span> Platform Invoice SaaS #1 untuk Freelancer & Pemilik Usaha
+          <span>⚡</span> {t('landing.hero_badge')}
         </div>
 
         <h1 className="hero-title">
-          Kelola & Terbitkan Invoice Bisnis <br />
-          <span className="gradient-text">Lebih Cepat, Otomatis & Profesional</span>
+          {t('landing.hero_title_1')} <br />
+          <span className="gradient-text">{t('landing.hero_title_2')}</span>
         </h1>
 
         <p className="hero-subtitle">
-          Solusi terpadu generator invoice dengan pembayaran online Midtrans instan, verifikasi struk transfer bank via MinIO Storage, pembuatan PDF otomatis, dan notifikasi email pintar.
+          {t('landing.hero_desc')}
         </p>
 
         <div className="hero-cta-group">
           {isLoggedIn ? (
             <>
               <Link href="/dashboard" className="btn-primary" style={{ padding: '14px 30px', fontSize: 15, borderRadius: 14 }}>
-                📊 Masuk ke Dashboard ➜
+                📊 {t('dashboard.welcome')} {t('nav.dashboard')} ➜
               </Link>
               <Link href="/dashboard/invoices/create" className="btn-secondary" style={{ padding: '14px 26px', fontSize: 15, borderRadius: 14 }}>
-                + Buat Invoice Baru
+                {t('dashboard.btn_create_invoice')}
               </Link>
             </>
           ) : (
             <>
               <Link href="/register" className="btn-primary" style={{ padding: '14px 30px', fontSize: 15, borderRadius: 14 }}>
-                🚀 Mulai Gratis (10 Inv/Bulan)
+                {t('landing.cta_primary')}
               </Link>
               <a href="#harga" className="btn-secondary" style={{ padding: '14px 26px', fontSize: 15, borderRadius: 14 }}>
-                💎 Lihat Paket Pro
+                💎 {t('landing.pricing_badge')}
               </a>
             </>
           )}
@@ -115,17 +121,17 @@ export default function LandingPage() {
         <div className="hero-metrics">
           <div className="metric-item">
             <span className="metric-val">100%</span>
-            <span className="metric-lbl">Direct Midtrans BYOK</span>
+            <span className="metric-lbl">{t('landing.hero_stat_gateway')}</span>
           </div>
           <div className="metric-divider" />
           <div className="metric-item">
-            <span className="metric-val">&lt; 3 Detik</span>
-            <span className="metric-lbl">Generate PDF Otomatis</span>
+            <span className="metric-val">{t('landing.hero_stat_settled')}</span>
+            <span className="metric-lbl">{t('landing.brand_tagline')}</span>
           </div>
           <div className="metric-divider" />
           <div className="metric-item">
-            <span className="metric-val">3-Level</span>
-            <span className="metric-lbl">Email Fallback Delivery</span>
+            <span className="metric-val">{t('landing.hero_stat_invoices')}</span>
+            <span className="metric-lbl">Multi-Tenancy</span>
           </div>
         </div>
 
@@ -139,7 +145,7 @@ export default function LandingPage() {
                 <span className="dot dot-green" />
               </div>
               <div className="mockup-url">https://snapbill.id/pay/inv-demo-2026</div>
-              <span className="status-badge badge-emerald" style={{ fontSize: 11 }}>Lunas</span>
+              <span className="status-badge badge-emerald" style={{ fontSize: 11 }}>{t('invoices.status_paid')}</span>
             </div>
 
             <div className="mockup-body">
@@ -149,7 +155,7 @@ export default function LandingPage() {
                   <p className="mockup-inv-client">Ditujukan ke: PT. Samudera Digital Nusantara</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <p className="mockup-inv-label">Total Tagihan</p>
+                  <p className="mockup-inv-label">{t('common.total')}</p>
                   <p className="mockup-inv-amount">Rp 4.500.000</p>
                 </div>
               </div>
@@ -181,9 +187,9 @@ export default function LandingPage() {
       {/* ── 3. Features Section ─────────────────────────────────────── */}
       <section id="fitur" className="landing-section">
         <div className="section-title-wrap">
-          <span className="section-kicker">FITUR UNGGULAN</span>
-          <h2 className="section-heading">Dirancang Khusus untuk Mempercepat Cash Flow Bisnis</h2>
-          <p className="section-sub">Semua fitur yang Anda butuhkan untuk penagihan klien tanpa kerumitan administrasi manual.</p>
+          <span className="section-kicker">{t('landing.features_badge')}</span>
+          <h2 className="section-heading">{t('landing.features_title')}</h2>
+          <p className="section-sub">{t('landing.hero_desc')}</p>
         </div>
 
         <div className="features-grid">
@@ -191,178 +197,124 @@ export default function LandingPage() {
             <div className="feature-icon-box" style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#4f46e5' }}>
               📄
             </div>
-            <h3 className="feature-title">PDF Invoice Otomatis</h3>
-            <p className="feature-desc">
-              Hasilkan file PDF berformat faktur standar bisnis dalam hitungan detik menggunakan Puppeteer headless engine.
-            </p>
+            <h3 className="feature-title">{t('landing.feat_3_title')}</h3>
+            <p className="feature-desc">{t('landing.feat_3_desc')}</p>
           </div>
 
           <div className="glass-card feature-card">
             <div className="feature-icon-box" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#059669' }}>
               💳
             </div>
-            <h3 className="feature-title">Midtrans Snap (BYOK)</h3>
-            <p className="feature-desc">
-              Terima pembayaran otomatis via QRIS, Virtual Account BCA/Mandiri/BNI/BRI, dan E-Wallet langsung ke akun Midtrans Anda.
-            </p>
+            <h3 className="feature-title">{t('landing.feat_1_title')}</h3>
+            <p className="feature-desc">{t('landing.feat_1_desc')}</p>
           </div>
 
           <div className="glass-card feature-card">
             <div className="feature-icon-box" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#2563eb' }}>
               🏦
             </div>
-            <h3 className="feature-title">Transfer Bank & Upload Struk</h3>
-            <p className="feature-desc">
-              Sediakan hingga 5 rekening bank transfer manual. Klien dapat mengunggah bukti struk ke MinIO Object Storage dengan aman.
-            </p>
+            <h3 className="feature-title">{t('landing.feat_2_title')}</h3>
+            <p className="feature-desc">{t('landing.feat_2_desc')}</p>
           </div>
 
           <div className="glass-card feature-card">
             <div className="feature-icon-box" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#d97706' }}>
               📧
             </div>
-            <h3 className="feature-title">Multi-Provider Email Fallback</h3>
-            <p className="feature-desc">
-              Sistem pengiriman email pintar dengan failover otomatis bertingkat: Resend ➜ Brevo ➜ Gmail App Password.
-            </p>
+            <h3 className="feature-title">{t('landing.feat_4_title')}</h3>
+            <p className="feature-desc">{t('landing.feat_4_desc')}</p>
           </div>
 
           <div className="glass-card feature-card">
-            <div className="feature-icon-box" style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#7e22ce' }}>
+            <div className="feature-icon-box" style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#9333ea' }}>
               👥
             </div>
-            <h3 className="feature-title">Multi-Tenant Master Data</h3>
-            <p className="feature-desc">
-              Kelola database klien dan katalog produk/layanan tanpa batas dengan proteksi isolasi data terenkripsi.
-            </p>
+            <h3 className="feature-title">{t('landing.feat_5_title')}</h3>
+            <p className="feature-desc">{t('landing.feat_5_desc')}</p>
           </div>
 
           <div className="glass-card feature-card">
-            <div className="feature-icon-box" style={{ background: 'rgba(244, 63, 94, 0.12)', color: '#e11d48' }}>
-              🔍
+            <div className="feature-icon-box" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#db2777' }}>
+              ⚡
             </div>
-            <h3 className="feature-title">Dashboard Verifikasi Cepat</h3>
-            <p className="feature-desc">
-              Tinjau bukti transfer klien secara visual di dashboard dan setujui (Lunas) atau tolak dengan satu sentuhan mudah.
-            </p>
+            <h3 className="feature-title">{t('landing.feat_6_title')}</h3>
+            <p className="feature-desc">{t('landing.feat_6_desc')}</p>
           </div>
         </div>
       </section>
 
-      {/* ── 4. How It Works ────────────────────────────────────────── */}
-      <section id="cara-kerja" className="landing-section">
-        <div className="section-title-wrap">
-          <span className="section-kicker">CARA KERJA</span>
-          <h2 className="section-heading">Tiga Langkah Sederhana Menagih Klien</h2>
-          <p className="section-sub">Mulai dari pembuatan draf hingga dana masuk ke rekening Anda.</p>
-        </div>
-
-        <div className="steps-grid">
-          <div className="glass-card step-card">
-            <div className="step-number">1</div>
-            <h3 className="step-title">Buat & Hitung Otomatis</h3>
-            <p className="step-desc">
-              Pilih klien, masukkan rincian item atau jasa, atur diskon nominal/persen dan pajak. Sistem menghitung total secara instan.
-            </p>
-          </div>
-
-          <div className="glass-card step-card">
-            <div className="step-number">2</div>
-            <h3 className="step-title">Terbitkan & Kirim Link</h3>
-            <p className="step-desc">
-              Klik Terbitkan. Sistem otomatis membuat PDF dan mengirimkan email tagihan berisi link portal pembayaran publik klien.
-            </p>
-          </div>
-
-          <div className="glass-card step-card">
-            <div className="step-number">3</div>
-            <h3 className="step-title">Terima Pembayaran</h3>
-            <p className="step-desc">
-              Klien membayar via Midtrans otomatis atau transfer bank dengan mengunggah struk. Anda verifikasi dan tagihan lunas!
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 5. Pricing Section (Free vs Pro) ───────────────────────── */}
+      {/* ── 4. Pricing Section (Free vs Pro) ───────────────────────── */}
       <section id="harga" className="landing-section">
         <div className="section-title-wrap">
-          <span className="section-kicker">PILIHAN PAKET</span>
-          <h2 className="section-heading">Mulai Gratis, Upgrade Saat Bisnis Berkembang</h2>
-          <p className="section-sub">Harga transparan tanpa biaya tersembunyi. Batalkan langganan kapan saja.</p>
+          <span className="section-kicker">{t('landing.pricing_badge')}</span>
+          <h2 className="section-heading">{t('landing.pricing_title')}</h2>
         </div>
 
         <div className="pricing-grid">
-
           {/* FREE PLAN */}
           <div className="glass-card pricing-card">
             <div className="pricing-header">
-              <h3 className="pricing-tier-name">Paket Free</h3>
-              <p className="pricing-tier-desc">Cocok untuk pemula & freelancer perorangan</p>
+              <h3 className="pricing-tier-name">{t('landing.pricing_free_title')}</h3>
+              <p className="pricing-tier-desc">{t('landing.pricing_free_desc')}</p>
               <div className="pricing-price-box">
                 <span className="pricing-currency">Rp</span>
                 <span className="pricing-amount">0</span>
-                <span className="pricing-period">/ bulan</span>
+                <span className="pricing-period">{t('landing.pricing_free_period')}</span>
               </div>
             </div>
 
             <ul className="pricing-features">
-              <li><b style={{ color: '#059669' }}>✓</b> <b>10 Invoice</b> per bulan kalender</li>
-              <li><b style={{ color: '#059669' }}>✓</b> Kelola Master Klien & Katalog Item</li>
-              <li><b style={{ color: '#059669' }}>✓</b> Portal Pembayaran Publik Klien</li>
-              <li><b style={{ color: '#059669' }}>✓</b> Transfer Bank & Upload Bukti MinIO</li>
-              <li><b style={{ color: '#059669' }}>✓</b> Format PDF Standar</li>
+              <li><b style={{ color: '#059669' }}>✓</b> <b>{t('landing.pricing_free_f1')}</b></li>
+              <li><b style={{ color: '#059669' }}>✓</b> {t('landing.pricing_free_f2')}</li>
+              <li><b style={{ color: '#059669' }}>✓</b> {t('landing.pricing_free_f3')}</li>
+              <li><b style={{ color: '#059669' }}>✓</b> {t('landing.pricing_free_f4')}</li>
               <li className="feature-disabled">✕ Unlimited Invoices</li>
-              <li className="feature-disabled">✕ Integrasi Midtrans Snap BYOK</li>
+              <li className="feature-disabled">✕ Midtrans Snap BYOK</li>
             </ul>
 
             <Link href={isLoggedIn ? "/dashboard" : "/register"} className="btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto', padding: '12px' }}>
-              {isLoggedIn ? "Buka Dashboard" : "Daftar Gratis Sekarang"}
+              {isLoggedIn ? t('nav.dashboard') : t('landing.pricing_free_cta')}
             </Link>
           </div>
 
           {/* PRO PLAN */}
           <div className="glass-card pricing-card pricing-card-pro">
-            <div className="popular-badge">⚡ PALING POPULER</div>
+            <div className="popular-badge">{t('landing.pricing_pro_badge')}</div>
 
             <div className="pricing-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <h3 className="pricing-tier-name">Paket Pro</h3>
+                <h3 className="pricing-tier-name">{t('landing.pricing_pro_title')}</h3>
                 <span className="badge-pro-glow">UNLIMITED</span>
               </div>
-              <p className="pricing-tier-desc">Untuk freelancer aktif, agensi, konsultan & UMKM</p>
+              <p className="pricing-tier-desc">{t('landing.pricing_pro_desc')}</p>
               <div className="pricing-price-box">
                 <span className="pricing-currency">Rp</span>
                 <span className="pricing-amount" style={{ color: 'var(--indigo-dark)' }}>99.000</span>
-                <span className="pricing-period">/ bulan</span>
+                <span className="pricing-period">{t('landing.pricing_pro_period')}</span>
               </div>
             </div>
 
             <ul className="pricing-features">
-              <li><b style={{ color: '#059669' }}>✓</b> <b>UNLIMITED Invoices</b> (Tanpa batas kuota)</li>
-              <li><b style={{ color: '#059669' }}>✓</b> Semua Fitur Paket Free</li>
-              <li><b style={{ color: '#059669' }}>✓</b> <b>Integrasi Midtrans Snap (BYOK)</b></li>
-              <li><b style={{ color: '#059669' }}>✓</b> <b>Multi-Provider Email Fallback</b></li>
-              <li><b style={{ color: '#059669' }}>✓</b> <b>Puppeteer Headless PDF Engine</b></li>
-              <li><b style={{ color: '#059669' }}>✓</b> Dukungan Prioritas & Lencana Pro Member</li>
+              <li><b style={{ color: '#059669' }}>✓</b> <b>{t('landing.pricing_pro_f1')}</b></li>
+              <li><b style={{ color: '#059669' }}>✓</b> {t('landing.pricing_pro_f2')}</li>
+              <li><b style={{ color: '#059669' }}>✓</b> {t('landing.pricing_pro_f3')}</li>
+              <li><b style={{ color: '#059669' }}>✓</b> {t('landing.pricing_pro_f4')}</li>
+              <li><b style={{ color: '#059669' }}>✓</b> {t('landing.pricing_pro_f5')}</li>
+              <li><b style={{ color: '#059669' }}>✓</b> {t('landing.pricing_pro_f6')}</li>
             </ul>
 
-            <Link href={isLoggedIn ? "/dashboard/settings" : "/register"} className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto', padding: '13px', fontSize: 15 }}>
-              ⚡ Langganan Pro Sekarang ➜
+            <Link href={isLoggedIn ? "/dashboard/subscription" : "/register"} className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto', padding: '13px', fontSize: 15 }}>
+              {t('landing.pricing_pro_cta')} ➜
             </Link>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginTop: 10 }}>
-              Pembayaran otomatis instan via Midtrans (QRIS, VA, E-Wallet)
-            </p>
           </div>
-
         </div>
       </section>
 
-      {/* ── 6. FAQ Section ─────────────────────────────────────────── */}
+      {/* ── 5. FAQ Section ─────────────────────────────────────────── */}
       <section id="faq" className="landing-section" style={{ maxWidth: 840, margin: '0 auto' }}>
         <div className="section-title-wrap">
-          <span className="section-kicker">TANYA JAWAB</span>
-          <h2 className="section-heading">Pertanyaan yang Sering Diajukan</h2>
+          <span className="section-kicker">FAQ</span>
+          <h2 className="section-heading">{t('landing.faq_title')}</h2>
         </div>
 
         <div className="faq-list">
@@ -382,33 +334,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 7. Call To Action Banner ───────────────────────────────── */}
-      <section className="landing-section" style={{ paddingBottom: 80 }}>
-        <div className="glass-card cta-banner-card">
-          <h2 className="cta-heading">Siap Meningkatkan Profesionalitas Penagihan Anda?</h2>
-          <p className="cta-sub">
-            Bergabunglah dengan ratusan profesional dan pemilik bisnis yang menghemat waktu penagihan bersama SnapBill.
-          </p>
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 24 }}>
-            {isLoggedIn ? (
-              <Link href="/dashboard" className="btn-primary" style={{ padding: '14px 28px', fontSize: 15 }}>
-                📊 Buka Dashboard Saya ➜
-              </Link>
-            ) : (
-              <>
-                <Link href="/register" className="btn-primary" style={{ padding: '14px 28px', fontSize: 15 }}>
-                  🚀 Mulai Akun Gratis Sekarang
-                </Link>
-                <Link href="/login" className="btn-secondary" style={{ padding: '14px 24px', fontSize: 15 }}>
-                  Masuk ke Akun
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 8. Footer ──────────────────────────────────────────────── */}
+      {/* ── 6. Footer ──────────────────────────────────────────────── */}
       <footer className="landing-footer">
         <div className="footer-container">
           <div>
@@ -417,31 +343,29 @@ export default function LandingPage() {
               <span className="sidebar-name" style={{ fontSize: 18 }}>Snap<b>Bill</b></span>
             </div>
             <p className="footer-desc">
-              Platform Invoice Generator SaaS modern dengan integrasi pembayaran Midtrans Snap, penyimpanan bukti MinIO S3, dan otomatisasi email multi-provider.
+              {t('landing.hero_desc')}
             </p>
           </div>
 
           <div className="footer-links-col">
-            <h4>Navigasi</h4>
-            <a href="#fitur">Fitur Unggulan</a>
-            <a href="#cara-kerja">Cara Kerja</a>
-            <a href="#harga">Pilihan Paket</a>
-            <a href="#faq">Tanya Jawab</a>
+            <h4>{t('common.actions')}</h4>
+            <a href="#fitur">{t('landing.features_badge')}</a>
+            <a href="#harga">{t('landing.pricing_badge')}</a>
+            <a href="#faq">FAQ</a>
           </div>
 
           <div className="footer-links-col">
-            <h4>Aplikasi</h4>
-            <Link href="/login">Masuk Akun</Link>
-            <Link href="/register">Daftar Akun Gratis</Link>
-            <Link href="/dashboard">Dashboard</Link>
+            <h4>SnapBill</h4>
+            <Link href="/login">{t('auth.btn_login')}</Link>
+            <Link href="/register">{t('auth.btn_register')}</Link>
+            <Link href="/dashboard">{t('nav.dashboard')}</Link>
           </div>
         </div>
 
         <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} SnapBill SaaS. Seluruh hak cipta dilindungi.</p>
+          <p>© {new Date().getFullYear()} SnapBill SaaS. {t('landing.footer_rights')}</p>
         </div>
       </footer>
-
     </div>
   );
 }

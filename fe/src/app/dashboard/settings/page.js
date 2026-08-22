@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '@/lib/api';
 import Swal from 'sweetalert2';
+import { useTranslation } from '@/lib/i18n/useTranslation';
 
 const MAX_BANKS = 5;
 const EMPTY_BANK = { bank_name: '', account_number: '', account_holder: '' };
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -100,17 +102,17 @@ export default function SettingsPage() {
       Swal.fire({
         icon: 'warning',
         title: 'Ukuran File Terlalu Besar',
-        text: 'Ukuran logo maksimal 5 MB.',
+        text: 'Maksimal ukuran logo adalah 5MB.',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
       });
       return;
     }
 
+    setUploadingLogo(true);
     const formData = new FormData();
     formData.append('logo', file);
 
-    setUploadingLogo(true);
     try {
       const res = await api.post('/api/settings/logo', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -119,17 +121,15 @@ export default function SettingsPage() {
       Swal.fire({
         icon: 'success',
         title: 'Logo Berhasil Diunggah!',
-        text: 'Logo akan otomatis muncul di kop invoice PDF dan portal pembayaran.',
-        timer: 2000,
-        showConfirmButton: false,
+        text: 'Logo usaha Anda akan langsung tampil di seluruh invoice PDF dan portal pembayaran.',
+        confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
       });
     } catch (err) {
-      const msg = err.response?.data?.message || 'Gagal mengunggah logo ke MinIO.';
       Swal.fire({
         icon: 'error',
-        title: 'Gagal Upload Logo',
-        text: msg,
+        title: 'Gagal Mengunggah Logo',
+        text: err.response?.data?.message || 'Terjadi kesalahan saat mengunggah file ke MinIO Storage.',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
       });
@@ -140,41 +140,44 @@ export default function SettingsPage() {
   };
 
   const handleDeleteLogo = async () => {
-    const result = await Swal.fire({
+    const confirm = await Swal.fire({
       title: 'Hapus Logo Bisnis?',
-      text: 'Logo akan dihapus dari header faktur PDF invoice Anda.',
+      text: 'Logo yang dihapus tidak akan ditampilkan lagi pada faktur PDF dan portal klien.',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Ya, Hapus',
-      cancelButtonText: 'Batal',
+      confirmButtonText: 'Ya, Hapus Logo',
+      cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#f43f5e',
-      cancelButtonColor: '#64748b',
+      cancelButtonColor: '#94a3b8',
       customClass: { popup: 'swal-custom-popup' },
     });
 
-    if (!result.isConfirmed) return;
-
-    try {
-      await api.delete('/api/settings/logo');
-      setLogoUrl('');
-      Swal.fire({
-        icon: 'success',
-        title: 'Logo Berhasil Dihapus',
-        timer: 1500,
-        showConfirmButton: false,
-        customClass: { popup: 'swal-custom-popup' },
-      });
-    } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Menghapus Logo',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
+    if (confirm.isConfirmed) {
+      setUploadingLogo(true);
+      try {
+        await api.delete('/api/settings/logo');
+        setLogoUrl('');
+        Swal.fire({
+          icon: 'success',
+          title: 'Logo Dihapus',
+          confirmButtonColor: '#6366f1',
+          customClass: { popup: 'swal-custom-popup' },
+        });
+      } catch (err) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal Menghapus Logo',
+          text: err.response?.data?.message || 'Terjadi kesalahan saat menghapus logo.',
+          confirmButtonColor: '#6366f1',
+          customClass: { popup: 'swal-custom-popup' },
+        });
+      } finally {
+        setUploadingLogo(false);
+      }
     }
   };
 
-  // --- Bank helpers ---
+  // --- Bank Account Handlers ---
   const addBank = () => {
     if (banks.length >= MAX_BANKS) return;
     setBanks((prev) => [...prev, { ...EMPTY_BANK }]);
@@ -185,20 +188,32 @@ export default function SettingsPage() {
   };
 
   const updateBank = (idx, field, value) => {
-    setBanks((prev) => prev.map((b, i) => i === idx ? { ...b, [field]: value } : b));
+    setBanks((prev) => prev.map((b, i) => (i === idx ? { ...b, [field]: value } : b)));
   };
 
-  // --- Save All Settings ---
+  // --- Submit Settings ---
   const handleSave = async (e) => {
     e.preventDefault();
 
-    // Validasi bank: pastikan field wajib terisi
-    for (const b of banks) {
+    if (!businessName.trim()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Nama Bisnis Diperlukan',
+        text: 'Harap isi nama bisnis atau brand Anda.',
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
+      return;
+    }
+
+    // Validasi rekening bank yang tidak lengkap
+    const validBanks = banks.filter((b) => b.bank_name.trim() || b.account_number.trim() || b.account_holder.trim());
+    for (const b of validBanks) {
       if (!b.bank_name.trim() || !b.account_number.trim()) {
         Swal.fire({
           icon: 'warning',
-          title: 'Data rekening tidak lengkap',
-          text: 'Nama bank dan nomor rekening wajib diisi.',
+          title: 'Data Rekening Belum Lengkap',
+          text: 'Nama bank dan nomor rekening wajib diisi untuk setiap rekening aktif.',
           confirmButtonColor: '#6366f1',
           customClass: { popup: 'swal-custom-popup' },
         });
@@ -210,28 +225,26 @@ export default function SettingsPage() {
     try {
       await api.put('/api/settings', {
         business_name: businessName,
-        email: email,
-        phone: phone,
-        address: address,
-        midtrans_server_key: serverKey,
-        midtrans_client_key: clientKey,
-        bank_accounts: banks,
+        email,
+        phone,
+        address,
+        midtrans_server_key: isPro ? serverKey : undefined,
+        midtrans_client_key: isPro ? clientKey : undefined,
+        bank_accounts: validBanks,
       });
 
       Swal.fire({
         icon: 'success',
-        title: 'Pengaturan Tersimpan! 🎉',
-        text: 'Profil identitas brand, kontak, dan metode pembayaran berhasil diperbarui.',
-        timer: 2200,
-        showConfirmButton: false,
+        title: 'Pengaturan Tersimpan! ✨',
+        text: 'Semua perubahan data bisnis dan rekening bank berhasil diperbarui.',
+        confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
       });
     } catch (err) {
-      const msg = err.response?.data?.message || 'Gagal menyimpan pengaturan.';
       Swal.fire({
         icon: 'error',
         title: 'Gagal Menyimpan',
-        text: msg,
+        text: err.response?.data?.message || 'Terjadi kesalahan saat menyimpan pengaturan.',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
       });
@@ -242,10 +255,8 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="loading-screen">
-          <div className="loading-spinner" />
-        </div>
+      <div className="loading-screen">
+        <div className="loading-spinner" />
       </div>
     );
   }
@@ -254,8 +265,8 @@ export default function SettingsPage() {
     <div className="page-container">
       <div className="page-header">
         <div>
-          <h1 className="page-title">⚙️ Pengaturan Bisnis</h1>
-          <p className="page-desc">Kelola identitas brand, logo PDF, kontak, Midtrans (BYOK), dan rekening bank transfer.</p>
+          <h1 className="page-title">{t('settings.title')}</h1>
+          <p className="page-desc">{t('settings.desc')}</p>
         </div>
       </div>
 
@@ -264,10 +275,10 @@ export default function SettingsPage() {
         {/* ── 1. Identitas Brand & Logo ─────────────────────────────── */}
         <div className="glass-card" style={{ padding: 26 }}>
           <h2 className="section-title">
-            <span className="section-icon">🏢</span> 1. Identitas Brand & Logo Usaha
+            <span className="section-icon">🏢</span> 1. {t('settings.tab_profile')}
           </h2>
           <p className="form-hint" style={{ marginBottom: 20 }}>
-            Informasi dan logo ini akan dicantumkan secara profesional pada kop surat faktur invoice PDF dan halaman portal pembayaran klien.
+            {t('settings.logo_label')}
           </p>
 
           {/* Logo Uploader */}
@@ -302,10 +313,10 @@ export default function SettingsPage() {
 
             <div style={{ flex: 1, minWidth: 220 }}>
               <h4 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: 'var(--text-main)' }}>
-                Logo Bisnis / Perusahaan
+                {t('settings.logo_label')}
               </h4>
               <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-muted)' }}>
-                Format didukung: PNG, JPG, WebP. Ukuran maksimal 5MB (Rekomendasi rasio landscape/kotak).
+                Format: PNG, JPG, WebP (Maks. 5MB).
               </p>
 
               <input
@@ -326,7 +337,7 @@ export default function SettingsPage() {
                 >
                   {uploadingLogo ? (
                     <>
-                      <span className="btn-spinner" style={{ borderColor: 'rgba(99, 102, 241, 0.3)', borderTopColor: 'var(--indigo)' }} /> Mengunggah...
+                      <span className="btn-spinner" style={{ borderColor: 'rgba(99, 102, 241, 0.3)', borderTopColor: 'var(--indigo)' }} /> {t('common.saving')}
                     </>
                   ) : (
                     <>📁 {logoUrl ? 'Ganti Logo' : 'Upload Logo'}</>
@@ -341,7 +352,7 @@ export default function SettingsPage() {
                     onClick={handleDeleteLogo}
                     style={{ padding: '7px 14px', fontSize: 13 }}
                   >
-                    🗑️ Hapus Logo
+                    🗑️ {t('common.delete')}
                   </button>
                 )}
               </div>
@@ -352,7 +363,7 @@ export default function SettingsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="form-group">
               <label htmlFor="business_name" className="form-label">
-                Nama Bisnis / Brand <span className="req">*</span>
+                {t('settings.business_name')} <span className="req">*</span>
               </label>
               <input
                 id="business_name"
@@ -368,7 +379,7 @@ export default function SettingsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
               <div className="form-group">
                 <label htmlFor="email" className="form-label">
-                  Email Bisnis / Kontak <span className="req">*</span>
+                  {t('auth.email')} <span className="req">*</span>
                 </label>
                 <input
                   id="email"
@@ -383,7 +394,7 @@ export default function SettingsPage() {
 
               <div className="form-group">
                 <label htmlFor="phone" className="form-label">
-                  Nomor Telepon / WhatsApp
+                  {t('settings.phone')}
                 </label>
                 <input
                   id="phone"
@@ -398,7 +409,7 @@ export default function SettingsPage() {
 
             <div className="form-group">
               <label htmlFor="address" className="form-label">
-                Alamat Kantor / Domisili Usaha
+                {t('settings.address')}
               </label>
               <textarea
                 id="address"
@@ -409,7 +420,6 @@ export default function SettingsPage() {
                 placeholder="Contoh: Gedung Artha Lantai 5, Jl. Sudirman No. 45, Jakarta Selatan"
                 style={{ resize: 'vertical' }}
               />
-              <p className="form-hint">Alamat ini akan dicantumkan pada bagian kop atas faktur PDF invoice Anda.</p>
             </div>
           </div>
         </div>
@@ -418,7 +428,7 @@ export default function SettingsPage() {
         <div className="glass-card" style={{ padding: 26, position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
             <h2 className="section-title" style={{ margin: 0 }}>
-              <span className="section-icon">💳</span> 2. Integrasi Midtrans (BYOK)
+              <span className="section-icon">💳</span> 2. {t('settings.midtrans_title')}
             </h2>
             {isPro ? (
               <span className="status-badge badge-emerald" style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px' }}>
@@ -426,7 +436,7 @@ export default function SettingsPage() {
               </span>
             ) : (
               <span className="status-badge badge-amber" style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px' }}>
-                🔒 FITUR EKSKLUSIF PRO
+                🔒 {t('subscription.midtrans_inactive')}
               </span>
             )}
           </div>
@@ -437,10 +447,10 @@ export default function SettingsPage() {
                 <span style={{ fontSize: 26 }}>🔒</span>
                 <div>
                   <h4 style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 800, color: '#854d0e' }}>
-                    Fitur Terkunci (Khusus Pengguna Paket Pro)
+                    {t('subscription.midtrans_inactive')}
                   </h4>
                   <p style={{ margin: 0, fontSize: 12, color: '#a16207', lineHeight: 1.5 }}>
-                    Integrasi pembayaran otomatis Midtrans Snap (QRIS, BCA/Mandiri Virtual Account, GoPay) langsung ke rekening merchant Anda hanya aktif untuk anggota Paket Pro.
+                    {t('subscription.midtrans_inactive_desc')}
                   </p>
                 </div>
               </div>
@@ -451,19 +461,19 @@ export default function SettingsPage() {
                 className="btn-primary"
                 style={{ padding: '9px 18px', fontSize: 13, whiteSpace: 'nowrap' }}
               >
-                ⚡ Upgrade ke Pro (Rp 99rb)
+                {t('subscription.btn_upgrade_hero')}
               </button>
             </div>
           ) : (
             <p className="form-hint" style={{ marginBottom: 18 }}>
-              Gunakan API Keys Midtrans Snap Anda untuk menerima pembayaran otomatis QRIS, GoPay, dan Virtual Account langsung ke rekening Anda. Biarkan kosong jika hanya menggunakan transfer manual.
+              {t('settings.midtrans_desc')}
             </p>
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, opacity: isPro ? 1 : 0.5, pointerEvents: isPro ? 'auto' : 'none' }}>
             <div className="form-group">
               <label htmlFor="server_key" className="form-label">
-                Midtrans Server Key {!isPro && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(Terkunci)</span>}
+                {t('settings.server_key')} {!isPro && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(Terkunci)</span>}
               </label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
@@ -491,7 +501,7 @@ export default function SettingsPage() {
 
             <div className="form-group">
               <label htmlFor="client_key" className="form-label">
-                Midtrans Client Key {!isPro && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(Terkunci)</span>}
+                {t('settings.client_key')} {!isPro && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(Terkunci)</span>}
               </label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
@@ -523,14 +533,14 @@ export default function SettingsPage() {
         <div className="glass-card" style={{ padding: 26 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 10 }}>
             <h2 className="section-title" style={{ margin: 0 }}>
-              <span className="section-icon">🏦</span> 3. Rekening Bank Transfer Manual
+              <span className="section-icon">🏦</span> 3. {t('settings.bank_section_title')}
             </h2>
             <span className="glass-pill" style={{ color: 'var(--text-secondary)' }}>
               {banks.length} / {MAX_BANKS} Rekening
             </span>
           </div>
           <p className="form-hint" style={{ marginBottom: 18 }}>
-            Rekening ini akan ditampilkan kepada klien sebagai pilihan transfer langsung dengan fasilitas upload bukti transfer MinIO.
+            {t('settings.bank_section_desc')}
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -538,7 +548,7 @@ export default function SettingsPage() {
               <div key={idx} style={{ background: 'rgba(248, 250, 252, 0.8)', border: '1px solid #e2e8f0', borderRadius: 14, padding: '18px 48px 18px 18px', position: 'relative' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
                   <div className="form-group">
-                    <label className="form-label">Nama Bank <span className="req">*</span></label>
+                    <label className="form-label">{t('settings.bank_name')} <span className="req">*</span></label>
                     <input
                       type="text"
                       value={bank.bank_name}
@@ -549,7 +559,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Nomor Rekening <span className="req">*</span></label>
+                    <label className="form-label">{t('settings.acc_number')} <span className="req">*</span></label>
                     <input
                       type="text"
                       value={bank.account_number}
@@ -560,7 +570,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Atas Nama (A/N)</label>
+                    <label className="form-label">{t('settings.acc_holder')}</label>
                     <input
                       type="text"
                       value={bank.account_holder}
@@ -590,7 +600,7 @@ export default function SettingsPage() {
                 onClick={addBank}
                 style={{ width: '100%', justifyContent: 'center', borderStyle: 'dashed', padding: 12 }}
               >
-                + Tambah Rekening Bank ({banks.length}/{MAX_BANKS})
+                {t('settings.btn_add_bank')} ({banks.length}/{MAX_BANKS})
               </button>
             )}
           </div>
@@ -599,7 +609,7 @@ export default function SettingsPage() {
         {/* ── Submit Button ────────────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
           <button type="submit" disabled={saving} className="btn-primary" style={{ padding: '14px 32px', fontSize: 15 }}>
-            {saving ? <><span className="btn-spinner" /> Menyimpan...</> : '💾 Simpan Seluruh Pengaturan ➜'}
+            {saving ? <><span className="btn-spinner" /> {t('common.saving')}</> : `💾 ${t('settings.btn_save_profile')} ➜`}
           </button>
         </div>
 

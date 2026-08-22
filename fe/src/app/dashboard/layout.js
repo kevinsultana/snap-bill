@@ -5,26 +5,29 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import Swal from 'sweetalert2';
-
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/dashboard/clients', label: 'Klien', icon: '👥' },
-  { href: '/dashboard/items', label: 'Item / Layanan', icon: '📦' },
-  { href: '/dashboard/invoices', label: 'Invoice', icon: '🧾' },
-  { href: '/dashboard/subscription', label: 'Langganan', icon: '💎' },
-  { href: '/dashboard/settings', label: 'Pengaturan', icon: '⚙️' },
-];
+import { useTranslation } from '@/lib/i18n/useTranslation';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 function DashboardLayoutContent({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
 
   const [user, setUser] = useState(null);
   const [subStatus, setSubStatus] = useState(null);
   const [checking, setChecking] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const NAV_ITEMS = [
+    { href: '/dashboard', label: t('nav.dashboard'), icon: '📊' },
+    { href: '/dashboard/clients', label: t('nav.clients'), icon: '👥' },
+    { href: '/dashboard/items', label: t('nav.items'), icon: '📦' },
+    { href: '/dashboard/invoices', label: t('nav.invoices'), icon: '🧾' },
+    { href: '/dashboard/subscription', label: t('nav.subscription'), icon: '💎' },
+    { href: '/dashboard/settings', label: t('nav.settings'), icon: '⚙️' },
+  ];
 
   const fetchUserData = useCallback(() => {
     return Promise.all([
@@ -64,14 +67,15 @@ function DashboardLayoutContent({ children }) {
 
   const handleLogout = async () => {
     const result = await Swal.fire({
-      title: 'Yakin ingin keluar?',
-      text: 'Sesi Anda saat ini akan diakhiri.',
+      title: t('nav.logout_confirm_title'),
+      text: t('nav.logout_confirm_text'),
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: 'Ya, Keluar',
-      cancelButtonText: 'Batal',
+      confirmButtonText: t('nav.logout_confirm_btn'),
+      cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
+      customClass: { popup: 'swal-custom-popup' },
     });
     if (result.isConfirmed) {
       await api.post('/api/auth/logout');
@@ -91,12 +95,14 @@ function DashboardLayoutContent({ children }) {
 
   return (
     <div className="dashboard-layout">
-
       {/* ── Desktop Floating Glass Sidebar ────────────────────────────── */}
       <aside className="sidebar glass-card">
-        <div className="sidebar-brand">
-          <div className="sidebar-logo">⚡</div>
-          <span className="sidebar-name">Snap<b>Bill</b></span>
+        <div className="sidebar-brand" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="sidebar-logo">⚡</div>
+            <span className="sidebar-name">Snap<b>Bill</b></span>
+          </div>
+          <LanguageSwitcher size="small" />
         </div>
 
         <nav className="sidebar-nav">
@@ -119,16 +125,16 @@ function DashboardLayoutContent({ children }) {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span>👑</span>
-                  <b>PRO ACTIVE</b>
+                  <b>{t('nav.pro_active')}</b>
                 </div>
-                <span style={{ fontSize: 10, color: '#b45309' }}>Lihat ↗</span>
+                <span style={{ fontSize: 10, color: '#b45309' }}>{t('common.view')} ↗</span>
               </div>
               <span style={{ fontSize: 11, color: '#92400e', fontWeight: 600, display: 'block', marginTop: 2 }}>Unlimited Invoices</span>
             </Link>
           ) : (
             <div className="tier-free-box">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: '0.04em' }}>PAKET FREE</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: '0.04em' }}>{t('nav.free_package')}</span>
                 <span style={{ fontSize: 11, color: '#4f46e5', fontWeight: 700 }}>
                   {subStatus?.invoiceCountThisMonth ?? 0} / 10 inv
                 </span>
@@ -147,7 +153,7 @@ function DashboardLayoutContent({ children }) {
                 disabled={upgrading}
                 className="btn-upgrade-sidebar"
               >
-                {upgrading ? 'Memuat...' : '⚡ Upgrade Pro (Rp 99rb)'}
+                {upgrading ? t('common.loading') : t('nav.upgrade_pro')}
               </button>
             </div>
           )}
@@ -161,12 +167,12 @@ function DashboardLayoutContent({ children }) {
             <div className="sidebar-user-info">
               <p className="sidebar-user-email">{user?.business_name || user?.email}</p>
               <p className="sidebar-user-tier" style={{ color: isPro ? '#b45309' : '#4f46e5' }}>
-                {isPro ? '👑 Pro Member' : 'Free Plan'}
+                {isPro ? t('nav.pro_member') : t('nav.free_plan')}
               </p>
             </div>
           </div>
-          <button onClick={handleLogout} className="btn-logout" title="Keluar dari akun">
-            Keluar
+          <button onClick={handleLogout} className="btn-logout" title={t('nav.logout')}>
+            {t('nav.logout')}
           </button>
         </div>
       </aside>
@@ -177,14 +183,17 @@ function DashboardLayoutContent({ children }) {
           <div className="sidebar-logo" style={{ width: 32, height: 32, fontSize: 16 }}>⚡</div>
           <span className="sidebar-name" style={{ fontSize: 18 }}>Snap<b>Bill</b></span>
         </div>
-        <button
-          type="button"
-          className="btn-hamburger"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          {mobileMenuOpen ? '✕' : '☰'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <LanguageSwitcher size="small" />
+          <button
+            type="button"
+            className="btn-hamburger"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? '✕' : '☰'}
+          </button>
+        </div>
       </div>
 
       <div
@@ -193,9 +202,12 @@ function DashboardLayoutContent({ children }) {
       />
 
       <div className={`mobile-drawer ${mobileMenuOpen ? 'open' : ''}`}>
-        <div className="sidebar-brand" style={{ marginBottom: 20 }}>
-          <div className="sidebar-logo">⚡</div>
-          <span className="sidebar-name">Snap<b>Bill</b></span>
+        <div className="sidebar-brand" style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="sidebar-logo">⚡</div>
+            <span className="sidebar-name">Snap<b>Bill</b></span>
+          </div>
+          <LanguageSwitcher size="small" />
         </div>
 
         <nav className="sidebar-nav">
@@ -220,12 +232,12 @@ function DashboardLayoutContent({ children }) {
               <div className="sidebar-user-info">
                 <p className="sidebar-user-email">{user?.business_name || user?.email}</p>
                 <p className="sidebar-user-tier" style={{ color: isPro ? '#b45309' : '#4f46e5' }}>
-                  {isPro ? '👑 Pro Member' : 'Free Plan'}
+                  {isPro ? t('nav.pro_member') : t('nav.free_plan')}
                 </p>
               </div>
             </div>
             <button onClick={handleLogout} className="btn-logout">
-              Keluar
+              {t('nav.logout')}
             </button>
           </div>
         </div>

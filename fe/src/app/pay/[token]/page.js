@@ -4,16 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { useTranslation } from '@/lib/i18n/useTranslation';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
-const STATUS_MAP = {
-  draft:                { label: 'Draft',                   badgeClass: 'badge-gray',    desc: 'Invoice ini masih dalam bentuk draf tagihan.' },
-  unpaid:               { label: 'Belum Dibayar',           badgeClass: 'badge-amber',   desc: 'Silakan lakukan pembayaran sesuai rincian total di bawah ini.' },
-  pending_verification: { label: 'Menunggu Verifikasi',     badgeClass: 'badge-blue',    desc: 'Bukti transfer Anda telah diterima dan sedang diverifikasi oleh pihak pemilik usaha.' },
-  paid:                 { label: 'Lunas',                   badgeClass: 'badge-emerald', desc: 'Pembayaran telah berhasil diverifikasi dan lunas. Terima kasih atas kerja sama Anda!' },
-  overdue:              { label: 'Jatuh Tempo',             badgeClass: 'badge-red',     desc: 'Tagihan telah melewati batas waktu tanggal jatuh tempo.' },
-};
 
 function formatRupiah(num) {
   return new Intl.NumberFormat('id-ID', {
@@ -23,9 +17,9 @@ function formatRupiah(num) {
   }).format(Number(num || 0));
 }
 
-function formatDate(dateStr) {
+function formatDate(dateStr, lang = 'id') {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('id-ID', {
+  return new Date(dateStr).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
@@ -37,6 +31,7 @@ export default function PublicPayPage() {
   const searchParams = useSearchParams();
   const txStatus = searchParams?.get('transaction_status');
   const statusCode = searchParams?.get('status_code');
+  const { t, lang } = useTranslation();
 
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +46,14 @@ export default function PublicPayPage() {
   const [uploading, setUploading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [payingSnap, setPayingSnap] = useState(false);
+
+  const STATUS_MAP = {
+    draft:                { label: t('invoices.status_draft'),                badgeClass: 'badge-gray',    desc: 'Invoice ini masih dalam bentuk draf tagihan.' },
+    unpaid:               { label: t('invoices.status_unpaid'),               badgeClass: 'badge-amber',   desc: 'Silakan lakukan pembayaran sesuai rincian total di bawah ini.' },
+    pending_verification: { label: t('invoices.status_pending_verification'), badgeClass: 'badge-blue',    desc: 'Bukti transfer Anda telah diterima dan sedang diverifikasi oleh pihak pemilik usaha.' },
+    paid:                 { label: t('invoices.status_paid'),                 badgeClass: 'badge-emerald', desc: 'Pembayaran telah berhasil diverifikasi dan lunas. Terima kasih atas kerja sama Anda!' },
+    overdue:              { label: t('invoices.status_overdue'),              badgeClass: 'badge-red',     desc: 'Tagihan telah melewati batas waktu tanggal jatuh tempo.' },
+  };
 
   const fetchInvoice = useCallback(async () => {
     try {
@@ -118,38 +121,21 @@ export default function PublicPayPage() {
     }
   }, [orderId, txStatus, handleCheckPaymentStatus]);
 
-  // Handle Pay Snap Online (Midtrans BYOK)
-  const handlePaySnap = async () => {
-    setPayingSnap(true);
-    try {
-      const res = await axios.post(`${API_URL}/api/public/invoices/${token}/pay-snap`);
-      if (res.data?.redirect_url) {
-        window.open(res.data.redirect_url, '_blank');
-        fetchInvoice();
-      }
-    } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Membuka Pembayaran',
-        text: err.response?.data?.message || 'Gagal memproses sesi pembayaran otomatis.',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
-    } finally {
-      setPayingSnap(false);
-    }
+  const handleCopyAccount = (accNumber, idx) => {
+    navigator.clipboard.writeText(accNumber);
+    setCopiedIndex(idx);
+    setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  // Handle file selection
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
       Swal.fire({
-        icon: 'error',
-        title: 'Ukuran file terlalu besar',
-        text: 'Maksimal ukuran file bukti transfer adalah 5MB.',
+        icon: 'warning',
+        title: 'Ukuran File Terlalu Besar',
+        text: 'Ukuran maksimal bukti transfer adalah 5MB.',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
       });
@@ -157,42 +143,33 @@ export default function PublicPayPage() {
     }
 
     setSelectedFile(file);
+
     if (file.type.startsWith('image/')) {
-      setPreviewUrl(URL.createObjectURL(file));
+      const reader = new FileReader();
+      reader.onload = (ev) => setPreviewUrl(ev.target.result);
+      reader.readAsDataURL(file);
     } else {
       setPreviewUrl(null);
     }
   };
 
-  // Upload receipt to backend
   const handleUploadReceipt = async (e) => {
     e.preventDefault();
-    if (!selectedFile) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Pilih File Terlebih Dahulu',
-        text: 'Silakan pilih file bukti transfer Anda (JPG, PNG, WebP, atau PDF).',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
-      return;
-    }
+    if (!selectedFile) return;
 
     setUploading(true);
     const formData = new FormData();
     formData.append('receipt', selectedFile);
 
     try {
-      await axios.post(
-        `${API_URL}/api/public/invoices/${token}/upload-receipt`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
+      await axios.post(`${API_URL}/api/public/invoices/${token}/receipt`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
-      Swal.fire({
+      await Swal.fire({
         icon: 'success',
-        title: '🎉 Bukti Transfer Terkirim!',
-        text: 'Bukti pembayaran Anda berhasil diunggah. Kami akan segera memverifikasi transaksi Anda.',
+        title: 'Bukti Transfer Terkirim! 🎉',
+        text: 'Bukti pembayaran Anda berhasil diunggah dan akan segera diverifikasi oleh pemilik usaha.',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
       });
@@ -204,7 +181,7 @@ export default function PublicPayPage() {
       Swal.fire({
         icon: 'error',
         title: 'Gagal Mengunggah',
-        text: err.response?.data?.message || 'Terjadi kendala saat mengunggah file bukti transfer.',
+        text: err.response?.data?.message || 'Terjadi kesalahan saat mengunggah bukti pembayaran.',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
       });
@@ -213,39 +190,60 @@ export default function PublicPayPage() {
     }
   };
 
-  // Copy bank account number
-  const handleCopyAccount = (accNumber, idx) => {
-    navigator.clipboard.writeText(accNumber);
-    setCopiedIndex(idx);
-    setTimeout(() => setCopiedIndex(null), 2500);
+  const handlePaySnap = async () => {
+    if (invoice?.payment_url) {
+      window.location.href = invoice.payment_url;
+      return;
+    }
+
+    setPayingSnap(true);
+    try {
+      const res = await axios.post(`${API_URL}/api/public/invoices/${token}/pay`);
+      if (res.data?.payment_url) {
+        window.location.href = res.data.payment_url;
+      } else {
+        fetchInvoice();
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal Membuka Pembayaran Online',
+        text: err.response?.data?.message || 'Tidak dapat membuat sesi pembayaran Midtrans.',
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
+    } finally {
+      setPayingSnap(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="pay-portal-container" style={{ textAlign: 'center', paddingTop: 80 }}>
-        <div className="loading-spinner" style={{ margin: '0 auto 16px' }} />
-        <p style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Memuat informasi tagihan invoice...</p>
+      <div className="loading-screen">
+        <div className="loading-spinner" />
       </div>
     );
   }
 
   if (error || !invoice) {
     return (
-      <div className="pay-portal-container" style={{ paddingTop: 60 }}>
-        <div className="glass-card" style={{ padding: 40, textAlign: 'center' }}>
-          <span style={{ fontSize: 48 }}>🔒</span>
-          <h2 style={{ margin: '14px 0 8px', color: 'var(--text-main)' }}>Akses Invoice Ditolak</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>{error || 'Tautan pembayaran tidak valid atau telah kedaluwarsa.'}</p>
+      <div className="page-container" style={{ maxWidth: 600, margin: '60px auto', textAlign: 'center' }}>
+        <div className="glass-card" style={{ padding: 40 }}>
+          <span style={{ fontSize: 48 }}>⚠️</span>
+          <h2 style={{ margin: '14px 0 8px', color: 'var(--text-main)' }}>Invoice Tidak Ditemukan</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.6 }}>
+            {error || 'Tautan pembayaran ini tidak valid atau tagihan telah dihapus.'}
+          </p>
         </div>
       </div>
     );
   }
 
-  const statusInfo = STATUS_MAP[invoice.status] || STATUS_MAP.draft;
-  const client = invoice.client || {};
   const user = invoice.user || {};
+  const client = invoice.client || {};
   const items = invoice.items || [];
   const bankAccounts = Array.isArray(user.bank_accounts) ? user.bank_accounts : [];
+  const statusInfo = STATUS_MAP[invoice.status] || STATUS_MAP.unpaid;
 
   return (
     <div className="pay-portal-container">
@@ -268,11 +266,13 @@ export default function PublicPayPage() {
               {user.business_name || 'SnapBill Invoice'}
             </h1>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>
-              Portal Pembayaran Resmi Klien
+              {t('pay_portal.official_portal')}
             </p>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <LanguageSwitcher size="small" />
+
           <a
             href={`${API_URL}/api/public/invoices/${token}/pdf`}
             target="_blank"
@@ -282,7 +282,7 @@ export default function PublicPayPage() {
             title="Download PDF Faktur Invoice Resmi"
           >
             <span>📄</span>
-            <span>Unduh PDF</span>
+            <span>{t('common.download_pdf')}</span>
           </a>
           <span className={`status-badge ${statusInfo.badgeClass}`} style={{ fontSize: 13, padding: '6px 14px' }}>
             {statusInfo.label}
@@ -295,9 +295,9 @@ export default function PublicPayPage() {
         <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(209, 250, 229, 0.95), rgba(236, 253, 245, 0.95))', border: '1px solid #34d399', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 32 }}>🎉</span>
           <div style={{ flex: 1 }}>
-            <h3 style={{ margin: 0, fontWeight: 800, color: '#065f46', fontSize: 15 }}>Pembayaran Midtrans Berhasil Diproses!</h3>
+            <h3 style={{ margin: 0, fontWeight: 800, color: '#065f46', fontSize: 15 }}>{t('pay_portal.status_success_midtrans_title')}</h3>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: '#047857' }}>
-              Transaksi Anda telah diterima oleh sistem Midtrans. Sinkronisasi status tagihan sedang berlangsung.
+              {t('pay_portal.status_success_midtrans_desc')}
             </p>
           </div>
         </div>
@@ -308,9 +308,9 @@ export default function PublicPayPage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, minWidth: 240 }}>
             <span style={{ fontSize: 32 }}>⏳</span>
             <div>
-              <h3 style={{ margin: 0, fontWeight: 800, color: '#854d0e', fontSize: 15 }}>Menunggu Penyelesaian Pembayaran Midtrans</h3>
+              <h3 style={{ margin: 0, fontWeight: 800, color: '#854d0e', fontSize: 15 }}>{t('pay_portal.status_pending_midtrans_title')}</h3>
               <p style={{ margin: '2px 0 0', fontSize: 13, color: '#a16207' }}>
-                Silakan selesaikan pembayaran sesuai instruksi pada Virtual Account / QRIS / E-Wallet yang Anda pilih.
+                {t('pay_portal.status_pending_midtrans_desc')}
               </p>
             </div>
           </div>
@@ -333,26 +333,14 @@ export default function PublicPayPage() {
         </div>
       )}
 
-      {(txStatus === 'deny' || txStatus === 'cancel' || txStatus === 'expire') && invoice.status !== 'paid' && (
-        <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(255, 228, 230, 0.95), rgba(254, 242, 242, 0.95))', border: '1px solid #fda4af', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 32 }}>⚠️</span>
-          <div style={{ flex: 1 }}>
-            <h3 style={{ margin: 0, fontWeight: 800, color: '#9f1239', fontSize: 15 }}>Transaksi Midtrans Dibatalkan / Kedaluwarsa</h3>
-            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#be123c' }}>
-              Sesi pembayaran sebelumnya belum diselesaikan atau dibatalkan. Anda dapat mengulangi proses pembayaran menggunakan tombol di bawah.
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Status Notice Banner */}
       {invoice.status === 'paid' && (
         <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(209, 250, 229, 0.9), rgba(236, 253, 245, 0.9))', border: '1px solid #6ee7b7', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 32 }}>🎉</span>
           <div>
-            <h3 style={{ margin: 0, fontWeight: 800, color: '#065f46', fontSize: 15 }}>Invoice Telah Lunas</h3>
+            <h3 style={{ margin: 0, fontWeight: 800, color: '#065f46', fontSize: 15 }}>{t('pay_portal.status_paid_title')}</h3>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: '#047857' }}>
-              Terima kasih! Pembayaran Anda telah terkonfirmasi dan transaksi ini telah selesai.
+              {t('pay_portal.status_paid_desc')}
             </p>
           </div>
         </div>
@@ -362,9 +350,9 @@ export default function PublicPayPage() {
         <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(224, 231, 255, 0.9), rgba(243, 232, 255, 0.9))', border: '1px solid #a5b4fc', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 32 }}>⏳</span>
           <div style={{ flex: 1 }}>
-            <h3 style={{ margin: 0, fontWeight: 800, color: '#312e81', fontSize: 15 }}>Bukti Pembayaran Sedang Diverifikasi</h3>
+            <h3 style={{ margin: 0, fontWeight: 800, color: '#312e81', fontSize: 15 }}>{t('pay_portal.status_pending_verif_title')}</h3>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: '#4338ca' }}>
-              Bukti transfer yang Anda kirimkan sedang dalam proses pengecekan oleh pemilik usaha.
+              {t('pay_portal.status_pending_verif_desc')}
             </p>
           </div>
         </div>
@@ -380,13 +368,13 @@ export default function PublicPayPage() {
           <div className="glass-card" style={{ padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, paddingBottom: 16, borderBottom: '1px solid #e2e8f0' }}>
               <div>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>Nomor Faktur</p>
+                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{t('dashboard.table_invoice_num')}</p>
                 <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--indigo-dark)', fontFamily: 'var(--font-mono)', margin: '2px 0 0' }}>
                   #{invoice.invoice_number}
                 </p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>Total Tagihan</p>
+                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{t('dashboard.table_total')}</p>
                 <p style={{ fontSize: 20, fontWeight: 800, color: '#047857', fontFamily: 'var(--font-mono)', margin: '2px 0 0' }}>
                   {formatRupiah(invoice.total)}
                 </p>
@@ -395,16 +383,16 @@ export default function PublicPayPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 13 }}>
               <div>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>Ditujukan Kepada:</p>
+                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>{t('pay_portal.invoice_for')}:</p>
                 <p style={{ fontWeight: 700, color: 'var(--text-main)' }}>{client.name || '—'}</p>
                 {client.email && <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{client.email}</p>}
                 {client.phone && <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{client.phone}</p>}
               </div>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>Tanggal:</p>
-                <p style={{ color: 'var(--text-secondary)' }}>Terbit: {formatDate(invoice.issue_date)}</p>
+                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>{t('common.date')}:</p>
+                <p style={{ color: 'var(--text-secondary)' }}>{t('pay_portal.issued_on')} {formatDate(invoice.issue_date, lang)}</p>
                 <p style={{ color: invoice.status === 'overdue' ? 'var(--rose)' : 'var(--text-main)', fontWeight: 600 }}>
-                  Tempo: {formatDate(invoice.due_date)}
+                  {t('pay_portal.due_on')} {formatDate(invoice.due_date, lang)}
                 </p>
               </div>
             </div>
@@ -413,17 +401,17 @@ export default function PublicPayPage() {
           {/* Items Table Card */}
           <div className="glass-card" style={{ padding: 24, overflow: 'hidden' }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-main)', marginBottom: 16 }}>
-              📦 Rincian Item Tagihan
+              📦 {t('invoices.form_section_items')}
             </h3>
 
             <div className="table-container" style={{ marginBottom: 16 }}>
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Item</th>
-                    <th className="td-right">Qty</th>
-                    <th className="td-right">Harga</th>
-                    <th className="td-right">Subtotal</th>
+                    <th>{t('invoices.form_item_name')}</th>
+                    <th className="td-right">{t('invoices.form_qty')}</th>
+                    <th className="td-right">{t('invoices.form_price')}</th>
+                    <th className="td-right">{t('invoices.form_subtotal')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -442,23 +430,23 @@ export default function PublicPayPage() {
             {/* Totals */}
             <div style={{ background: 'rgba(248, 250, 252, 0.9)', padding: '16px 20px', borderRadius: 14, border: '1px solid #e2e8f0' }}>
               <div className="total-row">
-                <span>Subtotal</span>
+                <span>{t('common.subtotal')}</span>
                 <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{formatRupiah(invoice.subtotal)}</span>
               </div>
               {Number(invoice.discount) > 0 && (
                 <div className="total-row total-discount">
-                  <span>Diskon</span>
+                  <span>{t('common.discount')}</span>
                   <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>− {formatRupiah(invoice.discount)}</span>
                 </div>
               )}
               {Number(invoice.tax_rate) > 0 && (
                 <div className="total-row" style={{ color: 'var(--indigo-dark)' }}>
-                  <span>Pajak ({Number(invoice.tax_rate)}%)</span>
+                  <span>{t('common.tax')} ({Number(invoice.tax_rate)}%)</span>
                   <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>+ {formatRupiah(((Number(invoice.subtotal) - Number(invoice.discount)) * Number(invoice.tax_rate)) / 100)}</span>
                 </div>
               )}
               <div className="total-row total-grand" style={{ borderTop: '2px dashed #cbd5e1', paddingTop: 12 }}>
-                <span style={{ fontWeight: 800 }}>Total Pembayaran</span>
+                <span style={{ fontWeight: 800 }}>{t('invoices.form_total_payment')}</span>
                 <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--indigo-dark)', fontFamily: 'var(--font-mono)' }}>
                   {formatRupiah(invoice.total)}
                 </span>
@@ -471,20 +459,20 @@ export default function PublicPayPage() {
         {/* ── Right Column: Payment Options ───────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-          {/* 1. Midtrans Snap Online Payment (Hanya jika akun PRO dan BYOK Midtrans aktif) */}
+          {/* 1. Midtrans Snap Online Payment */}
           {invoice.status !== 'paid' && user.tier === 'pro' && user.has_midtrans && (
             <div className="glass-card glass-card-highlight" style={{ padding: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-                  <span>💳</span> Pembayaran Otomatis Online
+                  <span>💳</span> {t('pay_portal.auto_payment_title')}
                 </h3>
                 <span className="status-badge badge-emerald" style={{ fontSize: 10, fontWeight: 800 }}>
-                  ⚡ INSTANT MIDTRANS
+                  {t('pay_portal.instant_badge')}
                 </span>
               </div>
 
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18 }}>
-                Bayar otomatis langsung ke rekening merchant via <b>QRIS, BCA / Mandiri / BRI / BNI Virtual Account, GoPay, OVO, atau Kartu Kredit</b>.
+                {t('pay_portal.auto_payment_desc')}
               </p>
 
               <button
@@ -499,7 +487,7 @@ export default function PublicPayPage() {
                     <span className="btn-spinner" /> Membuka Gateway Pembayaran...
                   </>
                 ) : (
-                  <>🚀 Bayar Otomatis via Midtrans Snap ↗</>
+                  t('pay_portal.btn_pay_snap')
                 )}
               </button>
             </div>
@@ -509,15 +497,15 @@ export default function PublicPayPage() {
           {invoice.status !== 'paid' && (
             <div className="glass-card" style={{ padding: 24 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 6px' }}>
-                <span>🏦</span> Transfer Bank Manual
+                <span>🏦</span> {t('pay_portal.manual_transfer_title')}
               </h3>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-                Transfer nominal tagihan ke salah satu rekening bank di bawah ini:
+                {t('pay_portal.manual_transfer_desc')}
               </p>
 
               {bankAccounts.length === 0 ? (
                 <p style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  Belum ada rekening bank yang dikonfigurasi oleh pemilik usaha.
+                  {t('pay_portal.no_bank_accounts')}
                 </p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
@@ -535,7 +523,7 @@ export default function PublicPayPage() {
                         onClick={() => handleCopyAccount(b.account_number, idx)}
                         title="Salin Nomor Rekening"
                       >
-                        {copiedIndex === idx ? '✅ Tersalin' : '📋 Salin'}
+                        {copiedIndex === idx ? `✅ ${t('common.copied')}` : `📋 ${t('common.copy')}`}
                       </button>
                     </div>
                   ))}
@@ -545,10 +533,10 @@ export default function PublicPayPage() {
               {/* Upload Receipt Section */}
               <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 18 }}>
                 <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-main)', marginBottom: 4 }}>
-                  📤 Unggah Bukti Transfer Bank
+                  {t('pay_portal.upload_proof_title')}
                 </h4>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
-                  Format gambar (JPG, PNG, WebP) atau dokumen PDF (Maks. 5MB)
+                  {t('pay_portal.upload_proof_hint')}
                 </p>
 
                 <form onSubmit={handleUploadReceipt}>
@@ -598,10 +586,10 @@ export default function PublicPayPage() {
                   >
                     {uploading ? (
                       <>
-                        <span className="btn-spinner" /> Mengunggah Bukti...
+                        <span className="btn-spinner" /> {t('pay_portal.uploading')}
                       </>
                     ) : (
-                      '📤 Kirim Bukti Transfer untuk Diverifikasi'
+                      t('pay_portal.btn_upload_proof')
                     )}
                   </button>
                 </form>
