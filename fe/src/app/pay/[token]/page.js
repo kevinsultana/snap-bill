@@ -471,8 +471,8 @@ export default function PublicPayPage() {
         {/* ── Right Column: Payment Options ───────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-          {/* 1. Midtrans Snap Online Payment */}
-          {invoice.status !== 'paid' && (invoice.payment_url || user.has_midtrans) && (
+          {/* 1. Midtrans Snap Online Payment (Hanya jika akun PRO dan BYOK Midtrans aktif) */}
+          {invoice.status !== 'paid' && user.tier === 'pro' && user.has_midtrans && (
             <div className="glass-card glass-card-highlight" style={{ padding: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>

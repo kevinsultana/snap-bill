@@ -45,7 +45,7 @@ router.get('/invoices/:token', async (req, res) => {
       (!invoice.user.subscription_ends_at || new Date(invoice.user.subscription_ends_at) > new Date());
     const hasByok = Boolean(isPro && invoice.user?.midtrans_server_key);
 
-    let paymentUrl = invoice.payment_url;
+    let paymentUrl = hasByok ? invoice.payment_url : null;
 
     // Jika pemilik usaha adalah PRO & memiliki Midtrans BYOK, buat payment_url otomatis jika belum ada
     if (hasByok && !paymentUrl && invoice.status !== 'paid') {
@@ -76,7 +76,7 @@ router.get('/invoices/:token', async (req, res) => {
       address: invoice.user?.address,
       logo_url: invoice.user?.logo_url,
       bank_accounts: invoice.user?.bank_accounts,
-      tier: invoice.user?.tier,
+      tier: isPro ? 'pro' : 'free',
       has_midtrans: hasByok,
     };
 
