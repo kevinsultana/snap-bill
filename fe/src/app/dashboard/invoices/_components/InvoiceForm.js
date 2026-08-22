@@ -412,19 +412,19 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
         </Link>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
         {/* ── 2-Column Responsive Layout ───────────────────────────── */}
-        <div className="invoice-form-2col">
+        <div className="invoice-form-2col" style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
           {/* ── Left Column: Form & Line Items ─────────────────────── */}
-          <div className="form-left-col">
+          <div className="form-left-col" style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
             {/* 1. Informasi Invoice */}
-            <div className="invoice-section">
+            <div className="invoice-section" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
               <h2 className="section-title">
                 <span className="section-icon">📋</span> {t('invoices.form_section_info')}
               </h2>
 
-              <div className="invoice-info-grid">
-                <div className="form-group">
+              <div className="invoice-info-grid" style={{ width: '100%', maxWidth: '100%' }}>
+                <div className="form-group" style={{ width: '100%', minWidth: 0 }}>
                   <label className="form-label">
                     {t('invoices.form_client')} <span className="req">*</span>
                   </label>
@@ -433,6 +433,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     value={clientId}
                     onChange={(e) => setClientId(e.target.value)}
                     required
+                    style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
                   >
                     <option value="">— {t('invoices.form_client')} —</option>
                     {clients.map((c) => (
@@ -451,7 +452,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   )}
                 </div>
 
-                <div className="form-group">
+                <div className="form-group" style={{ width: '100%', minWidth: 0 }}>
                   <label className="form-label">
                     {t('invoices.form_issue_date')} <span className="req">*</span>
                   </label>
@@ -461,10 +462,11 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     value={issueDate}
                     onChange={(e) => setIssueDate(e.target.value)}
                     required
+                    style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
 
-                <div className="form-group">
+                <div className="form-group" style={{ width: '100%', minWidth: 0 }}>
                   <label className="form-label">{t('invoices.form_due_date')}</label>
                   <input
                     type="date"
@@ -472,14 +474,15 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
                     min={issueDate}
+                    style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
             </div>
 
             {/* 2. Rincian Item / Layanan (Tabel Terstruktur & Rapi) */}
-            <div className="invoice-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div className="invoice-section" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                 <h2 className="section-title" style={{ margin: 0 }}>
                   <span className="section-icon">📦</span> {t('invoices.form_section_items')}
                 </h2>
@@ -495,23 +498,23 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
               </div>
 
               {/* Table Wrapper */}
-              <div className="table-responsive" style={{ borderRadius: 14, border: '1px solid #e2e8f0', background: 'rgba(255, 255, 255, 0.65)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 640 }}>
+              <div className="table-responsive" style={{ width: '100%', maxWidth: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: 14, border: '1px solid #e2e8f0', background: 'rgba(255, 255, 255, 0.65)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 580 }}>
                   <thead>
                     <tr style={{ background: 'rgba(241, 245, 249, 0.95)', borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '12px 14px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '44%' }}>
+                      <th style={{ padding: '12px 14px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '40%', minWidth: 180 }}>
                         {t('invoices.form_item_name')}
                       </th>
-                      <th style={{ padding: '12px 10px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '14%', textAlign: 'center' }}>
+                      <th style={{ padding: '12px 8px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '12%', minWidth: 65, textAlign: 'center' }}>
                         {t('invoices.form_qty')}
                       </th>
-                      <th style={{ padding: '12px 12px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '23%' }}>
+                      <th style={{ padding: '12px 10px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '24%', minWidth: 130 }}>
                         {t('invoices.form_price')}
                       </th>
-                      <th style={{ padding: '12px 14px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '15%', textAlign: 'right' }}>
+                      <th style={{ padding: '12px 12px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '18%', minWidth: 100, textAlign: 'right' }}>
                         {t('invoices.form_subtotal')}
                       </th>
-                      <th style={{ padding: '12px 8px', width: '44px', textAlign: 'center' }} />
+                      <th style={{ padding: '12px 6px', width: '40px', minWidth: 40, textAlign: 'center' }} />
                     </tr>
                   </thead>
                   <tbody>
@@ -549,7 +552,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                           </td>
 
                           {/* Qty */}
-                          <td style={{ padding: '10px 10px' }}>
+                          <td style={{ padding: '10px 8px' }}>
                             <input
                               type="text"
                               inputMode="numeric"
@@ -570,7 +573,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                           </td>
 
                           {/* Harga Satuan */}
-                          <td style={{ padding: '10px 12px' }}>
+                          <td style={{ padding: '10px 10px' }}>
                             <div className="input-with-addon" style={{ margin: 0 }}>
                               <span className="input-addon-badge" style={{ fontSize: 11, padding: '0 8px' }}>Rp</span>
                               <input
@@ -593,14 +596,14 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                           </td>
 
                           {/* Subtotal */}
-                          <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right' }}>
                             <span style={{ fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-main)', fontSize: 14 }}>
                               {formatRupiah(lineTotal)}
                             </span>
                           </td>
 
                           {/* Hapus Baris */}
-                          <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                          <td style={{ padding: '10px 6px', textAlign: 'center' }}>
                             <button
                               type="button"
                               className="btn-remove-line"
@@ -637,16 +640,16 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
           </div>
 
           {/* ── Right Column: Sticky Grand Total Summary Card ──────── */}
-          <div className="sticky-summary-card">
+          <div className="sticky-summary-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
             {/* Adjustments (Discount & Tax) */}
-            <div className="totals-adjustments-card">
+            <div className="totals-adjustments-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 4px' }}>
                 {t('invoices.form_adjustments_title')}
               </h3>
 
               {/* Discount Selector */}
-              <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <div className="form-group" style={{ width: '100%', minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 6 }}>
                   <label className="form-label" style={{ margin: 0 }}>
                     {t('invoices.form_discount')}
                   </label>
@@ -674,7 +677,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   </div>
                 </div>
 
-                <div className="input-with-addon">
+                <div className="input-with-addon" style={{ width: '100%' }}>
                   <span className="input-addon-badge">{discountType === 'fixed' ? 'Rp' : '%'}</span>
                   <input
                     type="text"
@@ -693,7 +696,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                         setDiscountValue(formatThousand(digits));
                       }
                     }}
-                    style={{ fontFamily: 'var(--font-mono)' }}
+                    style={{ fontFamily: 'var(--font-mono)', width: '100%' }}
                   />
                 </div>
 
@@ -709,9 +712,9 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
               </div>
 
               {/* Tax Rate */}
-              <div className="form-group">
+              <div className="form-group" style={{ width: '100%', minWidth: 0 }}>
                 <label className="form-label">{t('invoices.form_tax')}</label>
-                <div className="input-with-addon">
+                <div className="input-with-addon" style={{ width: '100%' }}>
                   <span className="input-addon-badge">%</span>
                   <input
                     type="text"
@@ -728,6 +731,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                         setTaxRate(cleaned);
                       }
                     }}
+                    style={{ width: '100%' }}
                   />
                 </div>
                 {taxAmt > 0 && (
@@ -739,7 +743,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             </div>
 
             {/* Grand Total Highlight Box */}
-            <div className="grand-total-glass-box">
+            <div className="grand-total-glass-box" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
               <h3
                 style={{
                   fontSize: 14,

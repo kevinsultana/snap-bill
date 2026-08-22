@@ -246,10 +246,10 @@ export default function PublicPayPage() {
   const statusInfo = STATUS_MAP[invoice.status] || STATUS_MAP.unpaid;
 
   return (
-    <div className="pay-portal-container">
+    <div className="pay-portal-container" style={{ width: '100%', maxWidth: 1100, boxSizing: 'border-box' }}>
 
       {/* Top Header Card */}
-      <div className="glass-card pay-portal-header-card" style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+      <div className="glass-card pay-portal-header-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           {user.logo_url ? (
             /* eslint-disable-next-line @next/next/no-img-element */
@@ -292,9 +292,9 @@ export default function PublicPayPage() {
 
       {/* Midtrans Callback Return Banner */}
       {(txStatus === 'settlement' || txStatus === 'capture' || statusCode === '200') && invoice.status !== 'paid' && (
-        <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(209, 250, 229, 0.95), rgba(236, 253, 245, 0.95))', border: '1px solid #34d399', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', background: 'linear-gradient(135deg, rgba(209, 250, 229, 0.95), rgba(236, 253, 245, 0.95))', border: '1px solid #34d399', padding: '18px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 32 }}>🎉</span>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h3 style={{ margin: 0, fontWeight: 800, color: '#065f46', fontSize: 15 }}>{t('pay_portal.status_success_midtrans_title')}</h3>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: '#047857' }}>
               {t('pay_portal.status_success_midtrans_desc')}
@@ -304,8 +304,8 @@ export default function PublicPayPage() {
       )}
 
       {(txStatus === 'pending' || statusCode === '201') && invoice.status !== 'paid' && (
-        <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(254, 249, 195, 0.95))', border: '1px solid #facc15', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, minWidth: 240 }}>
+        <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(254, 249, 195, 0.95))', border: '1px solid #facc15', padding: '18px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, minWidth: 220 }}>
             <span style={{ fontSize: 32 }}>⏳</span>
             <div>
               <h3 style={{ margin: 0, fontWeight: 800, color: '#854d0e', fontSize: 15 }}>{t('pay_portal.status_pending_midtrans_title')}</h3>
@@ -335,9 +335,9 @@ export default function PublicPayPage() {
 
       {/* Status Notice Banner */}
       {invoice.status === 'paid' && (
-        <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(209, 250, 229, 0.9), rgba(236, 253, 245, 0.9))', border: '1px solid #6ee7b7', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', background: 'linear-gradient(135deg, rgba(209, 250, 229, 0.9), rgba(236, 253, 245, 0.9))', border: '1px solid #6ee7b7', padding: '18px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 32 }}>🎉</span>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <h3 style={{ margin: 0, fontWeight: 800, color: '#065f46', fontSize: 15 }}>{t('pay_portal.status_paid_title')}</h3>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: '#047857' }}>
               {t('pay_portal.status_paid_desc')}
@@ -347,9 +347,9 @@ export default function PublicPayPage() {
       )}
 
       {invoice.status === 'pending_verification' && (
-        <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(224, 231, 255, 0.9), rgba(243, 232, 255, 0.9))', border: '1px solid #a5b4fc', padding: '18px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', background: 'linear-gradient(135deg, rgba(224, 231, 255, 0.9), rgba(243, 232, 255, 0.9))', border: '1px solid #a5b4fc', padding: '18px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 32 }}>⏳</span>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h3 style={{ margin: 0, fontWeight: 800, color: '#312e81', fontSize: 15 }}>{t('pay_portal.status_pending_verif_title')}</h3>
             <p style={{ margin: '2px 0 0', fontSize: 13, color: '#4338ca' }}>
               {t('pay_portal.status_pending_verif_desc')}
@@ -359,14 +359,14 @@ export default function PublicPayPage() {
       )}
 
       {/* Main Grid: Details + Payment Actions */}
-      <div className="pay-portal-grid">
+      <div className="pay-portal-grid" style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
 
         {/* ── Left Column: Rincian Invoice & Item ──────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%', maxWidth: '100%', minWidth: 0 }}>
 
           {/* Info Card */}
-          <div className="glass-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, paddingBottom: 16, borderBottom: '1px solid #e2e8f0' }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, paddingBottom: 16, borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{t('dashboard.table_invoice_num')}</p>
                 <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--indigo-dark)', fontFamily: 'var(--font-mono)', margin: '2px 0 0' }}>
@@ -381,14 +381,14 @@ export default function PublicPayPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 13 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, fontSize: 13, width: '100%' }}>
               <div>
                 <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>{t('pay_portal.invoice_for')}:</p>
                 <p style={{ fontWeight: 700, color: 'var(--text-main)' }}>{client.name || '—'}</p>
                 {client.email && <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{client.email}</p>}
                 {client.phone && <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{client.phone}</p>}
               </div>
-              <div style={{ textAlign: 'right' }}>
+              <div>
                 <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>{t('common.date')}:</p>
                 <p style={{ color: 'var(--text-secondary)' }}>{t('pay_portal.issued_on')} {formatDate(invoice.issue_date, lang)}</p>
                 <p style={{ color: invoice.status === 'overdue' ? 'var(--rose)' : 'var(--text-main)', fontWeight: 600 }}>
@@ -399,19 +399,19 @@ export default function PublicPayPage() {
           </div>
 
           {/* Items Table Card */}
-          <div className="glass-card" style={{ overflow: 'hidden' }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-main)', marginBottom: 16 }}>
               📦 {t('invoices.form_section_items')}
             </h3>
 
-            <div className="table-container" style={{ marginBottom: 16 }}>
-              <table className="data-table">
+            <div className="table-responsive" style={{ width: '100%', maxWidth: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: 16 }}>
+              <table className="data-table" style={{ width: '100%', minWidth: 480 }}>
                 <thead>
                   <tr>
-                    <th>{t('invoices.form_item_name')}</th>
-                    <th className="td-right">{t('invoices.form_qty')}</th>
-                    <th className="td-right">{t('invoices.form_price')}</th>
-                    <th className="td-right">{t('invoices.form_subtotal')}</th>
+                    <th style={{ minWidth: 160 }}>{t('invoices.form_item_name')}</th>
+                    <th className="td-right" style={{ minWidth: 60 }}>{t('invoices.form_qty')}</th>
+                    <th className="td-right" style={{ minWidth: 110 }}>{t('invoices.form_price')}</th>
+                    <th className="td-right" style={{ minWidth: 110 }}>{t('invoices.form_subtotal')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -428,7 +428,7 @@ export default function PublicPayPage() {
             </div>
 
             {/* Totals */}
-            <div style={{ background: 'rgba(248, 250, 252, 0.9)', padding: '16px 20px', borderRadius: 14, border: '1px solid #e2e8f0' }}>
+            <div style={{ background: 'rgba(248, 250, 252, 0.9)', padding: '16px 20px', borderRadius: 14, border: '1px solid #e2e8f0', width: '100%', boxSizing: 'border-box' }}>
               <div className="total-row">
                 <span>{t('common.subtotal')}</span>
                 <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{formatRupiah(invoice.subtotal)}</span>
@@ -457,11 +457,11 @@ export default function PublicPayPage() {
         </div>
 
         {/* ── Right Column: Payment Options ───────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%', maxWidth: '100%', minWidth: 0 }}>
 
           {/* Pending Verification Notice Card (Saat bukti transfer sedang diverifikasi) */}
           {invoice.status === 'pending_verification' && (
-            <div className="glass-card" style={{ textAlign: 'center', border: '1px solid rgba(99, 102, 241, 0.25)', background: 'linear-gradient(135deg, rgba(245, 247, 255, 0.95), rgba(238, 242, 255, 0.95))' }}>
+            <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textAlign: 'center', border: '1px solid rgba(99, 102, 241, 0.25)', background: 'linear-gradient(135deg, rgba(245, 247, 255, 0.95), rgba(238, 242, 255, 0.95))' }}>
               <div
                 style={{
                   width: 60,
@@ -507,7 +507,7 @@ export default function PublicPayPage() {
 
           {/* 1. Midtrans Snap Online Payment */}
           {invoice.status !== 'paid' && invoice.status !== 'pending_verification' && user.tier === 'pro' && user.has_midtrans && (
-            <div className="glass-card glass-card-highlight">
+            <div className="glass-card glass-card-highlight" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
                   <span>💳</span> {t('pay_portal.auto_payment_title')}
@@ -541,7 +541,7 @@ export default function PublicPayPage() {
 
           {/* 2. Manual Bank Transfer Option */}
           {invoice.status !== 'paid' && invoice.status !== 'pending_verification' && (
-            <div className="glass-card">
+            <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 6px' }}>
                 <span>🏦</span> {t('pay_portal.manual_transfer_title')}
               </h3>
@@ -554,18 +554,18 @@ export default function PublicPayPage() {
                   {t('pay_portal.no_bank_accounts')}
                 </p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20, width: '100%' }}>
                   {bankAccounts.map((b, idx) => (
-                    <div key={idx} className="bank-item-glass">
-                      <div>
+                    <div key={idx} className="bank-item-glass" style={{ width: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ minWidth: 0 }}>
                         <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--indigo)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{b.bank_name}</span>
-                        <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-mono)', margin: '2px 0' }}>{b.account_number}</p>
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>a.n. {b.account_holder || user.business_name || 'Pemilik Usaha'}</span>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-mono)', margin: '2px 0', wordBreak: 'break-all' }}>{b.account_number}</p>
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block' }}>a.n. {b.account_holder || user.business_name || 'Pemilik Usaha'}</span>
                       </div>
                       <button
                         type="button"
                         className="btn-secondary"
-                        style={{ fontSize: 12, padding: '6px 12px' }}
+                        style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap', flexShrink: 0 }}
                         onClick={() => handleCopyAccount(b.account_number, idx)}
                         title="Salin Nomor Rekening"
                       >
@@ -577,7 +577,7 @@ export default function PublicPayPage() {
               )}
 
               {/* Upload Receipt Section */}
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 18 }}>
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 18, width: '100%' }}>
                 <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-main)', marginBottom: 4 }}>
                   {t('pay_portal.upload_proof_title')}
                 </h4>
@@ -585,8 +585,8 @@ export default function PublicPayPage() {
                   {t('pay_portal.upload_proof_hint')}
                 </p>
 
-                <form onSubmit={handleUploadReceipt}>
-                  <div style={{ border: '2px dashed #cbd5e1', borderRadius: 14, padding: 20, textAlign: 'center', background: 'rgba(248, 250, 252, 0.6)', cursor: 'pointer', transition: 'border-color 0.2s' }}>
+                <form onSubmit={handleUploadReceipt} style={{ width: '100%' }}>
+                  <div style={{ width: '100%', boxSizing: 'border-box', border: '2px dashed #cbd5e1', borderRadius: 14, padding: 20, textAlign: 'center', background: 'rgba(248, 250, 252, 0.6)', cursor: 'pointer', transition: 'border-color 0.2s' }}>
                     <input
                       type="file"
                       id="receipt-file"
@@ -594,7 +594,7 @@ export default function PublicPayPage() {
                       onChange={handleFileChange}
                       style={{ display: 'none' }}
                     />
-                    <label htmlFor="receipt-file" style={{ cursor: 'pointer', display: 'block' }}>
+                    <label htmlFor="receipt-file" style={{ cursor: 'pointer', display: 'block', width: '100%' }}>
                       {previewUrl ? (
                         <div>
                           <img
@@ -628,7 +628,7 @@ export default function PublicPayPage() {
                     type="submit"
                     disabled={!selectedFile || uploading}
                     className="btn-primary"
-                    style={{ width: '100%', marginTop: 14, padding: '12px' }}
+                    style={{ width: '100%', marginTop: 14, padding: '12px', justifyContent: 'center' }}
                   >
                     {uploading ? (
                       <>
