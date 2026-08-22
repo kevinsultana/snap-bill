@@ -4,3 +4,4 @@ node_modules
 .agents
 /generated/prisma
 skills-lock.json
+data

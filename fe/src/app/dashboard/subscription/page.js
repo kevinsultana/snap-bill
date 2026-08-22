@@ -69,18 +69,21 @@ function SubscriptionContent() {
           localStorage.removeItem('pending_sub_order_id');
           localStorage.removeItem('pending_sub_payment_url');
           window.dispatchEvent(new CustomEvent('subscription_updated'));
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
         setPendingTransaction(null);
         setPendingPaymentUrl(null);
         await fetchStatus();
 
-        Swal.fire({
-          icon: 'success',
-          title: '🎉 Selamat Datang di SnapBill PRO!',
-          text: data.message || 'Pembayaran langganan Pro Anda telah berhasil diverifikasi lunas. Nikmati fitur tanpa batas!',
-          confirmButtonColor: '#6366f1',
-          customClass: { popup: 'swal-custom-popup' },
-        });
+        if (showToast) {
+          Swal.fire({
+            icon: 'success',
+            title: '🎉 Selamat Datang di SnapBill PRO!',
+            text: data.message || 'Pembayaran langganan Pro Anda telah berhasil diverifikasi lunas. Nikmati fitur tanpa batas!',
+            confirmButtonColor: '#6366f1',
+            customClass: { popup: 'swal-custom-popup' },
+          });
+        }
       } else if (data.status === 'pending') {
         if (typeof window !== 'undefined') {
           localStorage.setItem('pending_sub_order_id', orderIdToCheck);
@@ -100,6 +103,7 @@ function SubscriptionContent() {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('pending_sub_order_id');
           localStorage.removeItem('pending_sub_payment_url');
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
         setPendingTransaction(null);
         setPendingPaymentUrl(null);
@@ -138,20 +142,19 @@ function SubscriptionContent() {
     setActionLoading(true);
     try {
       const res = await api.post('/api/subscriptions/create-snap');
-      const { payment_url, order_id } = res.data;
+      const paymentUrl = res.data?.redirect_url || res.data?.payment_url;
+      const orderId = res.data?.order_id;
 
       if (typeof window !== 'undefined') {
-        if (order_id) localStorage.setItem('pending_sub_order_id', order_id);
-        if (payment_url) localStorage.setItem('pending_sub_payment_url', payment_url);
+        if (orderId) localStorage.setItem('pending_sub_order_id', orderId);
+        if (paymentUrl) localStorage.setItem('pending_sub_payment_url', paymentUrl);
       }
-      setPendingPaymentUrl(payment_url);
-      setPendingTransaction({ order_id, status: 'pending' });
+      setPendingPaymentUrl(paymentUrl);
+      setPendingTransaction({ order_id: orderId, status: 'pending' });
 
-      if (payment_url) {
-        const win = window.open(payment_url, '_blank');
-        if (!win || win.closed || typeof win.closed === 'undefined') {
-          window.location.href = payment_url;
-        }
+      if (paymentUrl) {
+        // Langsung arahkan ke halaman pembayaran Midtrans Snap
+        window.location.href = paymentUrl;
       }
     } catch (err) {
       toast('error', err.response?.data?.message || 'Gagal memulai transaksi Midtrans');

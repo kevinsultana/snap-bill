@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const midtransClient = require('midtrans-client');
 const prisma = require('../db/prisma');
@@ -6,6 +8,51 @@ const { verifyToken } = require('../middleware/auth');
 const router = express.Router();
 
 const PRO_MONTHLY_PRICE = 99000; // Rp 99.000 / bulan
+
+// Penyimpanan order_id langganan yang sudah berhasil diproses agar idempoten (tidak bertambah ganda saat refresh)
+const PROCESSED_STORE_FILE = path.join(__dirname, '../../data/processed_subscriptions.json');
+
+function ensureDataDir() {
+  const dir = path.dirname(PROCESSED_STORE_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+function getProcessedOrders() {
+  try {
+    ensureDataDir();
+    if (!fs.existsSync(PROCESSED_STORE_FILE)) {
+      fs.writeFileSync(PROCESSED_STORE_FILE, JSON.stringify({}), 'utf8');
+      return {};
+    }
+    const content = fs.readFileSync(PROCESSED_STORE_FILE, 'utf8');
+    return JSON.parse(content || '{}');
+  } catch (err) {
+    return {};
+  }
+}
+
+function isOrderProcessed(orderId) {
+  if (!orderId) return false;
+  const orders = getProcessedOrders();
+  return Boolean(orders[orderId]);
+}
+
+function markOrderProcessed(orderId, details) {
+  if (!orderId) return;
+  try {
+    ensureDataDir();
+    const orders = getProcessedOrders();
+    orders[orderId] = {
+      ...details,
+      processed_at: new Date().toISOString(),
+    };
+    fs.writeFileSync(PROCESSED_STORE_FILE, JSON.stringify(orders, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('[processed_orders] Error saving file:', err.message);
+  }
+}
 
 /**
  * Inisialisasi Midtrans Snap untuk Platform Subscription
@@ -165,6 +212,7 @@ router.post('/create-snap', verifyToken, async (req, res) => {
     return res.json({
       token: transaction.token,
       redirect_url: transaction.redirect_url,
+      payment_url: transaction.redirect_url,
       order_id: orderId,
     });
   } catch (err) {
@@ -225,6 +273,22 @@ async function handleSubscriptionStatusCheck(req, res) {
         (txStatus === 'capture' && (fraudStatus === 'accept' || !fraudStatus));
 
       if (isSuccess) {
+        // Idempoten: Cek apakah transaksi dengan order_id ini sudah pernah diproses
+        if (isOrderProcessed(order_id)) {
+          console.log(`[subscriptions.check-status] ℹ️ Order ${order_id} sudah pernah diterapkan. Tidak menambah masa aktif lagi.`);
+          return res.json({
+            status: 'settlement',
+            isPro: true,
+            message: 'Langganan Pro Anda aktif.',
+            user: {
+              id: user.id,
+              email: user.email,
+              tier: user.tier,
+              subscription_ends_at: user.subscription_ends_at,
+            },
+          });
+        }
+
         // Upgrade atau perpanjang Pro tier selama 30 hari per tanggal penuh di jam 00:00+1
         const expiryDate = calculateSubscriptionExpiry(user.subscription_ends_at, 30);
 
@@ -234,6 +298,13 @@ async function handleSubscriptionStatusCheck(req, res) {
             tier: 'pro',
             subscription_ends_at: expiryDate,
           },
+        });
+
+        // Tandai transaksi order_id ini sudah diproses
+        markOrderProcessed(order_id, {
+          user_id: user.id,
+          email: user.email,
+          expiry_date: expiryDate.toISOString(),
         });
 
         console.log(`[subscriptions] ✅ User ${updatedUser.email} berhasil diperpanjang / di-upgrade ke PRO tier hingga ${expiryDate.toISOString()}.`);
@@ -346,19 +417,32 @@ router.post('/webhook', async (req, res) => {
       transaction_status === 'settlement' ||
       (transaction_status === 'capture' && fraud_status === 'accept');
 
-    if (isSuccess && userId) {
+    if (isSuccess && userId && order_id) {
+      if (isOrderProcessed(order_id)) {
+        console.log(`[subscriptions.webhook] ℹ️ Webhook: Order ${order_id} sudah pernah diproses sebelumnya.`);
+        return res.status(200).json({ status: 'OK' });
+      }
+
       const user = await prisma.user.findUnique({ where: { id: userId } });
-      const expiryDate = calculateSubscriptionExpiry(user?.subscription_ends_at, 30);
+      if (user) {
+        const expiryDate = calculateSubscriptionExpiry(user?.subscription_ends_at, 30);
 
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          tier: 'pro',
-          subscription_ends_at: expiryDate,
-        },
-      });
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            tier: 'pro',
+            subscription_ends_at: expiryDate,
+          },
+        });
 
-      console.log(`[subscriptions.webhook] ✅ Status Pro diperpanjang untuk user ${userId} hingga ${expiryDate.toISOString()}`);
+        markOrderProcessed(order_id, {
+          user_id: userId,
+          email: user.email,
+          expiry_date: expiryDate.toISOString(),
+        });
+
+        console.log(`[subscriptions.webhook] ✅ Status Pro diperpanjang untuk user ${userId} hingga ${expiryDate.toISOString()}`);
+      }
     }
 
     return res.status(200).json({ status: 'OK' });
