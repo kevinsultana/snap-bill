@@ -24,20 +24,22 @@ model User {
   clients              Client[]
   items                Item[]
   invoices             Invoice[]
+  subscriptions        Subscription[]
 
   @@map("users")
 }
 
 model Client {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id    String    @db.Uuid
-  name       String
-  email      String?
-  phone      String?
-  address    String?
-  created_at DateTime? @default(now())
-  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  invoices   Invoice[]
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String         @db.Uuid
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  created_at    DateTime?      @default(now())
+  user          User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  invoices      Invoice[]
+  subscriptions Subscription[]
 
   @@map("clients")
 }
@@ -55,24 +57,25 @@ model Item {
 }
 
 model Invoice {
-  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id           String        @db.Uuid
-  client_id         String        @db.Uuid
-  invoice_number    String
-  status            String?       @default("draft") // draft, unpaid, pending_verification, paid, overdue
-  issue_date        DateTime      @db.Date
-  due_date          DateTime?     @db.Date
-  subtotal          Decimal       @default(0) @db.Decimal(15, 2)
-  tax_rate          Decimal?      @default(0) @db.Decimal(5, 2)
-  discount          Decimal?      @default(0) @db.Decimal(15, 2)
-  total             Decimal       @default(0) @db.Decimal(15, 2)
-  public_link_token String?       @unique
-  payment_url       String?
-  receipt_url       String?
-  created_at        DateTime?     @default(now())
-  user              User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  client            Client        @relation(fields: [client_id], references: [id], onDelete: Restrict)
-  items             InvoiceItem[]
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id              String        @db.Uuid
+  client_id            String        @db.Uuid
+  invoice_number       String
+  status               String?       @default("draft") // draft, unpaid, pending_verification, paid, overdue
+  issue_date           DateTime      @db.Date
+  due_date             DateTime?     @db.Date
+  subtotal             Decimal       @default(0) @db.Decimal(15, 2)
+  tax_rate             Decimal?      @default(0) @db.Decimal(5, 2)
+  discount             Decimal?      @default(0) @db.Decimal(15, 2)
+  total                Decimal       @default(0) @db.Decimal(15, 2)
+  public_link_token    String?       @unique
+  payment_url          String?
+  receipt_url          String?
+  last_reminder_sent_at DateTime?
+  created_at           DateTime?     @default(now())
+  user                 User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  client               Client        @relation(fields: [client_id], references: [id], onDelete: Restrict)
+  items                InvoiceItem[]
 
   @@unique([user_id, invoice_number])
   @@map("invoices")
@@ -89,4 +92,24 @@ model InvoiceItem {
   invoice     Invoice   @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
 
   @@map("invoice_items")
+}
+
+model Subscription {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String    @db.Uuid
+  client_id         String    @db.Uuid
+  status            String?   @default("active") // active, paused, cancelled
+  frequency         String?   @default("monthly") // monthly, weekly, yearly
+  next_billing_date DateTime  @db.Date
+  last_invoiced_at  DateTime?
+  amount            Decimal   @default(0) @db.Decimal(15, 2)
+  tax_rate          Decimal?  @default(0) @db.Decimal(5, 2)
+  discount          Decimal?  @default(0) @db.Decimal(15, 2)
+  description       String?
+  items             Json?     @default("[]")
+  created_at        DateTime? @default(now())
+  user              User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  client            Client    @relation(fields: [client_id], references: [id], onDelete: Restrict)
+
+  @@map("subscriptions")
 }

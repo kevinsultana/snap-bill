@@ -1,13 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import CreatableSelect from 'react-select/creatable';
 import Swal from 'sweetalert2';
 import api from '@/lib/api';
 import toast from '@/lib/toast';
 import { useTranslation } from '@/lib/i18n/useTranslation';
+import {
+  Plus,
+  Trash2,
+  Eye,
+  Edit3,
+  FileText,
+  Calendar,
+  User,
+  Percent,
+  CheckCircle2,
+  Building,
+  Sparkles,
+  ArrowLeft,
+} from 'lucide-react';
 
 // Helper pemformat ribuan (e.g. 1000000 -> "1.000.000")
 function formatThousand(val) {
@@ -26,7 +39,7 @@ function parseRawNumber(val) {
 }
 
 function formatRupiah(value) {
-  if (!value && value !== 0) return '';
+  if (!value && value !== 0) return 'Rp 0';
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
@@ -39,297 +52,140 @@ function toDateInput(dateStr) {
   return new Date(dateStr).toISOString().split('T')[0];
 }
 
-const customSelectStyles = {
-  control: (base, state) => ({
-    ...base,
-    minHeight: '42px',
-    background: 'rgba(255, 255, 255, 0.9)',
-    borderColor: state.isFocused ? '#6366f1' : '#cbd5e1',
-    borderRadius: '12px',
-    boxShadow: state.isFocused ? '0 0 0 3px rgba(99, 102, 241, 0.2)' : 'none',
-    '&:hover': { borderColor: '#94a3b8' },
-    fontSize: '13.5px',
-    fontFamily: 'inherit',
-  }),
-  menu: (base) => ({
-    ...base,
-    background: 'rgba(255, 255, 255, 0.98)',
-    backdropFilter: 'blur(12px)',
-    borderRadius: '12px',
-    boxShadow: '0 12px 30px rgba(15, 23, 42, 0.15)',
-    border: '1px solid #e2e8f0',
-    zIndex: 9999,
-    fontSize: '13px',
-  }),
-  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-  option: (base, state) => ({
-    ...base,
-    backgroundColor: state.isSelected
-      ? '#6366f1'
-      : state.isFocused
-        ? '#f1f5f9'
-        : 'transparent',
-    color: state.isSelected ? '#ffffff' : '#1e293b',
-    cursor: 'pointer',
-    padding: '10px 14px',
-  }),
-  placeholder: (base) => ({
-    ...base,
-    color: '#94a3b8',
-    fontSize: '13px',
-  }),
-  singleValue: (base) => ({
-    ...base,
-    color: '#0f172a',
-    fontWeight: 600,
-  }),
-};
+function formatDateDisplay(dateStr, lang = 'id') {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 const EMPTY_LINE = { item_name: '', quantity: '1', unit_price: '' };
 
 /**
- * InvoiceForm — shared between Create and Edit pages.
- * 2-Column Responsive Liquid Glassmorphism Layout
+ * InvoiceForm — Split-Screen Desktop & Tabbed Mobile Layout
+ * with Real-time Inline Spreadsheet Editing and Live Preview
  */
 export default function InvoiceForm({ mode = 'create', invoiceId, initialData }) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+
+  // Mobile Tab state ('form' | 'preview')
+  const [activeTab, setActiveTab] = useState('form');
+
+  // Master data state
   const [clients, setClients] = useState([]);
   const [savedItems, setSavedItems] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  // Form state
+  // Form fields
   const [clientId, setClientId] = useState(initialData?.client_id || '');
   const [issueDate, setIssueDate] = useState(toDateInput(initialData?.issue_date) || toDateInput(new Date()));
   const [dueDate, setDueDate] = useState(toDateInput(initialData?.due_date) || '');
   const [taxRate, setTaxRate] = useState(initialData?.tax_rate ? String(initialData.tax_rate) : '');
-
-  // Diskon: Tipe (Rupiah vs Persentase) & Nilai
   const [discountType, setDiscountType] = useState('fixed'); // 'fixed' (Rp) | 'percent' (%)
   const [discountValue, setDiscountValue] = useState(
     initialData?.discount ? formatThousand(initialData.discount) : ''
   );
+  const [notes, setNotes] = useState(initialData?.notes || '');
 
+  // Line items state
   const [lines, setLines] = useState(
     initialData?.items?.length
       ? initialData.items.map((it) => ({
-        item_name: it.item_name,
-        quantity: formatThousand(it.quantity) || '1',
-        unit_price: formatThousand(it.unit_price) || '',
-      }))
+          item_name: it.item_name || '',
+          quantity: formatThousand(it.quantity) || '1',
+          unit_price: formatThousand(it.unit_price) || '',
+        }))
       : [{ ...EMPTY_LINE }]
   );
 
-  // Load clients & saved items
+  // Load clients, saved items, and user profile settings
   useEffect(() => {
-    api.get('/api/clients').then((r) => setClients(r.data)).catch(() => { });
-    api.get('/api/items').then((r) => setSavedItems(r.data)).catch(() => { });
+    api.get('/api/clients').then((r) => setClients(r.data || [])).catch(() => {});
+    api.get('/api/items').then((r) => setSavedItems(r.data || [])).catch(() => {});
+    api.get('/api/settings').then((r) => setUserProfile(r.data || {})).catch(() => {});
   }, []);
 
-  // ─── Line helpers ──────────────────────────────────────────────────────────
-  const addLine = () => setLines((prev) => [...prev, { ...EMPTY_LINE }]);
+  // Selected client object
+  const selectedClient = useMemo(() => {
+    return clients.find((c) => c.id === clientId) || null;
+  }, [clients, clientId]);
+
+  // ─── Inline Table Item Actions ──────────────────────────────────────────────
+  const addLine = () => {
+    setLines((prev) => [...prev, { ...EMPTY_LINE }]);
+  };
 
   const removeLine = (idx) => {
-    if (lines.length === 1) return;
+    if (lines.length === 1) {
+      setLines([{ ...EMPTY_LINE }]);
+      return;
+    }
     setLines((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const updateLine = (idx, field, value) => {
-    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l)));
+    setLines((prev) =>
+      prev.map((line, i) => (i === idx ? { ...line, [field]: value } : line))
+    );
   };
 
-  // Handler input Qty format ribuan
+  // Handler input Item Name with catalog auto-match
+  const handleItemNameChange = (idx, val) => {
+    updateLine(idx, 'item_name', val);
+
+    // Auto-fill price if matched in catalog
+    const matched = savedItems.find(
+      (it) => it.name.toLowerCase().trim() === val.toLowerCase().trim()
+    );
+    if (matched && matched.price !== undefined) {
+      updateLine(idx, 'unit_price', formatThousand(matched.price));
+    }
+  };
+
+  // Handler input Qty
   const handleQtyChange = (idx, rawVal) => {
     const digits = rawVal.replace(/[^0-9]/g, '');
-    const formatted = digits ? formatThousand(digits) : '';
-    updateLine(idx, 'quantity', formatted);
+    updateLine(idx, 'quantity', digits ? formatThousand(digits) : '');
   };
 
-  // Handler input Harga Satuan format ribuan
+  // Handler input Harga Satuan
   const handlePriceChange = (idx, rawVal) => {
     const digits = rawVal.replace(/[^0-9]/g, '');
-    const formatted = digits ? formatThousand(digits) : '';
-    updateLine(idx, 'unit_price', formatted);
+    updateLine(idx, 'unit_price', digits ? formatThousand(digits) : '');
   };
 
-  // Handler saat memilih item yang sudah ada di React-Select
-  const handleSelectItemOption = (idx, selectedOption) => {
-    if (!selectedOption) {
-      updateLine(idx, 'item_name', '');
-      return;
-    }
-    const name = selectedOption.value || selectedOption.name;
-    const price = selectedOption.price !== undefined ? formatThousand(selectedOption.price) : lines[idx].unit_price;
+  // ─── Dynamic Calculations ──────────────────────────────────────────────────
+  const subtotal = useMemo(() => {
+    return lines.reduce((sum, line) => {
+      const q = parseRawNumber(line.quantity) || 0;
+      const p = parseRawNumber(line.unit_price) || 0;
+      return sum + q * p;
+    }, 0);
+  }, [lines]);
 
-    setLines((prev) =>
-      prev.map((l, i) =>
-        i === idx ? { ...l, item_name: name, unit_price: price } : l
-      )
-    );
-  };
-
-  // Handler saat mengetik nama item baru yang belum terdaftar (Tampilkan popup input harga & deskripsi)
-  const handleCreateNewItem = async (idx, inputValue) => {
-    const trimmed = inputValue?.trim();
-    if (!trimmed) return;
-
-    const currentPrice = lines[idx]?.unit_price ? parseRawNumber(lines[idx].unit_price) : '';
-
-    const { value: formValues } = await Swal.fire({
-      title: t('invoices.form_modal_add_item_title'),
-      html: `
-        <div style="text-align: left; font-size: 13.5px; color: #334155; line-height: 1.5;">
-          <p style="margin: 0 0 14px; font-size: 13px; color: #64748b;">
-            ${t('invoices.form_modal_add_item_desc')}
-          </p>
-
-          <div style="margin-bottom: 14px;">
-            <label style="display: block; font-weight: 700; font-size: 12px; margin-bottom: 4px; color: #1e293b;">
-              ${t('invoices.form_item_name')} <span style="color: #f43f5e;">*</span>
-            </label>
-            <input
-              id="swal-item-name"
-              class="swal2-input"
-              style="margin: 0; width: 100%; height: 42px; font-size: 14px; border-radius: 10px; border: 1px solid #cbd5e1; box-sizing: border-box;"
-              placeholder="Contoh: Jasa Desain UI/UX & Website"
-              value="${trimmed.replace(/"/g, '&quot;')}"
-            />
-          </div>
-
-          <div style="margin-bottom: 14px;">
-            <label style="display: block; font-weight: 700; font-size: 12px; margin-bottom: 4px; color: #1e293b;">
-              ${t('invoices.form_price')} <span style="color: #f43f5e;">*</span>
-            </label>
-            <div style="position: relative;">
-              <span style="position: absolute; left: 12px; top: 11px; font-weight: 700; color: #64748b; font-size: 13px; z-index: 2;">Rp</span>
-              <input
-                id="swal-item-price"
-                class="swal2-input"
-                style="margin: 0; width: 100%; height: 42px; font-size: 14px; border-radius: 10px; border: 1px solid #cbd5e1; box-sizing: border-box; padding-left: 38px; font-family: monospace;"
-                placeholder="0"
-                value="${currentPrice ? formatThousand(currentPrice) : ''}"
-              />
-            </div>
-          </div>
-
-          <div style="margin-bottom: 6px;">
-            <label style="display: block; font-weight: 700; font-size: 12px; margin-bottom: 4px; color: #1e293b;">
-              ${t('items.table_desc')} (${t('common.optional')})
-            </label>
-            <textarea
-              id="swal-item-desc"
-              class="swal2-textarea"
-              style="margin: 0; width: 100%; height: 60px; font-size: 13px; border-radius: 10px; border: 1px solid #cbd5e1; box-sizing: border-box; resize: vertical; padding: 8px 12px;"
-              placeholder="Keterangan rincian atau spesifikasi item..."
-            ></textarea>
-          </div>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: t('invoices.form_modal_btn_save_apply'),
-      cancelButtonText: t('common.cancel'),
-      confirmButtonColor: '#6366f1',
-      cancelButtonColor: '#94a3b8',
-      customClass: { popup: 'swal-custom-popup' },
-      didOpen: () => {
-        const priceInput = document.getElementById('swal-item-price');
-        if (priceInput) {
-          priceInput.addEventListener('input', (e) => {
-            const digits = e.target.value.replace(/[^0-9]/g, '');
-            e.target.value = digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
-          });
-          if (!priceInput.value) {
-            priceInput.focus();
-          }
-        }
-      },
-      preConfirm: () => {
-        const name = document.getElementById('swal-item-name')?.value?.trim();
-        const rawPrice = document.getElementById('swal-item-price')?.value;
-        const desc = document.getElementById('swal-item-desc')?.value?.trim();
-
-        if (!name) {
-          Swal.showValidationMessage('Nama item wajib diisi');
-          return false;
-        }
-
-        const priceNum = parseRawNumber(rawPrice);
-        if (priceNum <= 0) {
-          Swal.showValidationMessage('Harga standar harus lebih besar dari 0');
-          return false;
-        }
-
-        return {
-          name,
-          price: priceNum,
-          description: desc || '',
-        };
-      },
-    });
-
-    if (!formValues) return;
-
-    // Simpan ke endpoint backend /api/items
-    try {
-      const res = await api.post('/api/items', {
-        name: formValues.name,
-        price: formValues.price,
-        description: formValues.description,
-      });
-
-      const createdItem = res.data;
-      setSavedItems((prev) => [...prev, createdItem]);
-      toast('success', `Item "${formValues.name}" berhasil didaftarkan ke katalog!`);
-    } catch {
-      // Walau gagal simpan katalog, tetap isi baris invoice
-    }
-
-    // Set nilai pada baris invoice
-    setLines((prev) =>
-      prev.map((l, i) =>
-        i === idx
-          ? {
-            ...l,
-            item_name: formValues.name,
-            unit_price: formatThousand(formValues.price),
-          }
-          : l
-      )
-    );
-  };
-
-  // Convert saved items to react-select options
-  const itemOptions = savedItems.map((it) => ({
-    value: it.name,
-    label: `${it.name} — Rp ${formatThousand(it.price)}`,
-    name: it.name,
-    price: it.price,
-  }));
-
-  // ─── Calculations ──────────────────────────────────────────────────────────
-  const subtotal = lines.reduce((sum, l) => {
-    const q = parseRawNumber(l.quantity) || 0;
-    const p = parseRawNumber(l.unit_price) || 0;
-    return sum + q * p;
-  }, 0);
-
-  // Kalkulasi potongan diskon
   const rawDiscount = parseRawNumber(discountValue) || 0;
-  const discountAmt =
-    discountType === 'percent'
-      ? (subtotal * Math.min(100, Math.max(0, rawDiscount))) / 100
-      : Math.min(subtotal, Math.max(0, rawDiscount));
+  const discountAmt = useMemo(() => {
+    if (discountType === 'percent') {
+      return (subtotal * Math.min(100, Math.max(0, rawDiscount))) / 100;
+    }
+    return Math.min(subtotal, Math.max(0, rawDiscount));
+  }, [discountType, rawDiscount, subtotal]);
 
   const afterDiscount = Math.max(0, subtotal - discountAmt);
   const taxAmt = (afterDiscount * (parseFloat(taxRate) || 0)) / 100;
-  const total = afterDiscount + taxAmt;
+  const grandTotal = afterDiscount + taxAmt;
 
-  // ─── Submit ────────────────────────────────────────────────────────────────
+  // ─── Submit Handler ────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
 
     if (!clientId) {
-      toast('error', 'Pilih klien tujuan terlebih dahulu');
+      toast('error', 'Pilih klien tujuan invoice terlebih dahulu');
+      setActiveTab('form');
       return;
     }
 
@@ -339,6 +195,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
     if (validLines.length === 0) {
       toast('error', 'Masukkan minimal 1 item dengan nama, jumlah, dan harga satuan yang valid');
+      setActiveTab('form');
       return;
     }
 
@@ -394,229 +251,280 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
   };
 
   return (
-    <div className="page-container">
-      {/* Header */}
-      <div className="page-header">
+    <div className="w-full max-w-7xl mx-auto pb-16 px-3 sm:px-6">
+
+      {/* ── Top Header ─────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="page-title">
-            {mode === 'create' ? t('invoices.form_create_title') : t('invoices.form_edit_title')}
-          </h1>
-          <p className="page-desc">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard/invoices"
+              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition shadow-sm"
+              title="Kembali ke Daftar Invoice"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              {mode === 'create' ? 'Buat Invoice Baru' : `Edit Invoice #${initialData?.invoice_number || ''}`}
+            </h1>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 pl-11">
             {mode === 'create'
-              ? 'Isi rincian transaksi tagihan dan terbitkan secara instan.'
-              : `Mengubah rincian draf invoice #${initialData?.invoice_number || ''}`}
+              ? 'Isi formulir transaksi di bawah ini dengan live preview otomatis.'
+              : 'Perbarui rincian draf invoice Anda secara langsung.'}
           </p>
         </div>
-        <Link href="/dashboard/invoices" className="btn-secondary">
-          ← {t('invoices.detail_back')}
-        </Link>
+
+        {/* Action Buttons (Desktop Header) */}
+        <div className="hidden md:flex items-center gap-3">
+          <Link href="/dashboard/invoices" className="btn-secondary text-sm px-4 py-2">
+            Batal
+          </Link>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving}
+            className="btn-primary text-sm px-5 py-2.5 flex items-center gap-2 shadow-md"
+          >
+            {saving ? (
+              <>
+                <span className="btn-spinner" /> Menyimpan...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                {mode === 'edit' ? 'Simpan Perubahan' : 'Simpan Draf Invoice'}
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
-        {/* ── 2-Column Responsive Layout ───────────────────────────── */}
-        <div className="invoice-form-2col" style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
-          {/* ── Left Column: Form & Line Items ─────────────────────── */}
-          <div className="form-left-col" style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
-            {/* 1. Informasi Invoice */}
-            <div className="invoice-section" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-              <h2 className="section-title">
-                <span className="section-icon">📋</span> {t('invoices.form_section_info')}
+      {/* ── Mobile Tab Switcher (< 768px) ───────────────────────────── */}
+      <div className="md:hidden flex items-center p-1.5 mb-5 rounded-2xl bg-slate-200/70 backdrop-blur-sm border border-slate-300/60 shadow-inner">
+        <button
+          type="button"
+          onClick={() => setActiveTab('form')}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 ${
+            activeTab === 'form'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Edit3 className="w-4 h-4" />
+          <span>Formulir Invoice</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('preview')}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 ${
+            activeTab === 'preview'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Eye className="w-4 h-4" />
+          <span>Live Preview</span>
+          <span className="ml-1 text-[11px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+            {formatRupiah(grandTotal)}
+          </span>
+        </button>
+      </div>
+
+      {/* ── Responsive Split-Screen Layout (Grid md:grid-cols-12) ───── */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            LEFT PANE: INPUT FORM (Full on Mobile if tab='form', 6/12 on md, 7/12 on lg)
+           ═══════════════════════════════════════════════════════════════════ */}
+        <div
+          className={`md:col-span-6 lg:col-span-7 flex flex-col gap-6 ${
+            activeTab === 'form' ? 'block' : 'hidden md:block'
+          }`}
+        >
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+
+            {/* 1. Client & Dates Information Card */}
+            <div className="glass-card p-5 sm:p-6 rounded-2xl bg-white/90 border border-slate-200/80 shadow-sm">
+              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2 mb-4">
+                <User className="w-4 h-4 text-indigo-600" />
+                <span>Informasi Klien & Tanggal</span>
               </h2>
 
-              <div className="invoice-info-grid" style={{ width: '100%', maxWidth: '100%' }}>
-                <div className="form-group" style={{ width: '100%', minWidth: 0 }}>
-                  <label className="form-label">
-                    {t('invoices.form_client')} <span className="req">*</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Client Select */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    Klien Penerima Tagihan <span className="text-rose-500">*</span>
                   </label>
                   <select
-                    className="form-input"
+                    className="form-input w-full"
                     value={clientId}
                     onChange={(e) => setClientId(e.target.value)}
                     required
-                    style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
                   >
-                    <option value="">— {t('invoices.form_client')} —</option>
+                    <option value="">— Pilih Klien Terdaftar —</option>
                     {clients.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name}
+                        {c.name} {c.email ? `(${c.email})` : ''}
                       </option>
                     ))}
                   </select>
                   {clients.length === 0 && (
-                    <p className="form-hint">
-                      {t('clients.empty_title')}.{' '}
-                      <Link href="/dashboard/clients" className="auth-link">
-                        {t('clients.btn_add')}
+                    <p className="text-xs text-slate-500 mt-1.5">
+                      Belum ada klien terdaftar.{' '}
+                      <Link href="/dashboard/clients" className="text-indigo-600 font-bold hover:underline">
+                        + Tambah Klien Baru
                       </Link>
                     </p>
                   )}
                 </div>
 
-                <div className="form-group" style={{ width: '100%', minWidth: 0 }}>
-                  <label className="form-label">
-                    {t('invoices.form_issue_date')} <span className="req">*</span>
+                {/* Issue Date */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Tanggal Terbit</span> <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="date"
-                    className="form-input"
+                    className="form-input w-full text-sm font-semibold"
                     value={issueDate}
                     onChange={(e) => setIssueDate(e.target.value)}
                     required
-                    style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
                   />
                 </div>
 
-                <div className="form-group" style={{ width: '100%', minWidth: 0 }}>
-                  <label className="form-label">{t('invoices.form_due_date')}</label>
+                {/* Due Date */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Jatuh Tempo</span>
+                  </label>
                   <input
                     type="date"
-                    className="form-input"
+                    className="form-input w-full text-sm font-semibold"
                     value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
                     min={issueDate}
-                    style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
+                    onChange={(e) => setDueDate(e.target.value)}
                   />
                 </div>
               </div>
             </div>
 
-            {/* 2. Rincian Item / Layanan (Tabel Terstruktur & Rapi) */}
-            <div className="invoice-section" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-                <h2 className="section-title" style={{ margin: 0 }}>
-                  <span className="section-icon">📦</span> {t('invoices.form_section_items')}
-                </h2>
+            {/* 2. Responsive Inline Editable Table for Invoice Items */}
+            <div className="glass-card p-5 sm:p-6 rounded-2xl bg-white/90 border border-slate-200/80 shadow-sm">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-indigo-600" />
+                    <span>Rincian Item & Layanan</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Ketik langsung pada tabel untuk mengubah nama, jumlah, atau harga satuan.
+                  </p>
+                </div>
+
                 <button
                   type="button"
                   onClick={addLine}
-                  className="btn-secondary"
-                  style={{ fontSize: 13, padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition border border-indigo-200/60 shadow-sm"
                 >
-                  <span>➕</span>
-                  <span>{t('invoices.form_add_line')}</span>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Tambah Baris</span>
                 </button>
               </div>
 
-              {/* Table Wrapper */}
-              <div className="table-responsive" style={{ width: '100%', maxWidth: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', borderRadius: 14, border: '1px solid #e2e8f0', background: 'rgba(255, 255, 255, 0.65)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 580 }}>
+              {/* Datalist for catalog autocomplete */}
+              <datalist id="catalog-item-suggestions">
+                {savedItems.map((item) => (
+                  <option key={item.id} value={item.name}>
+                    Rp {formatThousand(item.price)}
+                  </option>
+                ))}
+              </datalist>
+
+              {/* Inline Editable Table Container */}
+              <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-slate-50/50">
+                <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[520px]">
                   <thead>
-                    <tr style={{ background: 'rgba(241, 245, 249, 0.95)', borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '12px 14px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '40%', minWidth: 180 }}>
-                        {t('invoices.form_item_name')}
-                      </th>
-                      <th style={{ padding: '12px 8px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '12%', minWidth: 65, textAlign: 'center' }}>
-                        {t('invoices.form_qty')}
-                      </th>
-                      <th style={{ padding: '12px 10px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '24%', minWidth: 130 }}>
-                        {t('invoices.form_price')}
-                      </th>
-                      <th style={{ padding: '12px 12px', fontSize: 12, fontWeight: 800, color: '#475569', textTransform: 'uppercase', width: '18%', minWidth: 100, textAlign: 'right' }}>
-                        {t('invoices.form_subtotal')}
-                      </th>
-                      <th style={{ padding: '12px 6px', width: '40px', minWidth: 40, textAlign: 'center' }} />
+                    <tr className="bg-slate-100/80 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
+                      <th className="py-2.5 px-3 w-[44%]">Nama Item / Layanan</th>
+                      <th className="py-2.5 px-2 text-center w-[16%]">Qty</th>
+                      <th className="py-2.5 px-2 text-right w-[24%]">Harga Satuan</th>
+                      <th className="py-2.5 px-3 text-right w-[16%]">Total</th>
+                      <th className="py-2.5 px-2 w-[40px] text-center" />
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-200/60 bg-white">
                     {lines.map((line, idx) => {
-                      const lineTotal = (parseRawNumber(line.quantity) || 0) * (parseRawNumber(line.unit_price) || 0);
-
-                      // Option value for react-select
-                      const currentSelectValue = line.item_name
-                        ? { value: line.item_name, label: line.item_name }
-                        : null;
+                      const lineTotal =
+                        (parseRawNumber(line.quantity) || 0) * (parseRawNumber(line.unit_price) || 0);
 
                       return (
-                        <tr
-                          key={idx}
-                          style={{
-                            borderBottom: idx !== lines.length - 1 ? '1px solid #f1f5f9' : 'none',
-                            background: idx % 2 === 0 ? 'transparent' : 'rgba(248, 250, 252, 0.4)',
-                            verticalAlign: 'middle',
-                          }}
-                        >
-                          {/* Nama Item dengan React Select Creatable */}
-                          <td style={{ padding: '10px 14px' }}>
-                            <CreatableSelect
-                              isClearable
-                              styles={customSelectStyles}
-                              options={itemOptions}
-                              value={currentSelectValue}
-                              onChange={(opt) => handleSelectItemOption(idx, opt)}
-                              onCreateOption={(input) => handleCreateNewItem(idx, input)}
-                              placeholder={t('invoices.form_select_item_placeholder')}
-                              formatCreateLabel={(inputValue) => t('invoices.form_create_item_option', { name: inputValue })}
-                              noOptionsMessage={() => 'Ketik nama item baru untuk mendaftarkannya'}
-                              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                        <tr key={idx} className="hover:bg-indigo-50/20 transition-colors">
+                          {/* Item Name (Direct typing with autocomplete datalist) */}
+                          <td className="p-2">
+                            <input
+                              type="text"
+                              list="catalog-item-suggestions"
+                              className="w-full px-2.5 py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
+                              placeholder="Nama produk/jasa..."
+                              value={line.item_name}
+                              onChange={(e) => handleItemNameChange(idx, e.target.value)}
+                              required
                             />
                           </td>
 
-                          {/* Qty */}
-                          <td style={{ padding: '10px 8px' }}>
+                          {/* Quantity */}
+                          <td className="p-2">
                             <input
                               type="text"
                               inputMode="numeric"
-                              className="form-input"
+                              className="w-full px-2 py-2 text-xs sm:text-sm font-bold text-center rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-mono bg-white"
                               placeholder="1"
                               value={line.quantity}
                               onFocus={(e) => e.target.select()}
                               onChange={(e) => handleQtyChange(idx, e.target.value)}
                               required
-                              style={{
-                                textAlign: 'center',
-                                fontFamily: 'var(--font-mono)',
-                                height: 42,
-                                margin: 0,
-                                fontWeight: 700,
-                              }}
                             />
                           </td>
 
-                          {/* Harga Satuan */}
-                          <td style={{ padding: '10px 10px' }}>
-                            <div className="input-with-addon" style={{ margin: 0 }}>
-                              <span className="input-addon-badge" style={{ fontSize: 11, padding: '0 8px' }}>Rp</span>
+                          {/* Unit Price */}
+                          <td className="p-2">
+                            <div className="relative flex items-center">
+                              <span className="absolute left-2.5 text-[11px] font-bold text-slate-400 select-none">
+                                Rp
+                              </span>
                               <input
                                 type="text"
                                 inputMode="numeric"
-                                className="form-input"
+                                className="w-full pl-8 pr-2.5 py-2 text-xs sm:text-sm font-bold text-right rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-mono bg-white"
                                 placeholder="0"
                                 value={line.unit_price}
                                 onFocus={(e) => e.target.select()}
                                 onChange={(e) => handlePriceChange(idx, e.target.value)}
                                 required
-                                style={{
-                                  fontFamily: 'var(--font-mono)',
-                                  height: 42,
-                                  margin: 0,
-                                  fontWeight: 700,
-                                }}
                               />
                             </div>
                           </td>
 
-                          {/* Subtotal */}
-                          <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                            <span style={{ fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-main)', fontSize: 14 }}>
+                          {/* Calculated Line Subtotal */}
+                          <td className="p-2 text-right">
+                            <span className="font-mono font-bold text-slate-900 text-xs sm:text-sm block">
                               {formatRupiah(lineTotal)}
                             </span>
                           </td>
 
-                          {/* Hapus Baris */}
-                          <td style={{ padding: '10px 6px', textAlign: 'center' }}>
+                          {/* Delete Action */}
+                          <td className="p-2 text-center">
                             <button
                               type="button"
-                              className="btn-remove-line"
                               onClick={() => removeLine(idx)}
-                              disabled={lines.length === 1}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
                               title="Hapus baris item"
-                              style={{
-                                margin: '0 auto',
-                                opacity: lines.length === 1 ? 0.25 : 1,
-                                cursor: lines.length === 1 ? 'not-allowed' : 'pointer',
-                              }}
                             >
-                              ✕
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </td>
                         </tr>
@@ -626,194 +534,356 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                 </table>
               </div>
 
-              <div style={{ marginTop: 14 }}>
-                <button
-                  type="button"
-                  onClick={addLine}
-                  className="btn-add-line"
-                  style={{ width: '100%', justifyContent: 'center' }}
-                >
-                  {t('invoices.form_add_line_bottom')}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Right Column: Sticky Grand Total Summary Card ──────── */}
-          <div className="sticky-summary-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
-            {/* Adjustments (Discount & Tax) */}
-            <div className="totals-adjustments-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 4px' }}>
-                {t('invoices.form_adjustments_title')}
-              </h3>
-
-              {/* Discount Selector */}
-              <div className="form-group" style={{ width: '100%', minWidth: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 6 }}>
-                  <label className="form-label" style={{ margin: 0 }}>
-                    {t('invoices.form_discount')}
-                  </label>
-                  <div className="discount-type-toggle">
-                    <button
-                      type="button"
-                      className={`btn-toggle-type ${discountType === 'fixed' ? 'active' : ''}`}
-                      onClick={() => {
-                        setDiscountType('fixed');
-                        setDiscountValue('');
-                      }}
-                    >
-                      Nominal (Rp)
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn-toggle-type ${discountType === 'percent' ? 'active' : ''}`}
-                      onClick={() => {
-                        setDiscountType('percent');
-                        setDiscountValue('');
-                      }}
-                    >
-                      Persen (%)
-                    </button>
-                  </div>
-                </div>
-
-                <div className="input-with-addon" style={{ width: '100%' }}>
-                  <span className="input-addon-badge">{discountType === 'fixed' ? 'Rp' : '%'}</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className="form-input"
-                    placeholder="0"
-                    value={discountValue}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      if (discountType === 'percent') {
-                        const digits = e.target.value.replace(/[^0-9.]/g, '');
-                        if (parseFloat(digits) > 100) setDiscountValue('100');
-                        else setDiscountValue(digits);
-                      } else {
-                        const digits = e.target.value.replace(/[^0-9]/g, '');
-                        setDiscountValue(formatThousand(digits));
-                      }
-                    }}
-                    style={{ fontFamily: 'var(--font-mono)', width: '100%' }}
-                  />
-                </div>
-
-                {discountAmt > 0 && (
-                  <p className="form-hint" style={{ color: 'var(--rose)', fontWeight: 600 }}>
-                    {discountType === 'percent'
-                      ? `Potongan: − ${formatRupiah(discountAmt)} (${discountValue}%)`
-                      : subtotal > 0
-                        ? `Potongan: − ${formatRupiah(discountAmt)} (${((discountAmt / subtotal) * 100).toFixed(1)}%)`
-                        : `Potongan: − ${formatRupiah(discountAmt)}`}
-                  </p>
-                )}
-              </div>
-
-              {/* Tax Rate */}
-              <div className="form-group" style={{ width: '100%', minWidth: 0 }}>
-                <label className="form-label">{t('invoices.form_tax')}</label>
-                <div className="input-with-addon" style={{ width: '100%' }}>
-                  <span className="input-addon-badge">%</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    className="form-input"
-                    placeholder="0"
-                    value={taxRate}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const cleaned = e.target.value.replace(/[^0-9.]/g, '');
-                      if (parseFloat(cleaned) > 100) {
-                        setTaxRate('100');
-                      } else {
-                        setTaxRate(cleaned);
-                      }
-                    }}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                {taxAmt > 0 && (
-                  <p className="form-hint" style={{ color: 'var(--indigo-dark)', fontWeight: 600 }}>
-                    Pajak: + {formatRupiah(taxAmt)} ({taxRate}%)
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Grand Total Highlight Box */}
-            <div className="grand-total-glass-box" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-              <h3
-                style={{
-                  fontSize: 14,
-                  fontWeight: 800,
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  marginBottom: 12,
-                }}
+              {/* Bottom Add Row Button */}
+              <button
+                type="button"
+                onClick={addLine}
+                className="w-full mt-3 py-2 px-4 rounded-xl border border-dashed border-indigo-300 hover:border-indigo-500 bg-indigo-50/40 hover:bg-indigo-50 text-indigo-700 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition"
               >
-                {t('invoices.form_summary_title')}
-              </h3>
+                <Plus className="w-4 h-4" />
+                <span>Tambah Baris Item Baru</span>
+              </button>
+            </div>
 
-              <div className="total-row">
-                <span>{t('common.subtotal')}</span>
-                <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{formatRupiah(subtotal)}</span>
-              </div>
+            {/* 3. Adjustments (Discount, Tax, Notes) Card */}
+            <div className="glass-card p-5 sm:p-6 rounded-2xl bg-white/90 border border-slate-200/80 shadow-sm">
+              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2 mb-4">
+                <Percent className="w-4 h-4 text-indigo-600" />
+                <span>Diskon, Pajak & Catatan</span>
+              </h2>
 
-              {discountAmt > 0 && (
-                <div className="total-row total-discount">
-                  <span>{t('common.discount')} {discountType === 'percent' ? `(${discountValue}%)` : ''}</span>
-                  <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>− {formatRupiah(discountAmt)}</span>
-                </div>
-              )}
-
-              {taxAmt > 0 && (
-                <div className="total-row" style={{ color: 'var(--indigo-dark)' }}>
-                  <span>{t('common.tax')} ({taxRate}%)</span>
-                  <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>+ {formatRupiah(taxAmt)}</span>
-                </div>
-              )}
-
-              <div className="total-row total-grand">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Discount */}
                 <div>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: 'var(--text-muted)',
-                      display: 'block',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    {t('invoices.form_total_payment')}
-                  </span>
-                  <p className="grand-total-amount">{formatRupiah(total)}</p>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Potongan Diskon
+                    </label>
+                    <div className="flex rounded-lg p-0.5 bg-slate-100 border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDiscountType('fixed');
+                          setDiscountValue('');
+                        }}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
+                          discountType === 'fixed'
+                            ? 'bg-white text-indigo-600 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        Rp
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDiscountType('percent');
+                          setDiscountValue('');
+                        }}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
+                          discountType === 'percent'
+                            ? 'bg-white text-indigo-600 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        %
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-bold text-slate-400">
+                      {discountType === 'fixed' ? 'Rp' : '%'}
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className="form-input w-full pl-9 text-sm font-mono font-bold"
+                      placeholder="0"
+                      value={discountValue}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        if (discountType === 'percent') {
+                          const digits = e.target.value.replace(/[^0-9.]/g, '');
+                          if (parseFloat(digits) > 100) setDiscountValue('100');
+                          else setDiscountValue(digits);
+                        } else {
+                          const digits = e.target.value.replace(/[^0-9]/g, '');
+                          setDiscountValue(formatThousand(digits));
+                        }
+                      }}
+                    />
+                  </div>
+                  {discountAmt > 0 && (
+                    <p className="text-xs text-rose-600 font-semibold mt-1">
+                      − {formatRupiah(discountAmt)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Tax */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    Pajak PPN (%)
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-bold text-slate-400">%</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="form-input w-full pl-8 text-sm font-mono font-bold"
+                      placeholder="0"
+                      value={taxRate}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const cleaned = e.target.value.replace(/[^0-9.]/g, '');
+                        if (parseFloat(cleaned) > 100) setTaxRate('100');
+                        else setTaxRate(cleaned);
+                      }}
+                    />
+                  </div>
+                  {taxAmt > 0 && (
+                    <p className="text-xs text-indigo-600 font-semibold mt-1">
+                      + {formatRupiah(taxAmt)} ({taxRate}%)
+                    </p>
+                  )}
+                </div>
+
+                {/* Notes */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    Catatan / Syarat Pembayaran (Opsional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    className="form-input w-full text-xs sm:text-sm py-2"
+                    placeholder="Contoh: Pembayaran jatuh tempo 14 hari setelah invoice diterbitkan..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
                 </div>
               </div>
+            </div>
 
-              {/* Action Submit Button */}
+            {/* Mobile Submit Button (Bottom of Form) */}
+            <div className="md:hidden flex flex-col gap-3">
               <button
                 type="submit"
                 disabled={saving}
-                className="btn-primary"
-                style={{ width: '100%', padding: '14px', fontSize: 15, marginTop: 18 }}
+                className="btn-primary w-full py-3 text-sm font-bold flex items-center justify-center gap-2 shadow-md"
               >
                 {saving ? (
                   <>
-                    <span className="btn-spinner" /> {t('common.saving')}
+                    <span className="btn-spinner" /> Menyimpan...
                   </>
-                ) : mode === 'edit' ? (
-                  t('invoices.form_btn_save_edit')
                 ) : (
-                  t('invoices.form_btn_save_draft')
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    {mode === 'edit' ? 'Simpan Perubahan' : 'Simpan Draf Invoice'}
+                  </>
                 )}
               </button>
             </div>
-          </div>
+
+          </form>
         </div>
-      </form>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            RIGHT PANE: REAL-TIME LIVE PREVIEW (Sticky on Desktop, Tab on Mobile)
+           ═══════════════════════════════════════════════════════════════════ */}
+        <div
+          className={`md:col-span-6 lg:col-span-5 md:sticky md:top-6 flex flex-col gap-4 ${
+            activeTab === 'preview' ? 'block' : 'hidden md:block'
+          }`}
+        >
+          {/* Live Preview Document Card */}
+          <div className="rounded-3xl bg-white border border-slate-200/90 shadow-xl overflow-hidden text-slate-800">
+
+            {/* Live Indicator Banner */}
+            <div className="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white px-5 py-3 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span className="font-extrabold uppercase tracking-wider text-[11px]">Real-time Live Preview</span>
+              </div>
+              <span className="font-mono text-emerald-300 font-bold text-xs">
+                {formatRupiah(grandTotal)}
+              </span>
+            </div>
+
+            {/* Document Body */}
+            <div className="p-6 sm:p-7 flex flex-col gap-6 text-xs sm:text-sm">
+
+              {/* 1. Header (Logo & Business Info) */}
+              <div className="flex items-start justify-between gap-4 pb-5 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  {userProfile?.logo_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={userProfile.logo_url}
+                      alt="Logo Bisnis"
+                      className="max-h-11 max-w-[120px] object-contain"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                      ⚡
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
+                      {userProfile?.business_name || 'SnapBill Business'}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {userProfile?.email || 'vendor@snapbill.id'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                    {mode === 'edit' ? 'DRAFT' : 'NEW INVOICE'}
+                  </span>
+                  <p className="text-xs font-mono font-extrabold text-indigo-700 mt-1">
+                    #{initialData?.invoice_number || 'INV-PREVIEW'}
+                  </p>
+                </div>
+              </div>
+
+              {/* 2. Client & Invoice Meta Details */}
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs">
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block mb-1">
+                    Ditagihkan Kepada:
+                  </span>
+                  <p className="font-bold text-slate-900 text-xs sm:text-sm">
+                    {selectedClient?.name || '— Belum Memilih Klien —'}
+                  </p>
+                  {selectedClient?.email && <p className="text-slate-500 mt-0.5">{selectedClient.email}</p>}
+                  {selectedClient?.phone && <p className="text-slate-500">{selectedClient.phone}</p>}
+                </div>
+
+                <div className="text-right">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block mb-1">
+                    Jadwal Tagihan:
+                  </span>
+                  <p className="text-slate-700">
+                    Terbit: <b className="text-slate-900">{formatDateDisplay(issueDate, lang)}</b>
+                  </p>
+                  <p className="text-slate-700 mt-0.5">
+                    Jatuh Tempo: <b className="text-slate-900">{formatDateDisplay(dueDate, lang)}</b>
+                  </p>
+                </div>
+              </div>
+
+              {/* 3. Items Breakdown Table */}
+              <div className="overflow-hidden rounded-xl border border-slate-200">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-200 text-[10px] font-extrabold uppercase text-slate-500">
+                      <th className="py-2 px-3">Item</th>
+                      <th className="py-2 px-1 text-center">Qty</th>
+                      <th className="py-2 px-2 text-right">Harga</th>
+                      <th className="py-2 px-3 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {lines.map((line, idx) => {
+                      const lineTotal =
+                        (parseRawNumber(line.quantity) || 0) * (parseRawNumber(line.unit_price) || 0);
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/50">
+                          <td className="py-2.5 px-3 font-semibold text-slate-900">
+                            {line.item_name || <span className="text-slate-300 italic">Item tanpa nama</span>}
+                          </td>
+                          <td className="py-2.5 px-1 text-center font-mono text-slate-600">
+                            {line.quantity || '0'}
+                          </td>
+                          <td className="py-2.5 px-2 text-right font-mono text-slate-600">
+                            {formatRupiah(parseRawNumber(line.unit_price))}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                            {formatRupiah(lineTotal)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 4. Financial Calculations Summary */}
+              <div className="flex justify-end pt-2">
+                <div className="w-full sm:w-64 flex flex-col gap-1.5 text-xs">
+                  <div className="flex justify-between text-slate-500">
+                    <span>Subtotal</span>
+                    <span className="font-mono font-semibold text-slate-800">{formatRupiah(subtotal)}</span>
+                  </div>
+
+                  {discountAmt > 0 && (
+                    <div className="flex justify-between text-rose-600">
+                      <span>Diskon {discountType === 'percent' ? `(${discountValue}%)` : ''}</span>
+                      <span className="font-mono font-bold">− {formatRupiah(discountAmt)}</span>
+                    </div>
+                  )}
+
+                  {taxAmt > 0 && (
+                    <div className="flex justify-between text-indigo-600">
+                      <span>Pajak ({taxRate}%)</span>
+                      <span className="font-mono font-bold">+ {formatRupiah(taxAmt)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-sm sm:text-base font-black text-slate-900 pt-2 border-t border-slate-200 mt-1">
+                    <span>Total Pembayaran</span>
+                    <span className="font-mono text-emerald-600">{formatRupiah(grandTotal)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. Notes in Preview if present */}
+              {notes && (
+                <div className="p-3 bg-amber-50/70 border border-amber-200/60 rounded-xl text-xs text-amber-900">
+                  <b className="block text-[11px] font-bold uppercase text-amber-800 mb-0.5">Catatan:</b>
+                  <p className="whitespace-pre-line text-slate-700">{notes}</p>
+                </div>
+              )}
+
+            </div>
+          </div>
+
+          {/* Quick Submit inside Preview (Mobile & Desktop) */}
+          <div className="glass-card p-4 rounded-2xl bg-white/90 border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+            <div>
+              <span className="text-xs text-slate-400 block font-semibold">Total Tagihan</span>
+              <p className="text-lg font-black text-emerald-600 font-mono">{formatRupiah(grandTotal)}</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={saving}
+              className="btn-primary text-xs sm:text-sm px-4 py-2.5 flex items-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <span className="btn-spinner" /> Menyimpan...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  {mode === 'edit' ? 'Simpan' : 'Buat Invoice'}
+                </>
+              )}
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
     </div>
   );
 }

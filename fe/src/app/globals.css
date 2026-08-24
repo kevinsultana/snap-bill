@@ -2917,4 +2917,19 @@ input[type=number] {
   transform: scale(0.96);
 }
 
+/* Skeleton Loading Shimmer & Pulse Animation */
+@keyframes skeletonPulse {
+  0% {
+    background-position: 200% 0;
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.55;
+  }
+  100% {
+    background-position: -200% 0;
+    opacity: 0.85;
+  }
+}
+
 

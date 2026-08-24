@@ -268,7 +268,159 @@ async function sendPaymentSuccessEmail({ invoice, invoiceId, paymentMethod = 'Pe
   }
 }
 
+/**
+ * Mengirim email pengingat jatuh tempo (Overdue Reminder) kepada klien
+ * untuk invoice yang melewati batas due_date.
+ *
+ * @param {Object} params
+ * @param {Object} [params.invoice] - Objek invoice lengkap
+ * @param {string} [params.invoiceId] - ID invoice jika objek belum lengkap
+ */
+async function sendOverdueReminderEmail({ invoice, invoiceId }) {
+  try {
+    const prisma = require('../db/prisma');
+    const { generateInvoicePDF } = require('./pdf.service');
+
+    let fullInvoice = invoice;
+    if (!fullInvoice || !fullInvoice.client || !fullInvoice.user || !fullInvoice.items) {
+      const idToFind = invoiceId || invoice?.id;
+      if (!idToFind) return;
+      fullInvoice = await prisma.invoice.findUnique({
+        where: { id: idToFind },
+        include: {
+          client: true,
+          user: true,
+          items: true,
+        },
+      });
+    }
+
+    if (!fullInvoice || !fullInvoice.client?.email) {
+      console.log(`[email.service] ℹ️ Klien untuk Invoice #${fullInvoice?.invoice_number} tidak memiliki email, skip pengingat overdue.`);
+      return;
+    }
+
+    const clientEmail = fullInvoice.client.email;
+    const businessName = fullInvoice.user?.business_name || 'SnapBill';
+    const invoiceNumber = fullInvoice.invoice_number;
+    const totalFormatted = `Rp ${Number(fullInvoice.total).toLocaleString('id-ID')}`;
+
+    const dueDateFormatted = fullInvoice.due_date
+      ? new Date(fullInvoice.due_date).toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : 'Segera';
+
+    // Hitung hari keterlambatan
+    const now = new Date();
+    const dueDate = fullInvoice.due_date ? new Date(fullInvoice.due_date) : now;
+    const diffDays = Math.max(1, Math.floor((now - dueDate) / (1000 * 60 * 60 * 24)));
+
+    // Generate PDF invoice
+    let pdfBuffer = null;
+    try {
+      pdfBuffer = await generateInvoicePDF(fullInvoice);
+    } catch (pdfErr) {
+      console.warn(`[email.service] ⚠️ Gagal membuat lampiran PDF Invoice #${invoiceNumber}:`, pdfErr.message);
+    }
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const payUrl = fullInvoice.public_link_token ? `${frontendUrl}/pay/${fullInvoice.public_link_token}` : null;
+
+    const emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6;">
+        <!-- Header Amber/Rose Gradient -->
+        <div style="background: linear-gradient(135deg, #f59e0b, #e11d48); padding: 32px 24px; border-radius: 12px 12px 0 0; text-align: center; color: white;">
+          <div style="font-size: 42px; line-height: 1; margin-bottom: 8px;">⏳</div>
+          <h1 style="margin: 0; font-size: 22px; font-weight: 700;">Pengingat Pembayaran Tagihan</h1>
+          <p style="margin: 6px 0 0 0; opacity: 0.95; font-size: 14px;">Invoice #${invoiceNumber} telah melewati jatuh tempo (${diffDays} hari lalu)</p>
+        </div>
+        
+        <!-- Body -->
+        <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+          <p style="font-size: 15px; margin-top: 0;">Halo <b>${fullInvoice.client.name}</b>,</p>
+          <p style="font-size: 14px; color: #334155;">
+            Kami ingin mengingatkan bahwa tagihan dari <b>${businessName}</b> dengan rincian di bawah ini telah melewati tanggal jatuh tempo pembayaran.
+          </p>
+
+          <!-- Invoice Details Card -->
+          <div style="margin: 24px 0; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">No. Invoice:</td>
+                <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #0f172a;">#${invoiceNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Tanggal Jatuh Tempo:</td>
+                <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #dc2626;">${dueDateFormatted}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #64748b;">Keterlambatan:</td>
+                <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #b91c1c;">${diffDays} Hari</td>
+              </tr>
+              <tr style="border-top: 1px dashed #fca5a5;">
+                <td style="padding: 10px 0 4px 0; font-size: 14px; font-weight: 700; color: #0f172a;">Total Tagihan:</td>
+                <td style="padding: 10px 0 4px 0; text-align: right; font-size: 18px; font-weight: 800; color: #dc2626;">${totalFormatted}</td>
+              </tr>
+            </table>
+          </div>
+
+          ${
+            payUrl
+              ? `
+          <div style="margin: 28px 0; text-align: center;">
+            <a href="${payUrl}" style="background: #4f46e5; color: #ffffff; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);">
+              💳 Bayar Tagihan Sekarang ➜
+            </a>
+          </div>
+          `
+              : ''
+          }
+
+          <p style="font-size: 13px; color: #64748b;">
+            Silakan klik tombol di atas untuk melihat faktur resmi, melakukan pembayaran online via Midtrans, atau mentransfer ke rekening bank resmi pemilik usaha dan mengunggah bukti transfer.
+          </p>
+
+          <p style="font-size: 13px; color: #64748b; margin-bottom: 0;">
+            Jika Anda telah melakukan pembayaran sebelumnya, mohon abaikan email pengingat ini atau hubungi <b>${businessName}</b> untuk konfirmasi.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
+            Email pengingat otomatis oleh <b>SnapBill</b> atas nama <b>${businessName}</b>.
+          </p>
+        </div>
+      </div>
+    `;
+
+    const attachments = pdfBuffer
+      ? [
+          {
+            filename: `Invoice-${invoiceNumber}-Overdue.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ]
+      : [];
+
+    const sendRes = await sendEmail({
+      to: clientEmail,
+      subject: `[PENGINGAT JATUH TEMPO] Tagihan Invoice #${invoiceNumber} - ${businessName}`,
+      html: emailHtml,
+      attachments,
+    });
+
+    console.log(`[email.service] ⏰ Email pengingat overdue #${invoiceNumber} berhasil dikirim ke ${clientEmail} via ${sendRes.provider}`);
+    return sendRes;
+  } catch (err) {
+    console.error(`[email.service] ⚠️ Gagal mengirim email pengingat overdue:`, err.message);
+  }
+}
+
 module.exports = {
   sendEmail,
   sendPaymentSuccessEmail,
+  sendOverdueReminderEmail,
 };

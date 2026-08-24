@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { toast } from '@/lib/toast';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/lib/i18n/useTranslation';
+import { MetricCardSkeleton, TopClientsSkeleton, TableSkeleton } from '@/components/Skeleton';
 
 function formatRupiah(value) {
   return new Intl.NumberFormat('id-ID', {
@@ -24,12 +25,24 @@ function formatDate(dateStr, lang = 'id') {
   });
 }
 
+// Helper to get initials from a client name
+function getInitials(name) {
+  if (!name) return 'C';
+  return name
+    .split(' ')
+    .map((word) => word[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
 export default function DashboardPage() {
   const { t, lang } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
-  const [invoices, setInvoices] = useState([]);
-  const [clients, setClients] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [subStatus, setSubStatus] = useState(null);
 
   const STATUS_CONFIG = {
@@ -42,24 +55,30 @@ export default function DashboardPage() {
   };
 
   const fetchDashboardData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const [settingsRes, invoicesRes, clientsRes, subRes] = await Promise.all([
+      const [settingsRes, analyticsRes, subRes] = await Promise.all([
         api.get('/api/settings'),
-        api.get('/api/invoices'),
-        api.get('/api/clients'),
+        api.get('/api/dashboard/analytics'),
         api.get('/api/subscriptions/status').catch(() => ({ data: null })),
       ]);
 
       setUser(settingsRes.data);
-      setInvoices(invoicesRes.data || []);
-      setClients(clientsRes.data || []);
-      if (subRes.data) setSubStatus(subRes.data);
-    } catch {
-      toast('error', 'Gagal memuat data dashboard');
+      if (analyticsRes.data?.success && analyticsRes.data?.data) {
+        setAnalytics(analyticsRes.data.data);
+      } else {
+        setAnalytics(analyticsRes.data);
+      }
+      if (subRes?.data) setSubStatus(subRes.data);
+    } catch (err) {
+      console.error('[Dashboard fetch error]', err);
+      setError(err.response?.data?.message || t('dashboard.error_loading'));
+      toast('error', t('dashboard.error_loading'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -67,6 +86,7 @@ export default function DashboardPage() {
 
   // Review pending verification modal
   const handleReviewPayment = (inv) => {
+    if (!inv) return;
     const isPdf = inv.receipt_url && inv.receipt_url.toLowerCase().endsWith('.pdf');
 
     const receiptContent = inv.receipt_url
@@ -141,21 +161,17 @@ export default function DashboardPage() {
     });
   };
 
-  // Metrik & KPI
-  const paidInvoices = invoices.filter((i) => i.status === 'paid');
-  const totalPaidRevenue = paidInvoices.reduce((sum, i) => sum + Number(i.total || 0), 0);
-  const pendingVerifyInvoices = invoices.filter((i) => i.status === 'pending_verification');
-  const unpaidInvoices = invoices.filter((i) => i.status === 'unpaid' || i.status === 'overdue');
-  const pendingRevenue = [...unpaidInvoices, ...pendingVerifyInvoices].reduce((sum, i) => sum + Number(i.total || 0), 0);
-
-  const paidCount = paidInvoices.length;
-  const unpaidCount = unpaidInvoices.length;
-  const draftCount = invoices.filter((i) => i.status === 'draft').length;
+  // State calculations from analytics
+  const outstanding = analytics?.outstanding || { total_amount: 0, total_count: 0, breakdown: {} };
+  const monthlyRevenue = analytics?.monthly_revenue || { total_amount: 0, paid_count: 0, mom_growth_percentage: 0 };
+  const totalRevenue = analytics?.total_revenue || { total_amount: 0, paid_count: 0 };
+  const topClients = analytics?.top_clients || [];
+  const counts = analytics?.counts || { total_invoices: 0, total_clients: 0, paid_invoices: 0, unpaid_invoices: 0, pending_verification_invoices: 0, overdue_invoices: 0, draft_invoices: 0 };
+  const recentInvoices = analytics?.recent_invoices || [];
+  const monthlyTrends = analytics?.monthly_trends || [];
+  const statusStats = analytics?.status_stats || {};
 
   const isPro = subStatus?.tier === 'pro' || user?.tier === 'pro';
-
-  // Invoices terbaru (maks 5)
-  const recentInvoices = invoices.slice(0, 5);
 
   let bankAccounts = [];
   try {
@@ -166,155 +182,410 @@ export default function DashboardPage() {
     bankAccounts = [];
   }
 
-  if (loading) {
-    return (
-      <div className="loading-screen" style={{ minHeight: '60vh' }}>
-        <div className="loading-spinner" />
-      </div>
-    );
-  }
+  // Max revenue in trend chart for scaling
+  const maxTrendRevenue = Math.max(...monthlyTrends.map((t) => t.revenue), 1);
+
+  // Highest top client revenue for progress bar scaling
+  const maxClientRevenue = topClients.length > 0 ? Math.max(...topClients.map((c) => c.total_revenue), 1) : 1;
 
   return (
-    <div className="page-container">
+    <div className="page-container" style={{ width: '100%', maxWidth: 1200, margin: '0 auto', paddingBottom: 60 }}>
 
       {/* ── 1. Header Section ──────────────────────────────────────── */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            {t('dashboard.welcome')} {user?.business_name || user?.email?.split('@')[0]}! 👋
-          </h1>
-          <p className="page-desc">
+      <div className="page-header" style={{ marginBottom: 24 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <h1 className="page-title" style={{ margin: 0 }}>
+              {t('dashboard.welcome')} {user?.business_name || user?.email?.split('@')[0]}! 👋
+            </h1>
+            {isPro && (
+              <span className="badge-pro" style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: 'linear-gradient(135deg, #fef3c7, #fde68a)', color: '#92400e', fontWeight: 800, border: '1px solid #fcd34d' }}>
+                👑 PRO
+              </span>
+            )}
+          </div>
+          <p className="page-desc" style={{ marginTop: 4 }}>
             {t('dashboard.overview_desc')}
           </p>
         </div>
 
-        <div className="header-actions">
-          <Link href="/dashboard/invoices/create" className="btn-primary">
-            {t('dashboard.btn_create_invoice')}
+        <div className="header-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Link href="/dashboard/invoices/create" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span>➕</span> {t('dashboard.btn_create_invoice')}
           </Link>
-          <Link href="/dashboard/clients" className="btn-secondary">
-            {t('clients.btn_add')}
+          <Link href="/dashboard/clients" className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span>👥</span> {t('clients.btn_add')}
           </Link>
         </div>
       </div>
 
-      {/* ── 2. Action Alert (Pending Verification) ─────────────────── */}
-      {pendingVerifyInvoices.length > 0 && (
-        <div className="dash-action-banner">
-          <div className="dash-action-icon">🔔</div>
-          <div className="dash-action-content">
-            <h3 className="dash-action-title">
-              Ada {pendingVerifyInvoices.length} Pembayaran Menunggu Verifikasi Anda!
-            </h3>
-            <p className="dash-action-desc">
-              Klien telah mengunggah bukti struk transfer bank. Harap periksa dan setujui untuk melunasi invoice.
-            </p>
+      {/* ── Error Banner if any ────────────────────────────────────── */}
+      {error && !loading && (
+        <div
+          className="glass-card"
+          style={{
+            padding: '16px 20px',
+            marginBottom: 24,
+            background: 'rgba(254, 242, 242, 0.95)',
+            border: '1px solid #fca5a5',
+            borderRadius: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 24 }}>⚠️</span>
+            <div>
+              <p style={{ fontWeight: 700, color: '#991b1b', margin: 0 }}>{error}</p>
+              <p style={{ fontSize: 12, color: '#b91c1c', margin: '2px 0 0' }}>Gagal memuat sebagian data statistik dashboard.</p>
+            </div>
           </div>
           <button
             type="button"
-            onClick={() => handleReviewPayment(pendingVerifyInvoices[0])}
-            className="btn-primary"
-            style={{ whiteSpace: 'nowrap' }}
+            onClick={fetchDashboardData}
+            className="btn-secondary"
+            style={{ fontSize: 13, padding: '6px 14px' }}
           >
-            🔍 Review Sekarang ➜
+            🔄 {t('dashboard.retry')}
           </button>
         </div>
       )}
 
-      {/* ── 3. KPI Metric Cards ────────────────────────────────────── */}
-      <div className="dash-stats-grid">
-
-        {/* Pendapatan Lunas */}
-        <div className="dash-stat-card glass-card-interactive">
-          <div className="dash-stat-top">
-            <span className="dash-stat-label">{t('dashboard.total_revenue')}</span>
-            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#059669' }}>
-              💰
+      {/* ── 2. Action Alert Banner (Pending Verification) ─────────── */}
+      {counts.pending_verification_invoices > 0 && !loading && (
+        <div
+          className="dash-action-banner"
+          style={{
+            marginBottom: 24,
+            background: 'linear-gradient(135deg, rgba(238, 242, 255, 0.95), rgba(245, 243, 255, 0.95))',
+            border: '1px solid #c7d2fe',
+            padding: '18px 24px',
+            borderRadius: 18,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+            boxShadow: '0 8px 24px rgba(99, 102, 241, 0.1)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 240 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                background: 'rgba(99, 102, 241, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 22,
+                flexShrink: 0,
+              }}
+            >
+              🔔
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#312e81' }}>
+                Ada {counts.pending_verification_invoices} Pembayaran Menunggu Verifikasi Anda!
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: 13, color: '#4338ca' }}>
+                Klien telah mengunggah bukti struk transfer bank. Harap periksa dan setujui untuk melunasi invoice.
+              </p>
             </div>
           </div>
-          <p className="dash-stat-value" style={{ color: '#059669' }}>
-            {formatRupiah(totalPaidRevenue)}
-          </p>
-          <div className="dash-stat-footer">
-            <span className="dash-stat-sub">
-              <b>{paidCount}</b> / {invoices.length} invoice lunas
-            </span>
-          </div>
+          {recentInvoices.find((i) => i.status === 'pending_verification') && (
+            <button
+              type="button"
+              onClick={() => handleReviewPayment(recentInvoices.find((i) => i.status === 'pending_verification'))}
+              className="btn-primary"
+              style={{ padding: '9px 18px', fontSize: 13, whiteSpace: 'nowrap' }}
+            >
+              🔍 Review Bukti Transfer ➜
+            </button>
+          )}
         </div>
+      )}
 
-        {/* Menunggu Pembayaran */}
-        <div className="dash-stat-card glass-card-interactive">
-          <div className="dash-stat-top">
-            <span className="dash-stat-label">{t('dashboard.pending_revenue')}</span>
-            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#b45309' }}>
-              ⏳
+      {/* ── 3. Responsive Tailwind Grid for KPI Metric Statistic Cards ── */}
+      {/* 1 column on < 768px, 2 cols on sm, 3 or 4 cols on md/lg screens */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 mb-6">
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 mb-6">
+
+          {/* CARD 1: Total Outstanding (Unpaid) Invoice Amount */}
+          <div className="glass-card-interactive group relative p-5 rounded-2xl border border-amber-200/60 bg-white/80 backdrop-blur-md shadow-sm hover:shadow-md transition-all duration-200">
+            <div className="flex justify-between items-start mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {t('dashboard.outstanding_title')}
+              </span>
+              <div className="w-10 h-10 rounded-xl bg-amber-100/80 text-amber-700 flex items-center justify-center text-lg flex-shrink-0">
+                ⏳
+              </div>
+            </div>
+            <p className="text-2xl font-black text-amber-600 font-mono tracking-tight my-1">
+              {formatRupiah(outstanding.total_amount)}
+            </p>
+            <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-xs text-slate-500">
+              <span className="font-semibold text-slate-600">
+                {outstanding.total_count} {t('dashboard.active_invoices')}
+              </span>
+              {outstanding.breakdown?.overdue?.count > 0 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700">
+                  {outstanding.breakdown.overdue.count} overdue
+                </span>
+              )}
             </div>
           </div>
-          <p className="dash-stat-value" style={{ color: '#b45309' }}>
-            {formatRupiah(pendingRevenue)}
-          </p>
-          <div className="dash-stat-footer">
-            <span className="dash-stat-sub">
-              <b>{unpaidCount + pendingVerifyInvoices.length}</b> {t('dashboard.active_invoices')}
-            </span>
-          </div>
-        </div>
 
-        {/* Total Klien */}
-        <div className="dash-stat-card glass-card-interactive">
-          <div className="dash-stat-top">
-            <span className="dash-stat-label">{t('dashboard.total_clients')}</span>
-            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#4f46e5' }}>
-              👥
+          {/* CARD 2: Total Monthly Revenue (Current Month) */}
+          <div className="glass-card-interactive group relative p-5 rounded-2xl border border-emerald-200/60 bg-white/80 backdrop-blur-md shadow-sm hover:shadow-md transition-all duration-200">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  {t('dashboard.monthly_revenue_title')}
+                </span>
+                <span className="block text-[11px] font-medium text-slate-400">
+                  {monthlyRevenue.current_month_name || 'Bulan Ini'} {monthlyRevenue.current_year || ''}
+                </span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-100/80 text-emerald-700 flex items-center justify-center text-lg flex-shrink-0">
+                📈
+              </div>
+            </div>
+            <p className="text-2xl font-black text-emerald-600 font-mono tracking-tight my-1">
+              {formatRupiah(monthlyRevenue.total_amount)}
+            </p>
+            <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-xs">
+              <span className="text-slate-500">
+                <b className="text-slate-700">{monthlyRevenue.paid_count}</b> lunas bulan ini
+              </span>
+              {monthlyRevenue.mom_growth_percentage !== 0 && (
+                <span
+                  className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                    monthlyRevenue.mom_growth_percentage >= 0
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-rose-100 text-rose-700'
+                  }`}
+                  title="Pertumbuhan Month-over-Month dibanding bulan lalu"
+                >
+                  {monthlyRevenue.mom_growth_percentage >= 0 ? '▲ +' : '▼ '}
+                  {monthlyRevenue.mom_growth_percentage}%
+                </span>
+              )}
             </div>
           </div>
-          <p className="dash-stat-value">
-            {clients.length} <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-muted)' }}>{t('nav.clients')}</span>
-          </p>
-          <div className="dash-stat-footer">
-            <Link href="/dashboard/clients" className="dash-stat-link">
-              {t('clients.title')} ➜
-            </Link>
-          </div>
-        </div>
 
-        {/* Total Invoice & Draft */}
-        <div className="dash-stat-card glass-card-interactive">
-          <div className="dash-stat-top">
-            <span className="dash-stat-label">{t('nav.invoices')}</span>
-            <div className="dash-stat-icon-wrap" style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#7e22ce' }}>
-              🧾
+          {/* CARD 3: Total All-Time Revenue */}
+          <div className="glass-card-interactive group relative p-5 rounded-2xl border border-indigo-200/60 bg-white/80 backdrop-blur-md shadow-sm hover:shadow-md transition-all duration-200">
+            <div className="flex justify-between items-start mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {t('dashboard.all_time_revenue')}
+              </span>
+              <div className="w-10 h-10 rounded-xl bg-indigo-100/80 text-indigo-700 flex items-center justify-center text-lg flex-shrink-0">
+                💰
+              </div>
+            </div>
+            <p className="text-2xl font-black text-indigo-600 font-mono tracking-tight my-1">
+              {formatRupiah(totalRevenue.total_amount)}
+            </p>
+            <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-xs text-slate-500">
+              <span>
+                <b className="text-slate-700">{totalRevenue.paid_count}</b> total invoice lunas
+              </span>
+              <Link href="/dashboard/invoices?status=paid" className="text-indigo-600 font-bold hover:underline">
+                Rincian →
+              </Link>
             </div>
           </div>
-          <p className="dash-stat-value">
-            {invoices.length} <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-muted)' }}>{t('nav.invoices')}</span>
-          </p>
-          <div className="dash-stat-footer">
-            <span className="dash-stat-sub">
-              Draft: <b>{draftCount}</b>
-            </span>
-          </div>
-        </div>
 
-      </div>
+          {/* CARD 4: Total Registered Clients & Volume */}
+          <div className="glass-card-interactive group relative p-5 rounded-2xl border border-purple-200/60 bg-white/80 backdrop-blur-md shadow-sm hover:shadow-md transition-all duration-200">
+            <div className="flex justify-between items-start mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {t('dashboard.total_clients')}
+              </span>
+              <div className="w-10 h-10 rounded-xl bg-purple-100/80 text-purple-700 flex items-center justify-center text-lg flex-shrink-0">
+                👥
+              </div>
+            </div>
+            <p className="text-2xl font-black text-purple-700 tracking-tight my-1">
+              {counts.total_clients}{' '}
+              <span className="text-sm font-semibold text-slate-400">klien</span>
+            </p>
+            <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-xs text-slate-500">
+              <span>
+                Total: <b className="text-slate-700">{counts.total_invoices}</b> invoice
+              </span>
+              <Link href="/dashboard/clients" className="text-purple-600 font-bold hover:underline">
+                {t('clients.title')} →
+              </Link>
+            </div>
+          </div>
+
+        </div>
+      )}
 
       {/* ── 4. Main Two-Column Layout ──────────────────────────────── */}
-      <div className="dash-content-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Left Column: Recent Invoices Table */}
-        <div className="dash-left-col">
+        {/* ── Left 2 Columns (Table & Trends) ────────────────────── */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+
+          {/* Top 5 Clients Leaderboard Widget */}
+          <div className="glass-card p-6 rounded-2xl border border-slate-200/80 bg-white/85 shadow-sm">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <span>🏆</span> {t('dashboard.top_clients_title')}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {t('dashboard.top_clients_desc')}
+                </p>
+              </div>
+              <Link
+                href="/dashboard/clients"
+                className="btn-secondary text-xs px-3 py-1.5 font-semibold"
+              >
+                Lihat Klien ➜
+              </Link>
+            </div>
+
+            {loading ? (
+              <TopClientsSkeleton />
+            ) : topClients.length === 0 ? (
+              <div className="text-center py-8 px-4 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
+                <span className="text-3xl block mb-2">👥</span>
+                <p className="text-sm font-bold text-slate-700 mb-1">Belum Ada Riwayat Transaksi Klien</p>
+                <p className="text-xs text-slate-500 mb-3">Buat invoice pertama Anda untuk mulai mengumpulkan data peringkat klien.</p>
+                <Link href="/dashboard/invoices/create" className="btn-primary text-xs px-4 py-2">
+                  + Buat Invoice
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {topClients.map((client, index) => {
+                  const rankColors = [
+                    { bg: 'bg-amber-400', text: 'text-amber-950', badge: '🥇 #1' },
+                    { bg: 'bg-slate-300', text: 'text-slate-900', badge: '🥈 #2' },
+                    { bg: 'bg-amber-700', text: 'text-amber-100', badge: '🥉 #3' },
+                    { bg: 'bg-slate-100', text: 'text-slate-700', badge: `#4` },
+                    { bg: 'bg-slate-100', text: 'text-slate-700', badge: `#5` },
+                  ];
+                  const rank = rankColors[index] || { bg: 'bg-slate-100', text: 'text-slate-700', badge: `#${index + 1}` };
+                  const percentOfMax = Math.min(100, Math.round((client.total_revenue / maxClientRevenue) * 100));
+
+                  return (
+                    <div
+                      key={client.client_id || index}
+                      className="p-3.5 rounded-xl bg-slate-50/80 hover:bg-indigo-50/40 border border-slate-200/70 transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-xs flex-shrink-0 ${rank.bg} ${rank.text}`}>
+                          {rank.badge}
+                        </span>
+                        <div
+                          className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center text-xs font-black flex-shrink-0 shadow-sm"
+                        >
+                          {getInitials(client.name)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-900 truncate">
+                            {client.name}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {client.email || client.phone || '—'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-end sm:items-end flex-col min-w-[140px]">
+                        <p className="text-sm font-black text-emerald-600 font-mono">
+                          {formatRupiah(client.total_revenue)}
+                        </p>
+                        <div className="flex items-center gap-2 w-full mt-1 justify-end">
+                          <div className="w-20 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className="bg-emerald-500 h-full rounded-full"
+                              style={{ width: `${percentOfMax}%` }}
+                            />
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-semibold whitespace-nowrap">
+                            {client.total_invoices} inv
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 6-Month Monthly Revenue Trend Bar Visualizer */}
+          {monthlyTrends.length > 0 && !loading && (
+            <div className="glass-card p-6 rounded-2xl border border-slate-200/80 bg-white/85 shadow-sm">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <span>📈</span> {t('dashboard.revenue_trend')}
+                </h3>
+                <span className="text-xs text-slate-500 font-medium">Berdasarkan invoice lunas</span>
+              </div>
+
+              <div className="grid grid-cols-6 gap-2 sm:gap-4 pt-4 items-end min-h-[140px]">
+                {monthlyTrends.map((trend, idx) => {
+                  const heightPercent = maxTrendRevenue > 0 ? Math.max(8, Math.round((trend.revenue / maxTrendRevenue) * 100)) : 8;
+                  const isCurrent = idx === monthlyTrends.length - 1;
+
+                  return (
+                    <div key={idx} className="flex flex-col items-center gap-2 h-full justify-end group">
+                      <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {trend.revenue > 0 ? (trend.revenue >= 1000000 ? `${(trend.revenue / 1000000).toFixed(1)}jt` : `${Math.round(trend.revenue / 1000)}k`) : '0'}
+                      </span>
+                      <div className="w-full bg-slate-100 h-28 rounded-t-lg relative flex items-end p-1 overflow-hidden">
+                        <div
+                          className={`w-full rounded-t-md transition-all duration-500 ${
+                            isCurrent
+                              ? 'bg-gradient-to-t from-indigo-600 to-indigo-400'
+                              : 'bg-gradient-to-t from-slate-400 to-slate-300 group-hover:from-indigo-400 group-hover:to-indigo-300'
+                          }`}
+                          style={{ height: `${heightPercent}%` }}
+                        />
+                      </div>
+                      <span className={`text-[11px] font-bold ${isCurrent ? 'text-indigo-600' : 'text-slate-500'}`}>
+                        {trend.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Invoices Table Card */}
           <div className="dash-card glass-card">
             <div className="dash-card-header">
               <div>
                 <h3 className="dash-card-title">{t('dashboard.recent_invoices_title')}</h3>
-                <p className="dash-card-desc">5 faktur tagihan terbaru.</p>
+                <p className="dash-card-desc">5 faktur tagihan terbaru dalam database.</p>
               </div>
               <Link href="/dashboard/invoices" className="btn-secondary" style={{ fontSize: 13, padding: '6px 14px' }}>
                 {t('dashboard.all_invoices_link')}
               </Link>
             </div>
 
-            {recentInvoices.length === 0 ? (
+            {loading ? (
+              <TableSkeleton rows={4} />
+            ) : recentInvoices.length === 0 ? (
               <div className="table-empty">
                 <span className="table-empty-icon">🧾</span>
                 <p>{t('dashboard.empty_invoices_title')}</p>
@@ -340,10 +611,10 @@ export default function DashboardPage() {
                       const cfg = STATUS_CONFIG[inv.status] || STATUS_CONFIG.draft;
                       return (
                         <tr key={inv.id}>
-                          <td className="td-invoice-num">#{inv.invoice_number}</td>
-                          <td className="td-name">{inv.client?.name || '—'}</td>
+                          <td className="td-invoice-num font-mono font-bold text-indigo-700">#{inv.invoice_number}</td>
+                          <td className="td-name font-semibold">{inv.client?.name || '—'}</td>
                           <td className="td-secondary">{formatDate(inv.due_date, lang)}</td>
-                          <td className="td-price">{formatRupiah(inv.total)}</td>
+                          <td className="td-price font-mono font-bold">{formatRupiah(inv.total)}</td>
                           <td>
                             <span className={`status-badge ${cfg.color}`}>{cfg.label}</span>
                           </td>
@@ -370,10 +641,11 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
         </div>
 
-        {/* Right Column: Setup Health & Subscription Status */}
-        <div className="dash-right-col">
+        {/* ── Right Column (Sidebar Widgets) ────────────────────── */}
+        <div className="flex flex-col gap-6">
 
           {/* Subscription Tier Widget */}
           <div className="dash-card glass-card">
@@ -400,7 +672,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
                   <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('subscription.invoices_created_this_month')}:</span>
                   <span style={{ fontWeight: 800, color: 'var(--indigo)' }}>
-                    {subStatus?.invoiceCountThisMonth ?? 0} / 10
+                    {subStatus?.invoiceCountThisMonth ?? counts.total_invoices ?? 0} / 10
                   </span>
                 </div>
                 <div className="tier-progress-bar" style={{ height: 8 }}>
@@ -423,13 +695,51 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Setup Health Checklist */}
+          {/* Invoice Status Distribution Widget */}
+          <div className="dash-card glass-card">
+            <h3 className="dash-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>📊</span> {t('dashboard.status_distribution')}
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
+              {[
+                { key: 'paid', label: 'Lunas (Paid)', color: 'bg-emerald-500', count: counts.paid_invoices, total: statusStats.paid?.total || 0 },
+                { key: 'unpaid', label: 'Belum Bayar (Unpaid)', color: 'bg-amber-500', count: counts.unpaid_invoices, total: statusStats.unpaid?.total || 0 },
+                { key: 'pending_verification', label: 'Menunggu Verifikasi', color: 'bg-blue-500', count: counts.pending_verification_invoices, total: statusStats.pending_verification?.total || 0 },
+                { key: 'overdue', label: 'Jatuh Tempo (Overdue)', color: 'bg-rose-500', count: counts.overdue_invoices, total: statusStats.overdue?.total || 0 },
+                { key: 'draft', label: 'Draf (Draft)', color: 'bg-slate-400', count: counts.draft_invoices, total: statusStats.draft?.total || 0 },
+              ].map((item) => (
+                <div key={item.key} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
+                    <span className="font-semibold text-slate-700">{item.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">{item.count}</span>
+                    <span className="text-[11px] text-slate-400">({formatRupiah(item.total)})</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Setup Health & Branding Checklist */}
           <div className="dash-card glass-card">
             <h3 className="dash-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>⚙️</span> {t('settings.title')}
             </h3>
 
             <div className="dash-checklist" style={{ marginTop: 14 }}>
+              <div className="dash-check-item">
+                <span className="dash-check-icon">{user?.logo_url ? '✅' : 'ℹ️'}</span>
+                <div style={{ flex: 1 }}>
+                  <p className="dash-check-label">Logo Brand Bisnis</p>
+                  <p className="dash-check-sub">
+                    {user?.logo_url ? 'Logo aktif terpasang' : 'Belum diupload (Gunakan logo standar)'}
+                  </p>
+                </div>
+              </div>
+
               <div className="dash-check-item">
                 <span className="dash-check-icon">{user?.business_name ? '✅' : '⚠️'}</span>
                 <div style={{ flex: 1 }}>

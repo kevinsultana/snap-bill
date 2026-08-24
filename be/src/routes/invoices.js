@@ -35,6 +35,18 @@ async function generateInvoiceNumber(userId) {
   return `${prefix}${String(lastNum + 1).padStart(4, '0')}`;
 }
 
+// ─── GET /api/invoices/analytics ── Metrik Analitik Dashboard ────────────────
+router.get('/analytics', async (req, res) => {
+  try {
+    const { getDashboardAnalytics } = require('./dashboard');
+    const data = await getDashboardAnalytics(req.user.id);
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[GET /api/invoices/analytics]', err);
+    return res.status(500).json({ success: false, message: 'Gagal memproses data analitik.' });
+  }
+});
+
 // ─── GET /api/invoices (Pagination, Server Search & DB Counts) ────────────────
 router.get('/', async (req, res) => {
   try {
