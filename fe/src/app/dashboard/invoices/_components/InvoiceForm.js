@@ -247,19 +247,29 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;margin-bottom:4px;">
               Nama Item / Layanan <span style="color:#f43f5e;">*</span>
             </label>
-            <input id="swal-item-name" class="swal2-input" style="margin:0;width:100%;font-size:13px;height:40px;border-radius:10px;border:1px solid #cbd5e1;box-sizing:border-box;" value="${trimmed}" placeholder="Contoh: Jasa Pembuatan Website" />
+            <input id="swal-item-name" class="swal2-input" style="margin:0;width:100%;font-size:13px;height:40px;border-radius:10px;border:1.5px solid #cbd5e1;box-sizing:border-box;" value="${trimmed}" placeholder="Contoh: Jasa Pembuatan Website" />
           </div>
           <div>
             <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;margin-bottom:4px;">
-              Harga Standar Satuan (Rp) <span style="color:#f43f5e;">*</span>
+              Harga Standar Satuan <span style="color:#f43f5e;">*</span>
             </label>
-            <input id="swal-item-price" type="number" class="swal2-input" style="margin:0;width:100%;font-size:13px;height:40px;border-radius:10px;border:1px solid #cbd5e1;box-sizing:border-box;" value="${defaultPriceStr}" placeholder="0" />
+            <div style="display:flex;align-items:center;border:1.5px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#ffffff;">
+              <span style="padding:10px 12px;font-weight:800;font-size:13px;color:#64748b;background:#f8fafc;border-right:1.5px solid #cbd5e1;user-select:none;">Rp</span>
+              <input
+                id="swal-item-price"
+                type="text"
+                inputmode="numeric"
+                style="flex:1;padding:10px 12px;border:none;outline:none;font-size:13px;font-weight:700;color:#0f172a;background:transparent;font-family:'ui-monospace','SFMono-Regular','Menlo',monospace;"
+                value="${formatThousand(defaultPriceStr)}"
+                placeholder="0"
+              />
+            </div>
           </div>
           <div>
             <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;margin-bottom:4px;">
               Deskripsi Singkat (Opsional)
             </label>
-            <textarea id="swal-item-desc" class="swal2-textarea" style="margin:0;width:100%;font-size:13px;height:65px;border-radius:10px;border:1px solid #cbd5e1;resize:vertical;box-sizing:border-box;" placeholder="Rincian atau spesifikasi layanan..."></textarea>
+            <textarea id="swal-item-desc" class="swal2-textarea" style="margin:0;width:100%;font-size:13px;height:65px;border-radius:10px;border:1.5px solid #cbd5e1;resize:vertical;box-sizing:border-box;" placeholder="Rincian atau spesifikasi layanan..."></textarea>
           </div>
         </div>
       `,
@@ -272,9 +282,23 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
       focusConfirm: false,
       showLoaderOnConfirm: true,
       allowOutsideClick: () => !Swal.isLoading(),
+      didOpen: () => {
+        const priceInput = document.getElementById('swal-item-price');
+        if (priceInput) {
+          priceInput.addEventListener('input', (e) => {
+            const rawNumbers = e.target.value.replace(/[^0-9]/g, '');
+            if (!rawNumbers) {
+              e.target.value = '';
+              return;
+            }
+            const num = parseInt(rawNumbers, 10);
+            e.target.value = new Intl.NumberFormat('id-ID').format(num);
+          });
+        }
+      },
       preConfirm: async () => {
         const nameVal = document.getElementById('swal-item-name')?.value?.trim();
-        const priceVal = document.getElementById('swal-item-price')?.value;
+        const priceRaw = document.getElementById('swal-item-price')?.value;
         const descVal = document.getElementById('swal-item-desc')?.value?.trim();
 
         if (!nameVal) {
@@ -282,7 +306,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
           return false;
         }
 
-        const priceNum = parseFloat(priceVal) || 0;
+        const priceNum = parseRawNumber(priceRaw);
 
         try {
           Swal.showLoading();
