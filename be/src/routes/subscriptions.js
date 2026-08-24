@@ -5,6 +5,7 @@ const midtransClient = require('midtrans-client');
 const prisma = require('../db/prisma');
 const { verifyToken } = require('../middleware/auth');
 const { subscriptionLimiter } = require('../middleware/rateLimiter');
+const { verifyMidtransSignature } = require('../services/midtrans.service');
 
 const router = express.Router();
 
@@ -399,12 +400,38 @@ router.post('/cancel', verifyToken, async (req, res) => {
 router.post('/webhook', async (req, res) => {
   try {
     const notification = req.body;
-    const { order_id, transaction_status, fraud_status } = notification;
+    const {
+      order_id,
+      status_code,
+      gross_amount,
+      signature_key,
+      transaction_status,
+      fraud_status,
+    } = notification;
 
     console.log(`[subscriptions.webhook] Menerima notifikasi untuk ${order_id}: ${transaction_status}`);
 
     if (!order_id || !order_id.startsWith('SUB-')) {
       return res.status(200).json({ message: 'Bukan transaksi langganan.' });
+    }
+
+    // 🔒 Verifikasi Keamanan: Validasi HMAC SHA-512 Signature Key dari Midtrans
+    const platformServerKey =
+      process.env.MIDTRANS_SERVER_KEY ||
+      process.env.PLATFORM_MIDTRANS_SERVER_KEY ||
+      'SB-Mid-server-your-platform-key';
+
+    const isValidSignature = verifyMidtransSignature({
+      orderId: order_id,
+      statusCode: String(status_code || ''),
+      grossAmount: String(gross_amount || ''),
+      serverKey: platformServerKey,
+      signatureKey: String(signature_key || ''),
+    });
+
+    if (!isValidSignature) {
+      console.warn(`[subscriptions.webhook] ⚠️ Signature verification FAILED untuk order ${order_id}. Request ditolak.`);
+      return res.status(401).json({ message: 'Invalid Midtrans signature key.' });
     }
 
     const parts = order_id.split('-');

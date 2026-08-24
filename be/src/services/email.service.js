@@ -121,6 +121,19 @@ async function sendEmail({ to, subject, text, html, attachments = [] }) {
 }
 
 /**
+ * Sanitasi string untuk mencegah HTML injection pada body email
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Mengirim email konfirmasi terima kasih & kuitansi lunas kepada klien
  * saat invoice telah dibayarkan (baik via Midtrans otomatis maupun verifikasi transfer manual).
  *
@@ -154,8 +167,10 @@ async function sendPaymentSuccessEmail({ invoice, invoiceId, paymentMethod = 'Pe
     }
 
     const clientEmail = fullInvoice.client.email;
-    const businessName = fullInvoice.user?.business_name || 'SnapBill';
-    const invoiceNumber = fullInvoice.invoice_number;
+    const clientName = escapeHtml(fullInvoice.client.name || 'Pelanggan');
+    const businessName = escapeHtml(fullInvoice.user?.business_name || 'SnapBill');
+    const invoiceNumber = escapeHtml(fullInvoice.invoice_number);
+    const safePaymentMethod = escapeHtml(paymentMethod);
     const totalFormatted = `Rp ${Number(fullInvoice.total).toLocaleString('id-ID')}`;
     const paymentDateFormatted = new Date().toLocaleDateString('id-ID', {
       day: 'numeric',
@@ -301,8 +316,9 @@ async function sendOverdueReminderEmail({ invoice, invoiceId }) {
     }
 
     const clientEmail = fullInvoice.client.email;
-    const businessName = fullInvoice.user?.business_name || 'SnapBill';
-    const invoiceNumber = fullInvoice.invoice_number;
+    const clientName = escapeHtml(fullInvoice.client.name || 'Pelanggan');
+    const businessName = escapeHtml(fullInvoice.user?.business_name || 'SnapBill');
+    const invoiceNumber = escapeHtml(fullInvoice.invoice_number);
     const totalFormatted = `Rp ${Number(fullInvoice.total).toLocaleString('id-ID')}`;
 
     const dueDateFormatted = fullInvoice.due_date
@@ -340,7 +356,7 @@ async function sendOverdueReminderEmail({ invoice, invoiceId }) {
         
         <!-- Body -->
         <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
-          <p style="font-size: 15px; margin-top: 0;">Halo <b>${fullInvoice.client.name}</b>,</p>
+          <p style="font-size: 15px; margin-top: 0;">Halo <b>${clientName}</b>,</p>
           <p style="font-size: 14px; color: #334155;">
             Kami ingin mengingatkan bahwa tagihan dari <b>${businessName}</b> dengan rincian di bawah ini telah melewati tanggal jatuh tempo pembayaran.
           </p>

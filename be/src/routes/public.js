@@ -3,9 +3,10 @@ const midtransClient = require('midtrans-client');
 const prisma = require('../db/prisma');
 const { uploadMemory, uploadReceipt } = require('../services/minio.service');
 const { generateInvoicePDF } = require('../services/pdf.service');
-const { createSnapTransaction } = require('../services/midtrans.service');
+const { createSnapTransaction, verifyMidtransSignature } = require('../services/midtrans.service');
 const { sendPaymentSuccessEmail } = require('../services/email.service');
 const { publicPaymentLimiter, pdfLimiter } = require('../middleware/rateLimiter');
+const { decryptSecret } = require('../services/crypto.service');
 
 const router = express.Router();
 
@@ -102,15 +103,19 @@ async function handlePaySnap(req, res) {
       invoice.user?.tier === 'pro' &&
       (!invoice.user.subscription_ends_at || new Date(invoice.user.subscription_ends_at) > new Date());
 
-    if (!isPro || !invoice.user?.midtrans_server_key) {
+    const rawServerKey = invoice.user?.midtrans_server_key;
+    const plainServerKey = decryptSecret(rawServerKey);
+    const plainClientKey = decryptSecret(invoice.user?.midtrans_client_key || '');
+
+    if (!isPro || !plainServerKey) {
       return res.status(403).json({
         message: 'Pemilik invoice belum mengaktifkan pembayaran otomatis Midtrans.',
       });
     }
 
     const snapRes = await createSnapTransaction({
-      serverKey: invoice.user.midtrans_server_key,
-      clientKey: invoice.user.midtrans_client_key || '',
+      serverKey: plainServerKey,
+      clientKey: plainClientKey,
       invoice,
       client: invoice.client,
       items: invoice.items,
@@ -165,8 +170,11 @@ router.post('/invoices/:token/check-status', publicPaymentLimiter, async (req, r
       });
     }
 
-    const serverKey = invoice.user?.midtrans_server_key;
-    if (!serverKey) {
+    const rawServerKey = invoice.user?.midtrans_server_key;
+    const plainServerKey = decryptSecret(rawServerKey);
+    const plainClientKey = decryptSecret(invoice.user?.midtrans_client_key || '');
+
+    if (!plainServerKey) {
       return res.json({
         status: invoice.status,
         invoice,
@@ -180,13 +188,13 @@ router.post('/invoices/:token/check-status', publicPaymentLimiter, async (req, r
     } else if (process.env.PLATFORM_MIDTRANS_IS_PRODUCTION !== undefined) {
       isProd = process.env.PLATFORM_MIDTRANS_IS_PRODUCTION === 'true';
     } else {
-      isProd = !serverKey.startsWith('SB-');
+      isProd = !plainServerKey.startsWith('SB-');
     }
 
     const snap = new midtransClient.Snap({
       isProduction: isProd,
-      serverKey: serverKey.trim(),
-      clientKey: invoice.user?.midtrans_client_key || '',
+      serverKey: plainServerKey.trim(),
+      clientKey: plainClientKey,
     });
 
     if (order_id) {
@@ -258,7 +266,15 @@ router.post('/invoices/:token/check-status', publicPaymentLimiter, async (req, r
 // Webhook handler otomatis untuk notifikasi pelunasan invoice klien via Midtrans BYOK
 router.post('/midtrans-webhook', async (req, res) => {
   try {
-    const { order_id, transaction_status, fraud_status } = req.body;
+    const {
+      order_id,
+      status_code,
+      gross_amount,
+      signature_key,
+      transaction_status,
+      fraud_status,
+    } = req.body;
+
     console.log(`[public.midtrans-webhook] Menerima notifikasi untuk ${order_id}: ${transaction_status}`);
 
     if (!order_id) {
@@ -268,6 +284,42 @@ router.post('/midtrans-webhook', async (req, res) => {
     // Format order_id: INV-YYYYMM-XXXX-timestamp
     const parts = order_id.split('-');
     const invoiceNumber = parts.slice(0, 3).join('-');
+
+    if (!invoiceNumber) {
+      return res.status(400).json({ message: 'Format order_id tidak valid.' });
+    }
+
+    const inv = await prisma.invoice.findFirst({
+      where: { invoice_number: invoiceNumber },
+      include: {
+        client: true,
+        user: true,
+        items: true,
+      },
+    });
+
+    if (!inv) {
+      return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
+    }
+
+    // 🔒 Verifikasi Keamanan: Validasi HMAC SHA-512 Signature Key dari Midtrans
+    const plainServerKey = decryptSecret(inv.user?.midtrans_server_key);
+    if (!plainServerKey) {
+      return res.status(400).json({ message: 'Kunci Midtrans pemilik invoice tidak ditemukan.' });
+    }
+
+    const isValidSignature = verifyMidtransSignature({
+      orderId: order_id,
+      statusCode: String(status_code || ''),
+      grossAmount: String(gross_amount || ''),
+      serverKey: plainServerKey,
+      signatureKey: String(signature_key || ''),
+    });
+
+    if (!isValidSignature) {
+      console.warn(`[public.midtrans-webhook] ⚠️ Signature verification FAILED untuk order ${order_id}. Request ditolak.`);
+      return res.status(401).json({ message: 'Invalid Midtrans signature key.' });
+    }
 
     const txStatus = (transaction_status || '').toLowerCase();
     const fStatus = (fraud_status || '').toLowerCase();
@@ -281,12 +333,8 @@ router.post('/midtrans-webhook', async (req, res) => {
       txStatus === 'expire' ||
       txStatus === 'deny';
 
-    if (isSuccess && invoiceNumber) {
-      const inv = await prisma.invoice.findFirst({
-        where: { invoice_number: invoiceNumber },
-      });
-
-      if (inv && inv.status !== 'paid') {
+    if (isSuccess) {
+      if (inv.status !== 'paid') {
         const updatedInv = await prisma.invoice.update({
           where: { id: inv.id },
           data: {
@@ -298,7 +346,7 @@ router.post('/midtrans-webhook', async (req, res) => {
             items: true,
           },
         });
-        console.log(`[public.midtrans-webhook] ✅ Invoice #${invoiceNumber} otomatis diubah ke LUNAS (Paid).`);
+        console.log(`[public.midtrans-webhook] ✅ Invoice #${invoiceNumber} otomatis diverifikasi & diubah ke LUNAS (Paid).`);
 
         // Kirim email terima kasih & kuitansi ke klien
         sendPaymentSuccessEmail({
@@ -308,12 +356,8 @@ router.post('/midtrans-webhook', async (req, res) => {
           console.warn('[midtrans-webhook] ⚠️ Gagal mengirim email terima kasih:', emailErr.message);
         });
       }
-    } else if (isCancelledOrExpired && invoiceNumber) {
-      const inv = await prisma.invoice.findFirst({
-        where: { invoice_number: invoiceNumber },
-      });
-
-      if (inv && inv.status !== 'paid') {
+    } else if (isCancelledOrExpired) {
+      if (inv.status !== 'paid') {
         // Reset payment_url agar saat klien klik bayar lagi, sesi Midtrans baru otomatis ter-generate
         await prisma.invoice.update({
           where: { id: inv.id },
@@ -321,7 +365,7 @@ router.post('/midtrans-webhook', async (req, res) => {
             payment_url: null,
           },
         });
-        console.log(`[public.midtrans-webhook] ℹ️ Sesi Midtrans Invoice #${invoiceNumber} ${transaction_status}. payment_url direset untuk pembuatan sesi baru.`);
+        console.log(`[public.midtrans-webhook] ℹ️ Sesi Midtrans Invoice #${invoiceNumber} ${transaction_status}. payment_url direset.`);
       }
     }
 

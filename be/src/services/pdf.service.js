@@ -24,6 +24,31 @@ function formatDate(dateStr) {
 }
 
 /**
+ * Sanitasi string untuk mencegah HTML Injection & XSS pada headless browser
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Validasi URL logo agar hanya mengizinkan protokol http/https aman
+ */
+function sanitizeLogoUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    return escapeHtml(trimmed);
+  }
+  return null;
+}
+
+/**
  * Template HTML untuk PDF Invoice
  */
 function buildInvoiceHTML(invoice) {
@@ -38,12 +63,14 @@ function buildInvoiceHTML(invoice) {
   const taxAmount = ((subtotal - discount) * taxRate) / 100;
   const total = Number(invoice.total || 0);
 
+  const safeLogoUrl = sanitizeLogoUrl(user.logo_url);
+
   const itemsHTML = items
     .map(
       (it, idx) => `
       <tr>
         <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #64748b;">${idx + 1}</td>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 500; color: #1e293b;">${it.item_name}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 500; color: #1e293b;">${escapeHtml(it.item_name)}</td>
         <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #475569;">${Number(it.quantity)}</td>
         <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #475569;">${formatRupiah(it.unit_price)}</td>
         <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 600; color: #0f172a;">${formatRupiah(it.total_price)}</td>
@@ -66,8 +93,8 @@ function buildInvoiceHTML(invoice) {
             .map(
               (b) => `
             <div style="font-size: 12px; color: #334155;">
-              <b>${b.bank_name}</b>: ${b.account_number} <br/>
-              <span style="color: #64748b;">a.n. ${b.account_holder || user.business_name || 'Pemilik Rekening'}</span>
+              <b>${escapeHtml(b.bank_name)}</b>: ${escapeHtml(b.account_number)} <br/>
+              <span style="color: #64748b;">a.n. ${escapeHtml(b.account_holder || user.business_name || 'Pemilik Rekening')}</span>
             </div>
           `
             )
@@ -82,7 +109,7 @@ function buildInvoiceHTML(invoice) {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Invoice #${invoice.invoice_number}</title>
+  <title>Invoice #${escapeHtml(invoice.invoice_number)}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body {
@@ -100,20 +127,20 @@ function buildInvoiceHTML(invoice) {
   <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 2px solid #6366f1; padding-bottom: 20px;">
     <div>
       ${
-        user.logo_url
-          ? `<img src="${user.logo_url}" alt="Logo" style="max-height: 54px; max-width: 180px; object-fit: contain; margin-bottom: 8px; display: block;" />`
+        safeLogoUrl
+          ? `<img src="${safeLogoUrl}" alt="Logo" style="max-height: 54px; max-width: 180px; object-fit: contain; margin-bottom: 8px; display: block;" />`
           : ''
       }
-      <h1 style="margin: 0; font-size: 22px; color: #4338ca; font-weight: 700;">${user.business_name || 'SnapBill'}</h1>
-      ${user.address ? `<p style="margin: 3px 0 0 0; color: #64748b; font-size: 12px; max-width: 340px; line-height: 1.4;">${user.address}</p>` : ''}
+      <h1 style="margin: 0; font-size: 22px; color: #4338ca; font-weight: 700;">${escapeHtml(user.business_name || 'SnapBill')}</h1>
+      ${user.address ? `<p style="margin: 3px 0 0 0; color: #64748b; font-size: 12px; max-width: 340px; line-height: 1.4;">${escapeHtml(user.address)}</p>` : ''}
       <div style="margin-top: 4px; font-size: 12px; color: #64748b;">
-        ${user.phone ? `<span style="margin-right: 12px;">📞 ${user.phone}</span>` : ''}
-        ${user.email ? `<span>✉️ ${user.email}</span>` : ''}
+        ${user.phone ? `<span style="margin-right: 12px;">📞 ${escapeHtml(user.phone)}</span>` : ''}
+        ${user.email ? `<span>✉️ ${escapeHtml(user.email)}</span>` : ''}
       </div>
     </div>
     <div style="text-align: right;">
       <h2 style="margin: 0; font-size: 24px; color: #0f172a; font-weight: 700; letter-spacing: -0.5px;">INVOICE</h2>
-      <p style="margin: 4px 0 0 0; font-family: monospace; font-size: 14px; font-weight: 600; color: #4f46e5;">#${invoice.invoice_number}</p>
+      <p style="margin: 4px 0 0 0; font-family: monospace; font-size: 14px; font-weight: 600; color: #4f46e5;">#${escapeHtml(invoice.invoice_number)}</p>
       <div style="margin-top: 6px; display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; ${
         invoice.status === 'paid'
           ? 'background: #dcfce7; color: #15803d;'
@@ -123,7 +150,7 @@ function buildInvoiceHTML(invoice) {
           ? 'background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;'
           : 'background: #f1f5f9; color: #475569;'
       }">
-        ${invoice.status === 'draft' ? 'DRAFT (UNSUBMITTED)' : (invoice.status || 'UNPAID').toUpperCase()}
+        ${invoice.status === 'draft' ? 'DRAFT (UNSUBMITTED)' : (escapeHtml(invoice.status) || 'UNPAID').toUpperCase()}
       </div>
     </div>
   </div>
@@ -144,10 +171,10 @@ function buildInvoiceHTML(invoice) {
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px;">
     <div>
       <h3 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Ditujukan Kepada:</h3>
-      <p style="margin: 0; font-size: 15px; font-weight: 600; color: #1e293b;">${client.name || '—'}</p>
-      ${client.email ? `<p style="margin: 2px 0 0 0; color: #475569;">${client.email}</p>` : ''}
-      ${client.phone ? `<p style="margin: 2px 0 0 0; color: #475569;">${client.phone}</p>` : ''}
-      ${client.address ? `<p style="margin: 2px 0 0 0; color: #64748b; font-size: 12px;">${client.address}</p>` : ''}
+      <p style="margin: 0; font-size: 15px; font-weight: 600; color: #1e293b;">${escapeHtml(client.name) || '—'}</p>
+      ${client.email ? `<p style="margin: 2px 0 0 0; color: #475569;">${escapeHtml(client.email)}</p>` : ''}
+      ${client.phone ? `<p style="margin: 2px 0 0 0; color: #475569;">${escapeHtml(client.phone)}</p>` : ''}
+      ${client.address ? `<p style="margin: 2px 0 0 0; color: #64748b; font-size: 12px;">${escapeHtml(client.address)}</p>` : ''}
     </div>
     <div style="text-align: right;">
       <table style="margin-left: auto; font-size: 12px;">

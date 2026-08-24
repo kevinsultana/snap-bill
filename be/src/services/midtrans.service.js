@@ -118,14 +118,45 @@ async function createSnapTransaction({
 
   const transaction = await snap.createTransaction(parameter);
 
-  console.log(`[midtrans.service] ✅ Transaksi Snap berhasil dibuat: ${transaction.redirect_url}`);
-
   return {
     token: transaction.token,
     redirect_url: transaction.redirect_url,
   };
 }
+/**
+ * Verifikasi signature_key webhook Midtrans
+ * Formula: SHA512(order_id + status_code + gross_amount + ServerKey)
+ *
+ * @param {Object} params
+ * @param {string} params.orderId
+ * @param {string} params.statusCode
+ * @param {string} params.grossAmount
+ * @param {string} params.serverKey
+ * @param {string} params.signatureKey - signature_key dari payload webhook Midtrans
+ * @returns {boolean}
+ */
+function verifyMidtransSignature({ orderId, statusCode, grossAmount, serverKey, signatureKey }) {
+  if (!orderId || !statusCode || !grossAmount || !serverKey || !signatureKey) {
+    return false;
+  }
+  const crypto = require('crypto');
+  const rawString = `${orderId}${statusCode}${grossAmount}${serverKey.trim()}`;
+  const calculatedSignature = crypto.createHash('sha512').update(rawString).digest('hex');
+
+  if (calculatedSignature.length !== signatureKey.length) {
+    return false;
+  }
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(calculatedSignature, 'utf8'),
+      Buffer.from(signatureKey, 'utf8')
+    );
+  } catch {
+    return false;
+  }
+}
 
 module.exports = {
   createSnapTransaction,
+  verifyMidtransSignature,
 };

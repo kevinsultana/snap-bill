@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../db/prisma');
 const { verifyToken } = require('../middleware/auth');
 const { uploadMemory, uploadLogo } = require('../services/minio.service');
+const { encryptSecret, decryptSecret } = require('../services/crypto.service');
 
 const router = express.Router();
 
@@ -53,12 +54,16 @@ router.get('/', async (req, res) => {
       user.tier = 'free';
     }
 
+    // Dekripsi secret key terlebih dahulu untuk masking
+    const plainServerKey = decryptSecret(user.midtrans_server_key);
+    const plainClientKey = decryptSecret(user.midtrans_client_key);
+
     const sanitizedUser = {
       ...user,
-      midtrans_server_key: maskSecretKey(user.midtrans_server_key),
-      midtrans_client_key: maskSecretKey(user.midtrans_client_key),
-      has_midtrans_server_key: Boolean(user.midtrans_server_key),
-      has_midtrans_client_key: Boolean(user.midtrans_client_key),
+      midtrans_server_key: maskSecretKey(plainServerKey),
+      midtrans_client_key: maskSecretKey(plainClientKey),
+      has_midtrans_server_key: Boolean(plainServerKey),
+      has_midtrans_client_key: Boolean(plainClientKey),
     };
 
     return res.json(sanitizedUser);
@@ -136,8 +141,8 @@ router.put('/', async (req, res) => {
         if (trimmed === '') {
           updateData.midtrans_server_key = null;
         } else if (trimmed && !trimmed.startsWith('••••')) {
-          // Hanya simpan jika user menginput key baru asli, bukan string sensor bawaan
-          updateData.midtrans_server_key = trimmed;
+          // 🔒 Enkripsi dengan AES-256-GCM sebelum disimpan ke database
+          updateData.midtrans_server_key = encryptSecret(trimmed);
         }
       }
       if (midtrans_client_key !== undefined) {
@@ -145,8 +150,8 @@ router.put('/', async (req, res) => {
         if (trimmed === '') {
           updateData.midtrans_client_key = null;
         } else if (trimmed && !trimmed.startsWith('••••')) {
-          // Hanya simpan jika user menginput key baru asli, bukan string sensor bawaan
-          updateData.midtrans_client_key = trimmed;
+          // 🔒 Enkripsi dengan AES-256-GCM sebelum disimpan ke database
+          updateData.midtrans_client_key = encryptSecret(trimmed);
         }
       }
     }
@@ -169,14 +174,17 @@ router.put('/', async (req, res) => {
       },
     });
 
+    const plainUpdatedServerKey = decryptSecret(updated.midtrans_server_key);
+    const plainUpdatedClientKey = decryptSecret(updated.midtrans_client_key);
+
     return res.json({
       message: 'Pengaturan identitas bisnis berhasil disimpan.',
       user: {
         ...updated,
-        midtrans_server_key: maskSecretKey(updated.midtrans_server_key),
-        midtrans_client_key: maskSecretKey(updated.midtrans_client_key),
-        has_midtrans_server_key: Boolean(updated.midtrans_server_key),
-        has_midtrans_client_key: Boolean(updated.midtrans_client_key),
+        midtrans_server_key: maskSecretKey(plainUpdatedServerKey),
+        midtrans_client_key: maskSecretKey(plainUpdatedClientKey),
+        has_midtrans_server_key: Boolean(plainUpdatedServerKey),
+        has_midtrans_client_key: Boolean(plainUpdatedClientKey),
       },
     });
   } catch (err) {

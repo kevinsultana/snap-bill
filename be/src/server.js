@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
@@ -17,12 +18,20 @@ const { globalLimiter } = require('./middleware/rateLimiter');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// 🔒 Security Headers (OWASP Recommended)
+app.disable('x-powered-by');
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Mengizinkan aset MinIO & preview PDF lintas origin
+  })
+);
+
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true, // Wajib untuk httpOnly cookie
 }));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
 // Global API rate limit
