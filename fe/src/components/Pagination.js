@@ -13,9 +13,11 @@ export default function Pagination({
     const start = 1;
     const end = total;
     return (
-      <div className="pagination-wrap" style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, borderTop: '1px solid rgba(226, 232, 240, 0.7)', paddingTop: 16 }}>
-        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          {lang === 'en' ? `Showing ${start}–${end} of ${total} items` : `Menampilkan ${start}–${end} dari ${total} data`}
+      <div className="mt-5 flex justify-between items-center flex-wrap gap-3 border-t border-slate-200/70 pt-4">
+        <span className="text-xs text-slate-500 font-medium">
+          {lang === 'en'
+            ? `Showing ${start}–${end} of ${total} items`
+            : `Menampilkan ${start}–${end} dari ${total} data`}
         </span>
       </div>
     );
@@ -31,22 +33,14 @@ export default function Pagination({
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       pages.push(1);
-      if (page > 3) {
-        pages.push('...');
-      }
+      if (page > 3) pages.push('...');
       const startPage = Math.max(2, page - 1);
       const endPage = Math.min(totalPages - 1, page + 1);
-
       for (let i = startPage; i <= endPage; i++) {
         if (!pages.includes(i)) pages.push(i);
       }
-
-      if (page < totalPages - 2) {
-        pages.push('...');
-      }
-      if (!pages.includes(totalPages)) {
-        pages.push(totalPages);
-      }
+      if (page < totalPages - 2) pages.push('...');
+      if (!pages.includes(totalPages)) pages.push(totalPages);
     }
     return pages;
   };
@@ -54,49 +48,37 @@ export default function Pagination({
   const pages = getPageNumbers();
 
   return (
-    <div
-      className="pagination-wrap"
-      style={{
-        marginTop: 20,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 12,
-        borderTop: '1px solid rgba(226, 232, 240, 0.7)',
-        paddingTop: 16,
-      }}
-    >
-      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+    <div className="mt-5 flex justify-between items-center flex-wrap gap-3 border-t border-slate-200/70 pt-4">
+      <span className="text-xs text-slate-500 font-medium">
         {lang === 'en'
           ? `Showing ${start}–${end} of ${total} items`
           : `Menampilkan ${start}–${end} dari ${total} data`}
       </span>
 
-      <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        {/* Tombol Sebelumnya */}
+      <div className="inline-flex items-center gap-1.5 flex-wrap">
+        {/* Previous Button */}
         <button
           type="button"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="btn-secondary"
-          style={{
-            padding: '6px 12px',
-            fontSize: 12,
-            opacity: page <= 1 ? 0.45 : 1,
-            cursor: page <= 1 ? 'not-allowed' : 'pointer',
-            borderRadius: 8,
-          }}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all duration-150 ${
+            page <= 1
+              ? 'opacity-40 cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
+              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer shadow-xs'
+          }`}
           title={lang === 'en' ? 'Previous Page' : 'Halaman Sebelumnya'}
         >
           ‹ {lang === 'en' ? 'Prev' : 'Sebelumnya'}
         </button>
 
-        {/* Page Buttons */}
+        {/* Page Number Buttons */}
         {pages.map((p, idx) => {
           if (p === '...') {
             return (
-              <span key={`dots-${idx}`} style={{ padding: '0 6px', color: 'var(--text-muted)', fontSize: 13, fontWeight: 700 }}>
+              <span
+                key={`dots-${idx}`}
+                className="px-1.5 text-slate-400 text-xs font-bold select-none"
+              >
                 •••
               </span>
             );
@@ -107,35 +89,27 @@ export default function Pagination({
               key={`page-${p}`}
               type="button"
               onClick={() => onPageChange(p)}
-              className={isActive ? 'btn-primary' : 'btn-secondary'}
-              style={{
-                minWidth: 34,
-                height: 34,
-                padding: '0 8px',
-                fontSize: 12.5,
-                fontWeight: isActive ? 800 : 600,
-                borderRadius: 8,
-                boxShadow: isActive ? '0 2px 8px rgba(99, 102, 241, 0.3)' : 'none',
-              }}
+              className={`min-w-[34px] h-[34px] px-2 text-xs rounded-lg border transition-all duration-150 font-semibold ${
+                isActive
+                  ? 'bg-indigo-600 text-white border-indigo-600 font-extrabold shadow-md shadow-indigo-500/30 cursor-default'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer'
+              }`}
             >
               {p}
             </button>
           );
         })}
 
-        {/* Tombol Selanjutnya */}
+        {/* Next Button */}
         <button
           type="button"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="btn-secondary"
-          style={{
-            padding: '6px 12px',
-            fontSize: 12,
-            opacity: page >= totalPages ? 0.45 : 1,
-            cursor: page >= totalPages ? 'not-allowed' : 'pointer',
-            borderRadius: 8,
-          }}
+          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all duration-150 ${
+            page >= totalPages
+              ? 'opacity-40 cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
+              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer shadow-xs'
+          }`}
           title={lang === 'en' ? 'Next Page' : 'Halaman Selanjutnya'}
         >
           {lang === 'en' ? 'Next' : 'Selanjutnya'} ›

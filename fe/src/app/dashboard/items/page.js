@@ -15,6 +15,9 @@ function formatRupiah(value) {
   }).format(Number(value || 0));
 }
 
+const INPUT_CLS =
+  'w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all duration-150';
+
 export default function ItemsPage() {
   const { t, lang } = useTranslation();
   const [items, setItems]         = useState([]);
@@ -24,7 +27,6 @@ export default function ItemsPage() {
   const [page, setPage]           = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal]         = useState(0);
-  const [totalAll, setTotalAll]   = useState(0);
 
   const ITEM_FIELDS = [
     { name: 'name',        label: t('items.form_name'),  placeholder: 'Contoh: Jasa Desain Logo & Branding', required: true },
@@ -32,7 +34,7 @@ export default function ItemsPage() {
     { name: 'price',       label: t('items.form_price'), placeholder: 'Contoh: 500.000', type: 'currency', required: true },
   ];
 
-  // Debounce search input
+  // Debounce search
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(search);
@@ -45,22 +47,15 @@ export default function ItemsPage() {
     setLoading(true);
     try {
       const res = await api.get('/api/items', {
-        params: {
-          page,
-          limit: 10,
-          search: debouncedSearch,
-          paginate: 'true',
-        },
+        params: { page, limit: 10, search: debouncedSearch, paginate: 'true' },
       });
       if (res.data && Array.isArray(res.data.data)) {
         setItems(res.data.data);
         setTotal(res.data.total || 0);
-        setTotalAll(res.data.totalAll || 0);
         setTotalPages(res.data.totalPages || 1);
       } else if (Array.isArray(res.data)) {
         setItems(res.data);
         setTotal(res.data.length);
-        setTotalAll(res.data.length);
         setTotalPages(1);
       }
     } catch {
@@ -70,11 +65,8 @@ export default function ItemsPage() {
     }
   }, [page, debouncedSearch]);
 
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+  useEffect(() => { fetchItems(); }, [fetchItems]);
 
-  // --- Add ---
   const handleAdd = () => {
     openFormModal({
       title: t('items.modal_add_title'),
@@ -91,7 +83,6 @@ export default function ItemsPage() {
     });
   };
 
-  // --- Edit ---
   const handleEdit = (item) => {
     openFormModal({
       title: t('items.modal_edit_title'),
@@ -109,7 +100,6 @@ export default function ItemsPage() {
     });
   };
 
-  // --- Delete ---
   const handleDelete = async (item) => {
     const confirmed = await confirmDelete(item.name);
     if (!confirmed) return;
@@ -123,82 +113,91 @@ export default function ItemsPage() {
   };
 
   return (
-    <div className="page-container">
-      {/* Header */}
-      <div className="page-header">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-16">
+
+      {/* Page Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="page-title">{t('items.title')}</h1>
-          <p className="page-desc">{t('items.desc')}</p>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{t('items.title')}</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{t('items.desc')}</p>
         </div>
-        <button className="btn-primary" onClick={handleAdd} id="btn-add-item">
-          {t('items.btn_add')}
+        <button
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-indigo-500/20 transition-all"
+          onClick={handleAdd}
+          id="btn-add-item"
+        >
+          ➕ {t('items.btn_add')}
         </button>
       </div>
 
-      {/* Glass Card Container */}
-      <div className="glass-card" style={{ padding: '20px 24px' }}>
-        {/* Search & count */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-          <div className="search-bar-wrap">
-            <span className="search-icon">🔍</span>
+      {/* Card Container */}
+      <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5 sm:p-6">
+
+        {/* Search & Count */}
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm select-none">🔍</span>
             <input
               type="search"
-              className="form-input search-input"
+              className={`${INPUT_CLS} pl-9 max-w-xs`}
               placeholder={t('items.search_placeholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <span className="glass-pill" style={{ color: 'var(--text-secondary)' }}>
-            {t('common.total')}: <b>{total}</b> item
+          <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-600">
+            {t('common.total')}: <b className="ml-1 text-slate-900">{total}</b>&nbsp;item
           </span>
         </div>
 
-        {/* Table */}
-        <div className="table-container">
-          {loading ? (
-            <div className="loading-screen" style={{ minHeight: '30vh' }}>
-              <div className="loading-spinner" />
-            </div>
-          ) : items.length === 0 ? (
-            <div className="table-empty">
-              <span className="table-empty-icon">📦</span>
-              <p>{search ? t('invoices.empty_title') : t('items.empty_title')}</p>
-            </div>
-          ) : (
-            <>
-              <table className="data-table">
+        {/* Table Area */}
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="w-8 h-8 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
+          </div>
+        ) : items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+            <span className="text-4xl">📦</span>
+            <p className="text-sm font-semibold text-slate-700">
+              {search ? t('invoices.empty_title') : t('items.empty_title')}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Horizontally scrollable table */}
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[520px]">
                 <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>{t('items.table_name')}</th>
-                    <th>{t('items.table_desc')}</th>
-                    <th className="td-right">{t('items.table_price')}</th>
-                    <th style={{ textAlign: 'right' }}>{t('common.actions')}</th>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                    <th className="py-2.5 px-3 w-10">#</th>
+                    <th className="py-2.5 px-3">{t('items.table_name')}</th>
+                    <th className="py-2.5 px-3">{t('items.table_desc')}</th>
+                    <th className="py-2.5 px-3 text-right">{t('items.table_price')}</th>
+                    <th className="py-2.5 px-3 text-right w-[140px]">{t('common.actions')}</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {items.map((item, idx) => (
-                    <tr key={item.id}>
-                      <td className="td-num">{(page - 1) * 10 + idx + 1}</td>
-                      <td className="td-name">{item.name}</td>
-                      <td className="td-secondary" style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-3 text-slate-400 font-mono text-xs">{(page - 1) * 10 + idx + 1}</td>
+                      <td className="py-3 px-3 font-bold text-slate-900">{item.name}</td>
+                      <td className="py-3 px-3 text-slate-500 text-xs max-w-[280px] truncate">
                         {item.description || '—'}
                       </td>
-                      <td className="td-right td-price" style={{ color: 'var(--emerald-dark)' }}>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-emerald-700">
                         {formatRupiah(item.price)}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div className="td-actions" style={{ justifyContent: 'flex-end' }}>
+                      <td className="py-3 px-3">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
-                            className="btn-action btn-edit"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-600 text-[11px] font-bold border border-slate-200 hover:border-indigo-200 transition"
                             onClick={() => handleEdit(item)}
                             title={t('common.edit')}
                           >
                             ✏️ {t('common.edit')}
                           </button>
                           <button
-                            className="btn-action btn-delete"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-500 text-[11px] font-bold border border-slate-200 hover:border-rose-200 transition"
                             onClick={() => handleDelete(item)}
                             title={t('common.delete')}
                           >
@@ -210,19 +209,18 @@ export default function ItemsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
 
-              {/* Pagination Component */}
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                total={total}
-                limit={10}
-                onPageChange={setPage}
-                lang={lang}
-              />
-            </>
-          )}
-        </div>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              limit={10}
+              onPageChange={setPage}
+              lang={lang}
+            />
+          </>
+        )}
       </div>
     </div>
   );

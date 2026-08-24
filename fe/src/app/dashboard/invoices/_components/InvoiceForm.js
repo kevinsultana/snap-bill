@@ -21,6 +21,68 @@ import {
   Sparkles,
   ArrowLeft,
 } from 'lucide-react';
+import CreatableSelect from 'react-select/creatable';
+
+const customSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    minHeight: '38px',
+    height: '38px',
+    borderRadius: '0.5rem',
+    borderColor: state.isFocused ? '#6366f1' : '#e2e8f0',
+    boxShadow: state.isFocused ? '0 0 0 2px rgba(99, 102, 241, 0.15)' : 'none',
+    '&:hover': {
+      borderColor: '#cbd5e1',
+    },
+    fontSize: '0.8125rem',
+    fontWeight: '600',
+    backgroundColor: '#ffffff',
+  }),
+  valueContainer: (base) => ({
+    ...base,
+    padding: '0 8px',
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+  menu: (base) => ({
+    ...base,
+    borderRadius: '0.75rem',
+    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+    border: '1px solid #e2e8f0',
+    overflow: 'hidden',
+    zIndex: 9999,
+  }),
+  option: (base, state) => ({
+    ...base,
+    fontSize: '0.8125rem',
+    fontWeight: state.isSelected ? '700' : '500',
+    backgroundColor: state.isSelected
+      ? '#6366f1'
+      : state.isFocused
+      ? '#eef2ff'
+      : '#ffffff',
+    color: state.isSelected ? '#ffffff' : '#1e293b',
+    cursor: 'pointer',
+    padding: '8px 12px',
+  }),
+  placeholder: (base) => ({
+    ...base,
+    color: '#94a3b8',
+    fontSize: '0.8125rem',
+    fontWeight: '500',
+  }),
+  singleValue: (base) => ({
+    ...base,
+    color: '#0f172a',
+    fontSize: '0.8125rem',
+    fontWeight: '600',
+  }),
+  input: (base) => ({
+    ...base,
+    color: '#0f172a',
+    margin: 0,
+    padding: 0,
+  }),
+};
 
 // Helper pemformat ribuan (e.g. 1000000 -> "1.000.000")
 function formatThousand(val) {
@@ -109,6 +171,30 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
     api.get('/api/settings').then((r) => setUserProfile(r.data || {})).catch(() => {});
   }, []);
 
+  // Mounted state for SSR-safe react-select
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Options for CreatableSelect (Items)
+  const itemOptions = useMemo(() => {
+    return savedItems.map((item) => ({
+      value: item.id || item.name,
+      label: item.name,
+      price: item.price,
+    }));
+  }, [savedItems]);
+
+  // Options for Client Select
+  const clientOptions = useMemo(() => {
+    return clients.map((c) => ({
+      value: c.id,
+      label: c.name,
+      email: c.email,
+    }));
+  }, [clients]);
+
   // Selected client object
   const selectedClient = useMemo(() => {
     return clients.find((c) => c.id === clientId) || null;
@@ -133,7 +219,45 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
     );
   };
 
-  // Handler input Item Name with catalog auto-match
+  // Handler select existing item from react-select dropdown
+  const handleSelectItem = (idx, selectedOption) => {
+    if (!selectedOption) {
+      updateLine(idx, 'item_name', '');
+      return;
+    }
+    updateLine(idx, 'item_name', selectedOption.label);
+    if (selectedOption.price !== undefined && selectedOption.price !== null && selectedOption.price > 0) {
+      updateLine(idx, 'unit_price', formatThousand(selectedOption.price));
+    }
+  };
+
+  // Handler auto-create new item directly into Master Items list
+  const handleCreateItem = async (idx, inputValue) => {
+    const trimmed = (inputValue || '').trim();
+    if (!trimmed) return;
+
+    // Langsung update baris invoice
+    updateLine(idx, 'item_name', trimmed);
+
+    try {
+      const currentPrice = parseRawNumber(lines[idx]?.unit_price) || 0;
+      const res = await api.post('/api/items', {
+        name: trimmed,
+        price: currentPrice,
+        description: null,
+      });
+      const createdItem = res.data?.item || res.data;
+      if (createdItem) {
+        setSavedItems((prev) => [createdItem, ...prev]);
+        toast('success', `Item "${trimmed}" otomatis ditambahkan ke daftar layanan!`);
+      }
+    } catch (err) {
+      console.error('Auto-create item error:', err);
+      toast('info', `Item "${trimmed}" digunakan untuk invoice ini`);
+    }
+  };
+
+  // Handler input Item Name directly if needed
   const handleItemNameChange = (idx, val) => {
     updateLine(idx, 'item_name', val);
 
@@ -277,18 +401,18 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
         {/* Action Buttons (Desktop Header) */}
         <div className="hidden md:flex items-center gap-3">
-          <Link href="/dashboard/invoices" className="btn-secondary text-sm px-4 py-2">
+          <Link href="/dashboard/invoices" className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold transition">
             Batal
           </Link>
           <button
             type="button"
             onClick={handleSubmit}
             disabled={saving}
-            className="btn-primary text-sm px-5 py-2.5 flex items-center gap-2 shadow-md"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
-                <span className="btn-spinner" /> Menyimpan...
+                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Menyimpan...
               </>
             ) : (
               <>
@@ -345,7 +469,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
             {/* 1. Client & Dates Information Card */}
-            <div className="glass-card p-5 sm:p-6 rounded-2xl bg-white/90 border border-slate-200/80 shadow-sm">
+            <div className="bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm p-5 sm:p-6">
               <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2 mb-4">
                 <User className="w-4 h-4 text-indigo-600" />
                 <span>Informasi Klien & Tanggal</span>
@@ -357,19 +481,46 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                     Klien Penerima Tagihan <span className="text-rose-500">*</span>
                   </label>
-                  <select
-                    className="form-input w-full"
-                    value={clientId}
-                    onChange={(e) => setClientId(e.target.value)}
-                    required
-                  >
-                    <option value="">— Pilih Klien Terdaftar —</option>
-                    {clients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} {c.email ? `(${c.email})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  {isMounted ? (
+                    <CreatableSelect
+                      instanceId="client-select"
+                      isClearable
+                      placeholder="— Cari atau pilih klien terdaftar —"
+                      options={clientOptions}
+                      value={
+                        selectedClient
+                          ? { value: selectedClient.id, label: selectedClient.name, email: selectedClient.email }
+                          : null
+                      }
+                      onChange={(selected) => setClientId(selected ? selected.value : '')}
+                      formatOptionLabel={(option) => (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-slate-900">{option.label}</span>
+                          {option.email && (
+                            <span className="text-xs text-slate-400 font-medium">{option.email}</span>
+                          )}
+                        </div>
+                      )}
+                      styles={customSelectStyles}
+                      menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                      menuPosition="fixed"
+                      noOptionsMessage={() => 'Klien tidak ditemukan'}
+                    />
+                  ) : (
+                    <select
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                      value={clientId}
+                      onChange={(e) => setClientId(e.target.value)}
+                      required
+                    >
+                      <option value="">— Pilih Klien Terdaftar —</option>
+                      {clients.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.email ? `(${c.email})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   {clients.length === 0 && (
                     <p className="text-xs text-slate-500 mt-1.5">
                       Belum ada klien terdaftar.{' '}
@@ -388,7 +539,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   </label>
                   <input
                     type="date"
-                    className="form-input w-full text-sm font-semibold"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
                     value={issueDate}
                     onChange={(e) => setIssueDate(e.target.value)}
                     required
@@ -403,7 +554,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   </label>
                   <input
                     type="date"
-                    className="form-input w-full text-sm font-semibold"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
                     value={dueDate}
                     min={issueDate}
                     onChange={(e) => setDueDate(e.target.value)}
@@ -413,7 +564,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             </div>
 
             {/* 2. Responsive Inline Editable Table for Invoice Items */}
-            <div className="glass-card p-5 sm:p-6 rounded-2xl bg-white/90 border border-slate-200/80 shadow-sm">
+            <div className="bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm p-5 sm:p-6">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
                   <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
@@ -435,22 +586,13 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                 </button>
               </div>
 
-              {/* Datalist for catalog autocomplete */}
-              <datalist id="catalog-item-suggestions">
-                {savedItems.map((item) => (
-                  <option key={item.id} value={item.name}>
-                    Rp {formatThousand(item.price)}
-                  </option>
-                ))}
-              </datalist>
-
               {/* Inline Editable Table Container */}
               <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-slate-50/50">
-                <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[520px]">
+                <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[540px]">
                   <thead>
                     <tr className="bg-slate-100/80 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
-                      <th className="py-2.5 px-3 w-[44%]">Nama Item / Layanan</th>
-                      <th className="py-2.5 px-2 text-center w-[16%]">Qty</th>
+                      <th className="py-2.5 px-3 w-[46%]">Nama Item / Layanan</th>
+                      <th className="py-2.5 px-2 text-center w-[14%]">Qty</th>
                       <th className="py-2.5 px-2 text-right w-[24%]">Harga Satuan</th>
                       <th className="py-2.5 px-3 text-right w-[16%]">Total</th>
                       <th className="py-2.5 px-2 w-[40px] text-center" />
@@ -463,17 +605,45 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
                       return (
                         <tr key={idx} className="hover:bg-indigo-50/20 transition-colors">
-                          {/* Item Name (Direct typing with autocomplete datalist) */}
-                          <td className="p-2">
-                            <input
-                              type="text"
-                              list="catalog-item-suggestions"
-                              className="w-full px-2.5 py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 bg-white"
-                              placeholder="Nama produk/jasa..."
-                              value={line.item_name}
-                              onChange={(e) => handleItemNameChange(idx, e.target.value)}
-                              required
-                            />
+                          {/* Item Name (React Select Creatable with Auto-Save) */}
+                          <td className="p-2 min-w-[200px]">
+                            {isMounted ? (
+                              <CreatableSelect
+                                instanceId={`line-item-select-${idx}`}
+                                isClearable
+                                placeholder="Pilih / ketik layanan..."
+                                options={itemOptions}
+                                value={
+                                  line.item_name
+                                    ? { value: line.item_name, label: line.item_name }
+                                    : null
+                                }
+                                onChange={(selected) => handleSelectItem(idx, selected)}
+                                onCreateOption={(val) => handleCreateItem(idx, val)}
+                                formatCreateLabel={(inputValue) => `➕ Tambah "${inputValue}" ke Master Layanan`}
+                                formatOptionLabel={(option) => (
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="font-semibold text-slate-800">{option.label}</span>
+                                    {option.price !== undefined && option.price !== null && option.price > 0 && (
+                                      <span className="text-[11px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded font-bold">
+                                        {formatRupiah(option.price)}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                styles={customSelectStyles}
+                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                menuPosition="fixed"
+                              />
+                            ) : (
+                              <input
+                                type="text"
+                                className="w-full px-2.5 py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-200 bg-white"
+                                placeholder="Nama produk/jasa..."
+                                value={line.item_name}
+                                onChange={(e) => handleItemNameChange(idx, e.target.value)}
+                              />
+                            )}
                           </td>
 
                           {/* Quantity */}
@@ -546,7 +716,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             </div>
 
             {/* 3. Adjustments (Discount, Tax, Notes) Card */}
-            <div className="glass-card p-5 sm:p-6 rounded-2xl bg-white/90 border border-slate-200/80 shadow-sm">
+            <div className="bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm p-5 sm:p-6">
               <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2 mb-4">
                 <Percent className="w-4 h-4 text-indigo-600" />
                 <span>Diskon, Pajak & Catatan</span>
@@ -598,7 +768,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     <input
                       type="text"
                       inputMode="numeric"
-                      className="form-input w-full pl-9 text-sm font-mono font-bold"
+                      className="w-full px-3.5 pl-9 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-mono font-bold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
                       placeholder="0"
                       value={discountValue}
                       onFocus={(e) => e.target.select()}
@@ -631,7 +801,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     <input
                       type="text"
                       inputMode="decimal"
-                      className="form-input w-full pl-8 text-sm font-mono font-bold"
+                      className="w-full px-3.5 pl-8 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-mono font-bold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
                       placeholder="0"
                       value={taxRate}
                       onFocus={(e) => e.target.select()}
@@ -656,7 +826,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   </label>
                   <textarea
                     rows={2}
-                    className="form-input w-full text-xs sm:text-sm py-2"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs sm:text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all resize-none"
                     placeholder="Contoh: Pembayaran jatuh tempo 14 hari setelah invoice diterbitkan..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
@@ -670,11 +840,11 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
               <button
                 type="submit"
                 disabled={saving}
-                className="btn-primary w-full py-3 text-sm font-bold flex items-center justify-center gap-2 shadow-md"
+                className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-60"
               >
                 {saving ? (
                   <>
-                    <span className="btn-spinner" /> Menyimpan...
+                    <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Menyimpan...
                   </>
                 ) : (
                   <>
@@ -855,7 +1025,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
           </div>
 
           {/* Quick Submit inside Preview (Mobile & Desktop) */}
-          <div className="glass-card p-4 rounded-2xl bg-white/90 border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+          <div className="bg-white/90 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-sm p-4 flex items-center justify-between gap-4">
             <div>
               <span className="text-xs text-slate-400 block font-semibold">Total Tagihan</span>
               <p className="text-lg font-black text-emerald-600 font-mono">{formatRupiah(grandTotal)}</p>
@@ -865,11 +1035,11 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
               type="button"
               onClick={handleSubmit}
               disabled={saving}
-              className="btn-primary text-xs sm:text-sm px-4 py-2.5 flex items-center gap-2"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs sm:text-sm font-bold shadow-md transition-all disabled:opacity-60"
             >
               {saving ? (
                 <>
-                  <span className="btn-spinner" /> Menyimpan...
+                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Menyimpan...
                 </>
               ) : (
                 <>

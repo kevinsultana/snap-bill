@@ -14,31 +14,16 @@ export default function LanguageSwitcher({ size = 'normal', style = {} }) {
     <button
       type="button"
       onClick={toggleLanguage}
-      className="btn-lang-toggle"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: isSmall ? '6px 12px' : '7px 14px',
-        fontSize: isSmall ? 12 : 13,
-        fontWeight: 700,
-        borderRadius: 9999,
-        background: 'rgba(255, 255, 255, 0.85)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(226, 232, 240, 0.95)',
-        color: '#1e293b',
-        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.05)',
-        cursor: 'pointer',
-        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-        userSelect: 'none',
-        ...style,
-      }}
+      className={`inline-flex items-center gap-1.5 rounded-full bg-white/85 backdrop-blur-md border border-slate-200/95 text-slate-900 font-bold shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-white transition-all duration-200 select-none cursor-pointer ${
+        isSmall ? 'px-3 py-1.5 text-xs' : 'px-3.5 py-2 text-sm'
+      }`}
+      style={style}
       title={lang === 'id' ? 'Ganti ke English (EN)' : 'Switch to Bahasa Indonesia (ID)'}
     >
-      <span style={{ fontSize: isSmall ? 14 : 15, lineHeight: 1 }}>
+      <span className={isSmall ? 'text-sm leading-none' : 'text-base leading-none'}>
         {lang === 'id' ? '🇮🇩' : '🇬🇧'}
       </span>
-      <span style={{ fontWeight: 800, color: '#334155', letterSpacing: '0.03em' }}>
+      <span className="font-extrabold text-slate-700 tracking-wide">
         {lang === 'id' ? 'ID' : 'EN'}
       </span>
     </button>

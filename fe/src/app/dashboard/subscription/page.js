@@ -7,25 +7,21 @@ import toast from '@/lib/toast';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 
+const BTN_PRIMARY = 'inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed';
+const BTN_SECONDARY = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold transition-all disabled:opacity-60';
+const BTN_DANGER = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-rose-50 border border-rose-200 text-rose-700 text-sm font-bold transition-all disabled:opacity-60';
+
 function formatDateFull(dateStr, lang = 'id') {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
   return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
-    timeZone: 'Asia/Jakarta',
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }) + (lang === 'en' ? ' WIB (UTC+7)' : ' WIB');
 }
 
 function getDaysRemaining(dateStr) {
   if (!dateStr) return null;
-  const target = new Date(dateStr).getTime();
-  const now = Date.now();
-  const diffMs = target - now;
+  const diffMs = new Date(dateStr).getTime() - Date.now();
   if (diffMs <= 0) return 0;
   return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 }
@@ -48,22 +44,16 @@ function SubscriptionContent() {
       const res = await api.get('/api/subscriptions/status');
       setStatusData(res.data);
       return res.data;
-    } catch {
-      toast('error', 'Gagal memuat informasi langganan');
-      return null;
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast('error', 'Gagal memuat informasi langganan'); return null; }
+    finally { setLoading(false); }
   }, []);
 
-  // Cek status pembayaran Midtrans secara otentik
   const handleCheckStatus = useCallback(async (orderIdToCheck, showToast = false) => {
     if (!orderIdToCheck) return;
     setCheckingStatus(true);
     try {
       const res = await api.post('/api/subscriptions/check-status', { order_id: orderIdToCheck });
       const data = res.data;
-
       if (data.status === 'settlement' || data.isPro) {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('pending_sub_order_id');
@@ -71,134 +61,63 @@ function SubscriptionContent() {
           window.dispatchEvent(new CustomEvent('subscription_updated'));
           window.history.replaceState({}, document.title, window.location.pathname);
         }
-        setPendingTransaction(null);
-        setPendingPaymentUrl(null);
+        setPendingTransaction(null); setPendingPaymentUrl(null);
         await fetchStatus();
-
-        if (showToast) {
-          Swal.fire({
-            icon: 'success',
-            title: '🎉 Selamat Datang di SnapBill PRO!',
-            text: data.message || 'Pembayaran langganan Pro Anda telah berhasil diverifikasi lunas. Nikmati fitur tanpa batas!',
-            confirmButtonColor: '#6366f1',
-            customClass: { popup: 'swal-custom-popup' },
-          });
-        }
+        if (showToast) Swal.fire({ icon: 'success', title: '🎉 Selamat Datang di SnapBill PRO!', text: data.message || 'Pembayaran berhasil diverifikasi!', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       } else if (data.status === 'pending') {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('pending_sub_order_id', orderIdToCheck);
-        }
+        if (typeof window !== 'undefined') localStorage.setItem('pending_sub_order_id', orderIdToCheck);
         setPendingTransaction(data);
-
-        if (showToast) {
-          Swal.fire({
-            icon: 'info',
-            title: t('subscription.pending_title'),
-            text: 'Pembayaran Anda masih dalam status Pending. Silakan klik tombol "Buka Pembayaran" untuk melihat kode transfer / QRIS.',
-            confirmButtonColor: '#6366f1',
-            customClass: { popup: 'swal-custom-popup' },
-          });
-        }
-      } else if (data.status === 'failed' || data.status === 'expire' || data.status === 'cancel') {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('pending_sub_order_id');
-          localStorage.removeItem('pending_sub_payment_url');
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-        setPendingTransaction(null);
-        setPendingPaymentUrl(null);
-        if (showToast) {
-          toast('error', `Transaksi ${data.status}. Silakan buat sesi pembayaran baru.`);
-        }
+        if (showToast) Swal.fire({ icon: 'info', title: t('subscription.pending_title'), text: 'Pembayaran Anda masih pending. Klik "Buka Pembayaran" untuk melanjutkan.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
+      } else if (['failed', 'expire', 'cancel'].includes(data.status)) {
+        if (typeof window !== 'undefined') { localStorage.removeItem('pending_sub_order_id'); localStorage.removeItem('pending_sub_payment_url'); window.history.replaceState({}, document.title, window.location.pathname); }
+        setPendingTransaction(null); setPendingPaymentUrl(null);
+        if (showToast) toast('error', `Transaksi ${data.status}. Silakan buat sesi pembayaran baru.`);
       }
-    } catch {
-      if (showToast) toast('error', 'Gagal memverifikasi status pembayaran ke Midtrans');
-    } finally {
-      setCheckingStatus(false);
-    }
+    } catch { if (showToast) toast('error', 'Gagal memverifikasi status pembayaran ke Midtrans'); }
+    finally { setCheckingStatus(false); }
   }, [fetchStatus, t]);
 
-  // Initial load: ambil status langganan & cek jika ada pending order_id
   useEffect(() => {
     fetchStatus();
-
     if (typeof window !== 'undefined') {
       const savedUrl = localStorage.getItem('pending_sub_payment_url');
       if (savedUrl) setPendingPaymentUrl(savedUrl);
     }
-
-    if (urlSubscribed && urlOrderId) {
-      handleCheckStatus(urlOrderId, true);
-    } else if (typeof window !== 'undefined') {
+    if (urlSubscribed && urlOrderId) handleCheckStatus(urlOrderId, true);
+    else if (typeof window !== 'undefined') {
       const savedOrderId = localStorage.getItem('pending_sub_order_id');
-      if (savedOrderId) {
-        handleCheckStatus(savedOrderId, false);
-      }
+      if (savedOrderId) handleCheckStatus(savedOrderId, false);
     }
   }, [fetchStatus, handleCheckStatus, urlOrderId, urlSubscribed]);
 
-  // Handler Upgrade Paket Pro
   const handleUpgrade = async () => {
     setActionLoading(true);
     try {
       const res = await api.post('/api/subscriptions/create-snap');
       const paymentUrl = res.data?.redirect_url || res.data?.payment_url;
       const orderId = res.data?.order_id;
-
       if (typeof window !== 'undefined') {
         if (orderId) localStorage.setItem('pending_sub_order_id', orderId);
         if (paymentUrl) localStorage.setItem('pending_sub_payment_url', paymentUrl);
       }
       setPendingPaymentUrl(paymentUrl);
       setPendingTransaction({ order_id: orderId, status: 'pending' });
-
-      if (paymentUrl) {
-        // Langsung arahkan ke halaman pembayaran Midtrans Snap
-        window.location.href = paymentUrl;
-      }
-    } catch (err) {
-      toast('error', err.response?.data?.message || 'Gagal memulai transaksi Midtrans');
-    } finally {
-      setActionLoading(false);
-    }
+      if (paymentUrl) window.location.href = paymentUrl;
+    } catch (err) { toast('error', err.response?.data?.message || 'Gagal memulai transaksi Midtrans'); }
+    finally { setActionLoading(false); }
   };
 
-  // Handler Pembatalan Langganan Pro
   const handleCancelSubscription = async () => {
-    const result = await Swal.fire({
-      title: t('subscription.cancel_confirm_title'),
-      text: t('subscription.cancel_confirm_text'),
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: t('subscription.cancel_confirm_btn'),
-      cancelButtonText: t('subscription.cancel_keep_btn'),
-      confirmButtonColor: '#f43f5e',
-      cancelButtonColor: '#6366f1',
-      customClass: { popup: 'swal-custom-popup' },
-    });
-
+    const result = await Swal.fire({ title: t('subscription.cancel_confirm_title'), text: t('subscription.cancel_confirm_text'), icon: 'warning', showCancelButton: true, confirmButtonText: t('subscription.cancel_confirm_btn'), cancelButtonText: t('subscription.cancel_keep_btn'), confirmButtonColor: '#f43f5e', cancelButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
     if (result.isConfirmed) {
       setActionLoading(true);
       try {
         const res = await api.post('/api/subscriptions/cancel');
         await fetchStatus();
-
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('subscription_updated'));
-        }
-
-        Swal.fire({
-          icon: 'success',
-          title: 'Langganan Telah Dibatalkan',
-          text: res.data?.message || 'Akun Anda telah dikembalikan ke paket Free (kuota 10 invoice per bulan).',
-          confirmButtonColor: '#6366f1',
-          customClass: { popup: 'swal-custom-popup' },
-        });
-      } catch (err) {
-        toast('error', err.response?.data?.message || 'Gagal membatalkan langganan');
-      } finally {
-        setActionLoading(false);
-      }
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('subscription_updated'));
+        Swal.fire({ icon: 'success', title: 'Langganan Telah Dibatalkan', text: res.data?.message || 'Akun dikembalikan ke paket Free (10 invoice/bulan).', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
+      } catch (err) { toast('error', err.response?.data?.message || 'Gagal membatalkan langganan'); }
+      finally { setActionLoading(false); }
     }
   };
 
@@ -208,135 +127,54 @@ function SubscriptionContent() {
   const usedPercent = Math.min(100, Math.round((invoiceCount / 10) * 100));
 
   return (
-    <div className="page-container">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-16">
+
       {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{t('subscription.title')}</h1>
-          <p className="page-desc">
-            {t('subscription.desc')}
-          </p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{t('subscription.title')}</h1>
+        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{t('subscription.desc')}</p>
       </div>
 
       {loading ? (
-        <div className="loading-screen" style={{ minHeight: '40vh' }}>
-          <div className="loading-spinner" />
+        <div className="flex items-center justify-center py-24">
+          <div className="w-10 h-10 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
         </div>
       ) : (
         <>
-          {/* Pending Payment Alert Banner */}
+          {/* Pending Payment Alert */}
           {pendingTransaction && !isPro && (
-            <div
-              className="glass-card"
-              style={{
-                padding: '20px 24px',
-                background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(253, 230, 138, 0.85))',
-                border: '1px solid #fde68a',
-                borderRadius: 16,
-                marginBottom: 28,
-                boxShadow: '0 8px 24px -4px rgba(245, 158, 11, 0.2)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                  <span style={{ fontSize: 32, lineHeight: 1 }}>⏳</span>
+            <div className="mb-6 bg-gradient-to-r from-amber-50 to-yellow-50 border border-yellow-300 rounded-2xl p-5 shadow-sm shadow-amber-100">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-start gap-3.5 flex-1 min-w-[240px]">
+                  <span className="text-3xl leading-none shrink-0">⏳</span>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#92400e' }}>
-                        {t('subscription.pending_title')}
-                      </h4>
-                      <span style={{ background: '#f59e0b', color: '#ffffff', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 9999, textTransform: 'uppercase' }}>
-                        Pending
-                      </span>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h4 className="text-sm font-extrabold text-amber-900">{t('subscription.pending_title')}</h4>
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-500 text-white">Pending</span>
                     </div>
-                    <p style={{ margin: '4px 0 0', fontSize: 13, color: '#78350f', lineHeight: 1.5 }}>
-                      {t('subscription.pending_desc')}
-                    </p>
-                    <div style={{ marginTop: 6, fontSize: 12, color: '#92400e', background: 'rgba(255, 255, 255, 0.6)', padding: '6px 12px', borderRadius: 8, display: 'inline-block' }}>
-                      Order ID: <b style={{ fontFamily: 'var(--font-mono)' }}>{pendingTransaction.order_id}</b>
+                    <p className="text-xs text-amber-800 leading-relaxed mb-2">{t('subscription.pending_desc')}</p>
+                    <div className="inline-block text-xs font-semibold text-amber-900 bg-white/70 px-3 py-1.5 rounded-lg border border-amber-200">
+                      Order ID: <b className="font-mono">{pendingTransaction.order_id}</b>
                       {pendingTransaction.va_numbers?.[0] && (
-                        <span> • <b>{pendingTransaction.va_numbers[0].bank?.toUpperCase()} VA:</b> <code style={{ fontWeight: 800, color: '#b45309' }}>{pendingTransaction.va_numbers[0].va_number}</code></span>
+                        <span> • <b>{pendingTransaction.va_numbers[0].bank?.toUpperCase()} VA:</b> <code className="font-bold text-amber-700">{pendingTransaction.va_numbers[0].va_number}</code></span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="flex flex-wrap gap-2 items-center">
                   {pendingPaymentUrl && (
-                    <a
-                      href={pendingPaymentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-primary"
-                      style={{
-                        background: '#6366f1',
-                        borderColor: '#6366f1',
-                        fontSize: 13,
-                        padding: '9px 18px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        textDecoration: 'none',
-                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
-                      }}
-                      title="Buka kembali halaman pembayaran Midtrans"
-                    >
-                      <span>💳</span>
-                      <span>{t('subscription.btn_reopen_payment')}</span>
+                    <a href={pendingPaymentUrl} target="_blank" rel="noopener noreferrer" className={BTN_PRIMARY} style={{ background: '#6366f1' }}>
+                      💳 {t('subscription.btn_reopen_payment')}
                     </a>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={() => handleCheckStatus(pendingTransaction.order_id, true)}
-                    disabled={checkingStatus}
-                    className="btn-primary"
-                    style={{
-                      background: '#d97706',
-                      borderColor: '#d97706',
-                      fontSize: 13,
-                      padding: '9px 18px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <span>🔄</span>
-                    <span>{checkingStatus ? 'Memeriksa...' : t('subscription.btn_check_status')}</span>
+                  <button type="button" onClick={() => handleCheckStatus(pendingTransaction.order_id, true)} disabled={checkingStatus} className={BTN_PRIMARY} style={{ background: '#d97706' }}>
+                    🔄 {checkingStatus ? 'Memeriksa...' : t('subscription.btn_check_status')}
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={handleUpgrade}
-                    disabled={actionLoading}
-                    className="btn-secondary"
-                    style={{
-                      fontSize: 13,
-                      padding: '9px 16px',
-                      color: '#92400e',
-                      borderColor: '#fde68a',
-                      background: '#ffffff',
-                    }}
-                    title="Buat sesi transaksi baru jika ingin ganti metode pembayaran"
-                  >
+                  <button type="button" onClick={handleUpgrade} disabled={actionLoading} className={BTN_SECONDARY} style={{ color: '#92400e', borderColor: '#fde68a' }}>
                     {t('subscription.btn_new_session')}
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (typeof window !== 'undefined') {
-                        localStorage.removeItem('pending_sub_order_id');
-                        localStorage.removeItem('pending_sub_payment_url');
-                      }
-                      setPendingTransaction(null);
-                      setPendingPaymentUrl(null);
-                    }}
-                    className="btn-secondary"
-                    style={{ fontSize: 12, padding: '9px 12px', color: '#92400e', borderColor: '#fde68a' }}
-                    title="Tutup pemberitahuan ini"
-                  >
+                  <button type="button" onClick={() => { if (typeof window !== 'undefined') { localStorage.removeItem('pending_sub_order_id'); localStorage.removeItem('pending_sub_payment_url'); } setPendingTransaction(null); setPendingPaymentUrl(null); }} className={BTN_SECONDARY} style={{ color: '#92400e', borderColor: '#fde68a' }}>
                     ✕
                   </button>
                 </div>
@@ -344,100 +182,39 @@ function SubscriptionContent() {
             </div>
           )}
 
-          {/* Current Status Hero Banner */}
-          <div
-            className="glass-card"
-            style={{
-              padding: '32px',
-              marginBottom: '32px',
-              position: 'relative',
-              overflow: 'hidden',
-              background: isPro
-                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 253, 244, 0.85))'
-                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9))',
-              border: isPro ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(226, 232, 240, 0.9)',
-            }}
-          >
-            {/* Background Glow accent */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '-40px',
-                right: '-40px',
-                width: '180px',
-                height: '180px',
-                background: isPro ? 'radial-gradient(circle, rgba(16, 185, 129, 0.2) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
-                pointerEvents: 'none',
-              }}
-            />
+          {/* ── Current Status Hero Banner ── */}
+          <div className={`relative overflow-hidden rounded-3xl border p-7 sm:p-8 mb-7 ${isPro ? 'bg-gradient-to-br from-white to-emerald-50/60 border-emerald-200' : 'bg-gradient-to-br from-white to-slate-50/80 border-slate-200'} shadow-sm`}>
+            {/* Glow */}
+            <div className={`absolute -top-12 -right-12 w-48 h-48 rounded-full pointer-events-none ${isPro ? 'bg-emerald-400/10' : 'bg-indigo-400/10'} blur-2xl`} />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 20 }}>
+            <div className="flex flex-wrap justify-between items-start gap-5">
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <span style={{ fontSize: 28 }}>{isPro ? '👑' : '📦'}</span>
-                  <span
-                    style={{
-                      background: isPro ? 'linear-gradient(135deg, #10b981, #059669)' : '#64748b',
-                      color: '#ffffff',
-                      padding: '4px 14px',
-                      borderRadius: 9999,
-                      fontSize: 12,
-                      fontWeight: 800,
-                      letterSpacing: '0.05em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-3xl">{isPro ? '👑' : '📦'}</span>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider text-white ${isPro ? 'bg-emerald-500' : 'bg-slate-500'}`}>
                     {isPro ? t('subscription.active_pro_badge') : t('subscription.free_badge')}
                   </span>
                 </div>
-
-                <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 6px 0' }}>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mb-1.5">
                   {isPro ? t('subscription.pro_hero_title') : t('subscription.free_hero_title')}
                 </h2>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, maxWidth: 580 }}>
-                  {isPro
-                    ? t('subscription.pro_hero_desc')
-                    : t('subscription.free_hero_desc')}
+                <p className="text-sm text-slate-600 max-w-lg leading-relaxed">
+                  {isPro ? t('subscription.pro_hero_desc') : t('subscription.free_hero_desc')}
                 </p>
               </div>
 
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="flex flex-wrap gap-2.5 items-center">
                 {isPro ? (
                   <>
-                    <button
-                      type="button"
-                      onClick={handleUpgrade}
-                      disabled={actionLoading}
-                      className="btn-primary"
-                      style={{ padding: '10px 20px', fontSize: 14, fontWeight: 700 }}
-                    >
+                    <button type="button" onClick={handleUpgrade} disabled={actionLoading} className={BTN_PRIMARY}>
                       {actionLoading ? 'Memproses...' : t('subscription.btn_extend_pro')}
                     </button>
-
-                    <button
-                      type="button"
-                      onClick={handleCancelSubscription}
-                      disabled={actionLoading}
-                      className="btn-secondary"
-                      style={{
-                        color: 'var(--rose)',
-                        borderColor: 'rgba(244, 63, 94, 0.35)',
-                        padding: '10px 18px',
-                        fontWeight: 700,
-                      }}
-                    >
+                    <button type="button" onClick={handleCancelSubscription} disabled={actionLoading} className={BTN_DANGER}>
                       {t('subscription.btn_cancel_sub')}
                     </button>
                   </>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={handleUpgrade}
-                    disabled={actionLoading}
-                    className="btn-primary"
-                    style={{ padding: '10px 22px', fontSize: 14, fontWeight: 700 }}
-                  >
+                  <button type="button" onClick={handleUpgrade} disabled={actionLoading} className={BTN_PRIMARY}>
                     {actionLoading ? 'Memproses...' : t('subscription.btn_upgrade_hero')}
                   </button>
                 )}
@@ -445,228 +222,102 @@ function SubscriptionContent() {
             </div>
 
             {/* Status Details Grid */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: 16,
-                marginTop: 24,
-                paddingTop: 20,
-                borderTop: '1px solid rgba(226, 232, 240, 0.8)',
-              }}
-            >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-5 border-t border-slate-100">
               {/* Masa Aktif */}
-              <div style={{ background: '#ffffff', padding: '16px 18px', borderRadius: 14, border: '1px solid #e2e8f0' }}>
-                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.04em' }}>
-                  {t('subscription.active_until')}
-                </p>
-                <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: isPro ? '#0f172a' : '#64748b' }}>
+              <div className="bg-white rounded-xl border border-slate-100 px-4 py-3.5">
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">{t('subscription.active_until')}</p>
+                <p className={`text-sm font-extrabold ${isPro ? 'text-slate-900' : 'text-slate-400'}`}>
                   {isPro ? formatDateFull(statusData?.subscription_ends_at, lang) : t('subscription.no_expiry')}
                 </p>
                 {isPro && daysLeft !== null && (
-                  <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 700, color: daysLeft <= 3 ? '#e11d48' : '#10b981' }}>
+                  <span className={`inline-block mt-1 text-[11px] font-bold ${daysLeft <= 3 ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {t('subscription.days_left', { days: daysLeft })}
                   </span>
                 )}
               </div>
-
               {/* Kuota Invoice */}
-              <div style={{ background: '#ffffff', padding: '16px 18px', borderRadius: 14, border: '1px solid #e2e8f0' }}>
-                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.04em' }}>
-                  {t('subscription.invoices_created_this_month')}
-                </p>
-                <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: '#0f172a' }}>
+              <div className="bg-white rounded-xl border border-slate-100 px-4 py-3.5">
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">{t('subscription.invoices_created_this_month')}</p>
+                <p className="text-sm font-extrabold text-slate-900">
                   {isPro ? `${invoiceCount} Invoice (${t('subscription.unlimited')})` : `${invoiceCount} / 10 Invoice`}
                 </p>
                 {!isPro && (
-                  <div style={{ marginTop: 8 }}>
-                    <div style={{ height: 6, background: '#f1f5f9', borderRadius: 9999, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${usedPercent}%`, background: usedPercent >= 80 ? '#f43f5e' : '#6366f1', borderRadius: 9999 }} />
+                  <div className="mt-2">
+                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${usedPercent >= 80 ? 'bg-rose-500' : 'bg-indigo-500'}`} style={{ width: `${usedPercent}%` }} />
                     </div>
-                    <span style={{ fontSize: 10.5, color: '#64748b', marginTop: 2, display: 'block' }}>
-                      {t('subscription.remaining_quota', { count: statusData?.remainingInvoices ?? 0 })}
-                    </span>
+                    <p className="text-[10px] text-slate-500 mt-1">{t('subscription.remaining_quota', { count: statusData?.remainingInvoices ?? 0 })}</p>
                   </div>
                 )}
               </div>
-
-              {/* Status Payment Gateway BYOK */}
-              <div style={{ background: '#ffffff', padding: '16px 18px', borderRadius: 14, border: '1px solid #e2e8f0' }}>
-                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.04em' }}>
-                  {t('subscription.midtrans_status')}
-                </p>
-                <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 800, color: isPro ? '#10b981' : '#94a3b8' }}>
+              {/* Midtrans Status */}
+              <div className="bg-white rounded-xl border border-slate-100 px-4 py-3.5">
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">{t('subscription.midtrans_status')}</p>
+                <p className={`text-sm font-extrabold ${isPro ? 'text-emerald-600' : 'text-slate-400'}`}>
                   {isPro ? t('subscription.midtrans_active') : t('subscription.midtrans_inactive')}
                 </p>
-                <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, color: '#64748b' }}>
-                  {isPro ? t('subscription.midtrans_active_desc') : t('subscription.midtrans_inactive_desc')}
-                </span>
+                <p className="text-[10px] text-slate-500 mt-0.5">{isPro ? t('subscription.midtrans_active_desc') : t('subscription.midtrans_inactive_desc')}</p>
               </div>
             </div>
           </div>
 
-          {/* Pricing Comparison Cards */}
-          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-main)', marginBottom: 16 }}>
-            {t('subscription.plan_choice_title')}
-          </h3>
+          {/* ── Pricing Cards ── */}
+          <h3 className="text-lg font-extrabold text-slate-900 mb-4">{t('subscription.plan_choice_title')}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, marginBottom: 36 }}>
-            {/* Free Plan Card */}
-            <div
-              className="glass-card"
-              style={{
-                padding: '28px',
-                display: 'flex',
-                flexDirection: 'column',
-                border: !isPro ? '2px solid #6366f1' : '1px solid #e2e8f0',
-                position: 'relative',
-              }}
-            >
+            {/* Free Plan */}
+            <div className={`relative flex flex-col bg-white rounded-3xl border-2 p-7 ${!isPro ? 'border-indigo-500' : 'border-slate-200'}`}>
               {!isPro && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: -12,
-                    right: 20,
-                    background: '#6366f1',
-                    color: '#ffffff',
-                    padding: '2px 12px',
-                    borderRadius: 9999,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                  }}
-                >
+                <span className="absolute -top-3 right-5 inline-block px-3 py-0.5 rounded-full bg-indigo-600 text-white text-[11px] font-extrabold uppercase">
                   {t('subscription.current_plan_badge')}
                 </span>
               )}
-
-              <div style={{ marginBottom: 16 }}>
-                <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-main)' }}>{t('landing.pricing_free_title')}</h4>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>{t('landing.pricing_free_desc')}</p>
+              <div className="mb-4">
+                <h4 className="text-lg font-extrabold text-slate-900">{t('landing.pricing_free_title')}</h4>
+                <p className="text-xs text-slate-500 mt-0.5">{t('landing.pricing_free_desc')}</p>
               </div>
-
-              <div style={{ marginBottom: 20 }}>
-                <span style={{ fontSize: 32, fontWeight: 800, color: 'var(--text-main)' }}>Rp 0</span>
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}> {t('landing.pricing_free_period')}</span>
+              <div className="mb-5">
+                <span className="text-3xl font-extrabold text-slate-900">Rp 0</span>
+                <span className="text-sm text-slate-500"> {t('landing.pricing_free_period')}</span>
               </div>
-
-              <ul style={{ margin: '0 0 24px', paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13.5, color: '#334155' }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> <b>{t('landing.pricing_free_f1')}</b>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_free_f2')}
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_free_f3')}
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_free_f4')}
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8' }}>
-                  <span style={{ color: '#cbd5e1', fontWeight: 800 }}>✕</span> Midtrans Gateway (BYOK)
-                </li>
+              <ul className="flex flex-col gap-2.5 text-sm text-slate-700 mb-6 list-none p-0">
+                {[t('landing.pricing_free_f1'), t('landing.pricing_free_f2'), t('landing.pricing_free_f3'), t('landing.pricing_free_f4')].map((f, i) => (
+                  <li key={i} className="flex items-center gap-2"><span className="text-emerald-500 font-extrabold">✓</span> {i === 0 ? <b>{f}</b> : f}</li>
+                ))}
+                <li className="flex items-center gap-2 text-slate-400"><span className="font-extrabold">✕</span> Midtrans Gateway (BYOK)</li>
               </ul>
-
-              <div style={{ marginTop: 'auto' }}>
-                <button
-                  type="button"
-                  disabled={!isPro}
-                  className="btn-secondary"
-                  style={{ width: '100%', textAlign: 'center', opacity: !isPro ? 0.7 : 1, cursor: !isPro ? 'default' : 'pointer' }}
-                >
+              <div className="mt-auto">
+                <button type="button" disabled={!isPro} className={`w-full py-2.5 rounded-xl text-sm font-bold border transition ${!isPro ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-default' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}>
                   {!isPro ? t('subscription.using_now_btn') : t('landing.pricing_free_title')}
                 </button>
               </div>
             </div>
 
-            {/* Pro Plan Card */}
-            <div
-              className="glass-card"
-              style={{
-                padding: '28px',
-                display: 'flex',
-                flexDirection: 'column',
-                border: isPro ? '2px solid #10b981' : '2px solid #6366f1',
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(238, 242, 255, 0.9))',
-                boxShadow: '0 20px 40px -10px rgba(99, 102, 241, 0.2)',
-                position: 'relative',
-              }}
-            >
-              <span
-                style={{
-                  position: 'absolute',
-                  top: -12,
-                  right: 20,
-                  background: isPro ? '#10b981' : 'linear-gradient(135deg, #6366f1, #4f46e5)',
-                  color: '#ffffff',
-                  padding: '3px 14px',
-                  borderRadius: 9999,
-                  fontSize: 11,
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
-                }}
-              >
+            {/* Pro Plan */}
+            <div className={`relative flex flex-col bg-gradient-to-br from-white to-indigo-50/60 rounded-3xl border-2 p-7 shadow-lg shadow-indigo-100/50 ${isPro ? 'border-emerald-500' : 'border-indigo-500'}`}>
+              <span className={`absolute -top-3 right-5 inline-block px-3 py-0.5 rounded-full text-white text-[11px] font-extrabold uppercase ${isPro ? 'bg-emerald-500' : 'bg-gradient-to-r from-indigo-600 to-purple-600'}`}>
                 {isPro ? '✓ Pro Aktif' : t('landing.pricing_pro_badge')}
               </span>
-
-              <div style={{ marginBottom: 16 }}>
-                <h4 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-main)' }}>{t('landing.pricing_pro_title')}</h4>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>{t('landing.pricing_pro_desc')}</p>
+              <div className="mb-4">
+                <h4 className="text-lg font-extrabold text-slate-900">{t('landing.pricing_pro_title')}</h4>
+                <p className="text-xs text-slate-500 mt-0.5">{t('landing.pricing_pro_desc')}</p>
               </div>
-
-              <div style={{ marginBottom: 20 }}>
-                <span style={{ fontSize: 32, fontWeight: 800, color: '#4f46e5' }}>Rp 99.000</span>
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}> {t('landing.pricing_pro_period')}</span>
+              <div className="mb-5">
+                <span className="text-3xl font-extrabold text-indigo-700">Rp 99.000</span>
+                <span className="text-sm text-slate-500"> {t('landing.pricing_pro_period')}</span>
               </div>
-
-              <ul style={{ margin: '0 0 24px', paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13.5, color: '#1e293b' }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> <b>{t('landing.pricing_pro_f1')}</b>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> <b>{t('landing.pricing_pro_f2')}</b>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_pro_f3')}
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_pro_f4')}
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_pro_f5')}
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#10b981', fontWeight: 800 }}>✓</span> {t('landing.pricing_pro_f6')}
-                </li>
+              <ul className="flex flex-col gap-2.5 text-sm text-slate-800 mb-6 list-none p-0">
+                {[t('landing.pricing_pro_f1'), t('landing.pricing_pro_f2'), t('landing.pricing_pro_f3'), t('landing.pricing_pro_f4'), t('landing.pricing_pro_f5'), t('landing.pricing_pro_f6')].map((f, i) => (
+                  <li key={i} className="flex items-center gap-2"><span className="text-emerald-500 font-extrabold">✓</span> {i < 2 ? <b>{f}</b> : f}</li>
+                ))}
               </ul>
-
-              <div style={{ marginTop: 'auto' }}>
-                {isPro ? (
-                  <button
-                    type="button"
-                    onClick={handleUpgrade}
-                    disabled={actionLoading}
-                    className="btn-primary"
-                    style={{ width: '100%', textAlign: 'center', padding: '12px 20px', fontSize: 14, fontWeight: 700 }}
-                  >
-                    {actionLoading ? 'Menghubungkan Midtrans...' : t('subscription.btn_extend_pro')}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleUpgrade}
-                    disabled={actionLoading}
-                    className="btn-primary"
-                    style={{ width: '100%', textAlign: 'center', padding: '12px 20px', fontSize: 14, fontWeight: 700 }}
-                  >
-                    {actionLoading ? 'Menghubungkan Midtrans...' : t('subscription.upgrade_now_btn')}
-                  </button>
-                )}
+              <div className="mt-auto">
+                <button type="button" onClick={handleUpgrade} disabled={actionLoading} className={`${BTN_PRIMARY} w-full py-3 text-sm`}>
+                  {actionLoading ? 'Menghubungkan Midtrans...' : isPro ? t('subscription.btn_extend_pro') : t('subscription.upgrade_now_btn')}
+                </button>
               </div>
             </div>
+
           </div>
         </>
       )}
@@ -677,8 +328,8 @@ function SubscriptionContent() {
 export default function SubscriptionPage() {
   return (
     <Suspense fallback={
-      <div className="loading-screen">
-        <div className="loading-spinner" />
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <div className="w-10 h-10 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
       </div>
     }>
       <SubscriptionContent />

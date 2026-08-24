@@ -46,12 +46,12 @@ export default function DashboardPage() {
   const [subStatus, setSubStatus] = useState(null);
 
   const STATUS_CONFIG = {
-    draft:                { label: t('invoices.status_draft'),                color: 'badge-gray'    },
-    unpaid:               { label: t('invoices.status_unpaid'),               color: 'badge-amber'   },
-    pending_verification: { label: t('invoices.status_pending_verification'), color: 'badge-blue'   },
-    paid:                 { label: t('invoices.status_paid'),                 color: 'badge-emerald' },
-    overdue:              { label: t('invoices.status_overdue'),              color: 'badge-red'     },
-    cancelled:            { label: t('invoices.status_cancelled'),            color: 'badge-gray'    },
+    draft:                { label: t('invoices.status_draft'),                color: 'bg-slate-100 text-slate-700 border border-slate-200'   },
+    unpaid:               { label: t('invoices.status_unpaid'),               color: 'bg-amber-50 text-amber-800 border border-amber-200'    },
+    pending_verification: { label: t('invoices.status_pending_verification'), color: 'bg-blue-50 text-blue-800 border border-blue-200'       },
+    paid:                 { label: t('invoices.status_paid'),                 color: 'bg-emerald-50 text-emerald-800 border border-emerald-200' },
+    overdue:              { label: t('invoices.status_overdue'),              color: 'bg-rose-50 text-rose-800 border border-rose-200'       },
+    cancelled:            { label: t('invoices.status_cancelled'),            color: 'bg-slate-100 text-slate-700 border border-slate-200'   },
   };
 
   const fetchDashboardData = useCallback(async () => {
@@ -189,31 +189,31 @@ export default function DashboardPage() {
   const maxClientRevenue = topClients.length > 0 ? Math.max(...topClients.map((c) => c.total_revenue), 1) : 1;
 
   return (
-    <div className="page-container" style={{ width: '100%', maxWidth: 1200, margin: '0 auto', paddingBottom: 60 }}>
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-16">
 
       {/* ── 1. Header Section ──────────────────────────────────────── */}
-      <div className="page-header" style={{ marginBottom: 24 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h1 className="page-title" style={{ margin: 0 }}>
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               {t('dashboard.welcome')} {user?.business_name || user?.email?.split('@')[0]}! 👋
             </h1>
             {isPro && (
-              <span className="badge-pro" style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: 'linear-gradient(135deg, #fef3c7, #fde68a)', color: '#92400e', fontWeight: 800, border: '1px solid #fcd34d' }}>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-800 border border-yellow-300">
                 👑 PRO
               </span>
             )}
           </div>
-          <p className="page-desc" style={{ marginTop: 4 }}>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
             {t('dashboard.overview_desc')}
           </p>
         </div>
 
-        <div className="header-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Link href="/dashboard/invoices/create" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Link href="/dashboard/invoices/create" className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-indigo-500/20 transition-all">
             <span>➕</span> {t('dashboard.btn_create_invoice')}
           </Link>
-          <Link href="/dashboard/clients" className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Link href="/dashboard/clients" className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold shadow-xs transition-all">
             <span>👥</span> {t('clients.btn_add')}
           </Link>
         </div>
@@ -221,33 +221,18 @@ export default function DashboardPage() {
 
       {/* ── Error Banner if any ────────────────────────────────────── */}
       {error && !loading && (
-        <div
-          className="glass-card"
-          style={{
-            padding: '16px 20px',
-            marginBottom: 24,
-            background: 'rgba(254, 242, 242, 0.95)',
-            border: '1px solid #fca5a5',
-            borderRadius: 16,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 24 }}>⚠️</span>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-rose-50 border border-rose-200 rounded-2xl px-5 py-4">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⚠️</span>
             <div>
-              <p style={{ fontWeight: 700, color: '#991b1b', margin: 0 }}>{error}</p>
-              <p style={{ fontSize: 12, color: '#b91c1c', margin: '2px 0 0' }}>Gagal memuat sebagian data statistik dashboard.</p>
+              <p className="font-bold text-rose-800 text-sm">{error}</p>
+              <p className="text-xs text-rose-600 mt-0.5">Gagal memuat sebagian data statistik dashboard.</p>
             </div>
           </div>
           <button
             type="button"
             onClick={fetchDashboardData}
-            className="btn-secondary"
-            style={{ fontSize: 13, padding: '6px 14px' }}
+            className="px-3.5 py-1.5 rounded-xl bg-white border border-rose-200 text-rose-700 text-xs font-bold hover:bg-rose-50 transition"
           >
             🔄 {t('dashboard.retry')}
           </button>
@@ -256,43 +241,16 @@ export default function DashboardPage() {
 
       {/* ── 2. Action Alert Banner (Pending Verification) ─────────── */}
       {counts.pending_verification_invoices > 0 && !loading && (
-        <div
-          className="dash-action-banner"
-          style={{
-            marginBottom: 24,
-            background: 'linear-gradient(135deg, rgba(238, 242, 255, 0.95), rgba(245, 243, 255, 0.95))',
-            border: '1px solid #c7d2fe',
-            padding: '18px 24px',
-            borderRadius: 18,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 16,
-            boxShadow: '0 8px 24px rgba(99, 102, 241, 0.1)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 240 }}>
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
-                background: 'rgba(99, 102, 241, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 22,
-                flexShrink: 0,
-              }}
-            >
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl px-5 py-4 shadow-sm shadow-indigo-100">
+          <div className="flex items-center gap-3.5 flex-1 min-w-[240px]">
+            <div className="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-600 text-xl flex items-center justify-center shrink-0">
               🔔
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#312e81' }}>
+              <h3 className="text-sm font-extrabold text-indigo-900">
                 Ada {counts.pending_verification_invoices} Pembayaran Menunggu Verifikasi Anda!
               </h3>
-              <p style={{ margin: '2px 0 0', fontSize: 13, color: '#4338ca' }}>
+              <p className="text-xs text-indigo-700 mt-0.5">
                 Klien telah mengunggah bukti struk transfer bank. Harap periksa dan setujui untuk melunasi invoice.
               </p>
             </div>
@@ -301,8 +259,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => handleReviewPayment(recentInvoices.find((i) => i.status === 'pending_verification'))}
-              className="btn-primary"
-              style={{ padding: '9px 18px', fontSize: 13, whiteSpace: 'nowrap' }}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition whitespace-nowrap"
             >
               🔍 Review Bukti Transfer ➜
             </button>
@@ -442,7 +399,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 flex flex-col gap-6">
 
           {/* Top 5 Clients Leaderboard Widget */}
-          <div className="glass-card p-6 rounded-2xl border border-slate-200/80 bg-white/85 shadow-sm">
+          <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5 sm:p-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
@@ -454,7 +411,7 @@ export default function DashboardPage() {
               </div>
               <Link
                 href="/dashboard/clients"
-                className="btn-secondary text-xs px-3 py-1.5 font-semibold"
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
               >
                 Lihat Klien ➜
               </Link>
@@ -467,7 +424,7 @@ export default function DashboardPage() {
                 <span className="text-3xl block mb-2">👥</span>
                 <p className="text-sm font-bold text-slate-700 mb-1">Belum Ada Riwayat Transaksi Klien</p>
                 <p className="text-xs text-slate-500 mb-3">Buat invoice pertama Anda untuk mulai mengumpulkan data peringkat klien.</p>
-                <Link href="/dashboard/invoices/create" className="btn-primary text-xs px-4 py-2">
+                <Link href="/dashboard/invoices/create" className="inline-flex px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition">
                   + Buat Invoice
                 </Link>
               </div>
@@ -533,7 +490,7 @@ export default function DashboardPage() {
 
           {/* 6-Month Monthly Revenue Trend Bar Visualizer */}
           {monthlyTrends.length > 0 && !loading && (
-            <div className="glass-card p-6 rounded-2xl border border-slate-200/80 bg-white/85 shadow-sm">
+            <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5 sm:p-6">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                   <span>📈</span> {t('dashboard.revenue_trend')}
@@ -572,13 +529,13 @@ export default function DashboardPage() {
           )}
 
           {/* Recent Invoices Table Card */}
-          <div className="dash-card glass-card">
-            <div className="dash-card-header">
+          <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
               <div>
-                <h3 className="dash-card-title">{t('dashboard.recent_invoices_title')}</h3>
-                <p className="dash-card-desc">5 faktur tagihan terbaru dalam database.</p>
+                <h3 className="text-base font-extrabold text-slate-900">{t('dashboard.recent_invoices_title')}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">5 faktur tagihan terbaru dalam database.</p>
               </div>
-              <Link href="/dashboard/invoices" className="btn-secondary" style={{ fontSize: 13, padding: '6px 14px' }}>
+              <Link href="/dashboard/invoices" className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition">
                 {t('dashboard.all_invoices_link')}
               </Link>
             </div>
@@ -586,52 +543,54 @@ export default function DashboardPage() {
             {loading ? (
               <TableSkeleton rows={4} />
             ) : recentInvoices.length === 0 ? (
-              <div className="table-empty">
-                <span className="table-empty-icon">🧾</span>
-                <p>{t('dashboard.empty_invoices_title')}</p>
-                <Link href="/dashboard/invoices/create" className="btn-primary" style={{ marginTop: 14 }}>
+              <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+                <span className="text-4xl">🧾</span>
+                <p className="text-sm font-semibold text-slate-700">{t('dashboard.empty_invoices_title')}</p>
+                <Link href="/dashboard/invoices/create" className="mt-3 inline-flex px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition">
                   {t('dashboard.btn_create_invoice')}
                 </Link>
               </div>
             ) : (
-              <div className="dash-table-wrap">
-                <table className="data-table">
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[580px]">
                   <thead>
-                    <tr>
-                      <th>{t('dashboard.table_invoice_num')}</th>
-                      <th>{t('dashboard.table_client')}</th>
-                      <th>{t('dashboard.table_due_date')}</th>
-                      <th className="td-right">{t('dashboard.table_total')}</th>
-                      <th>{t('dashboard.table_status')}</th>
-                      <th>{t('dashboard.table_action')}</th>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                      <th className="py-2.5 px-3">{t('dashboard.table_invoice_num')}</th>
+                      <th className="py-2.5 px-3">{t('dashboard.table_client')}</th>
+                      <th className="py-2.5 px-3">{t('dashboard.table_due_date')}</th>
+                      <th className="py-2.5 px-3 text-right">{t('dashboard.table_total')}</th>
+                      <th className="py-2.5 px-3">{t('dashboard.table_status')}</th>
+                      <th className="py-2.5 px-3">{t('dashboard.table_action')}</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     {recentInvoices.map((inv) => {
                       const cfg = STATUS_CONFIG[inv.status] || STATUS_CONFIG.draft;
                       return (
-                        <tr key={inv.id}>
-                          <td className="td-invoice-num font-mono font-bold text-indigo-700">#{inv.invoice_number}</td>
-                          <td className="td-name font-semibold">{inv.client?.name || '—'}</td>
-                          <td className="td-secondary">{formatDate(inv.due_date, lang)}</td>
-                          <td className="td-price font-mono font-bold">{formatRupiah(inv.total)}</td>
-                          <td>
-                            <span className={`status-badge ${cfg.color}`}>{cfg.label}</span>
+                        <tr key={inv.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="py-3 px-3 font-mono font-bold text-indigo-700">#{inv.invoice_number}</td>
+                          <td className="py-3 px-3 font-semibold text-slate-900">{inv.client?.name || '—'}</td>
+                          <td className="py-3 px-3 text-slate-500 text-xs">{formatDate(inv.due_date, lang)}</td>
+                          <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">{formatRupiah(inv.total)}</td>
+                          <td className="py-3 px-3">
+                            <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold ${cfg.color}`}>{cfg.label}</span>
                           </td>
-                          <td className="td-actions">
-                            {inv.status === 'pending_verification' && (
-                              <button
-                                type="button"
-                                className="btn-action btn-review"
-                                onClick={() => handleReviewPayment(inv)}
-                                title="Review Bukti Transfer"
-                              >
-                                🔍 Review
-                              </button>
-                            )}
-                            <Link href={`/dashboard/invoices/${inv.id}`} className="btn-action btn-view">
-                              👁️ {t('common.view')}
-                            </Link>
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-1.5">
+                              {inv.status === 'pending_verification' && (
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold border border-indigo-200 transition"
+                                  onClick={() => handleReviewPayment(inv)}
+                                  title="Review Bukti Transfer"
+                                >
+                                  🔍 Review
+                                </button>
+                              )}
+                              <Link href={`/dashboard/invoices/${inv.id}`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 transition">
+                                👁️ {t('common.view')}
+                              </Link>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -645,49 +604,44 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Right Column (Sidebar Widgets) ────────────────────── */}
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-5">
 
           {/* Subscription Tier Widget */}
-          <div className="dash-card glass-card">
-            <h3 className="dash-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5">
+            <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 mb-3">
               <span>💎</span> {t('nav.subscription')}
             </h3>
 
             {isPro ? (
-              <div style={{ marginTop: 14 }}>
-                <div className="tier-pro-badge" style={{ padding: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 20 }}>👑</span>
-                    <div>
-                      <b style={{ fontSize: 14, color: '#78350f' }}>{t('subscription.active_pro_badge')}</b>
-                      <p style={{ margin: '2px 0 0', fontSize: 12, color: '#92400e', opacity: 0.95 }}>
-                        {t('subscription.pro_hero_desc')}
-                      </p>
-                    </div>
+              <div className="mt-2 p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-yellow-50 border border-yellow-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">👑</span>
+                  <div>
+                    <b className="text-sm text-amber-900">{t('subscription.active_pro_badge')}</b>
+                    <p className="text-xs text-amber-700 mt-0.5">{t('subscription.pro_hero_desc')}</p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div style={{ marginTop: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('subscription.invoices_created_this_month')}:</span>
-                  <span style={{ fontWeight: 800, color: 'var(--indigo)' }}>
+              <div className="mt-2">
+                <div className="flex justify-between text-xs font-semibold mb-1.5">
+                  <span className="text-slate-500">{t('subscription.invoices_created_this_month')}:</span>
+                  <span className="font-extrabold text-indigo-700">
                     {subStatus?.invoiceCountThisMonth ?? counts.total_invoices ?? 0} / 10
                   </span>
                 </div>
-                <div className="tier-progress-bar" style={{ height: 8 }}>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className="tier-progress-fill"
+                    className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full transition-all"
                     style={{ width: `${Math.min(100, ((subStatus?.invoiceCountThisMonth ?? 0) / 10) * 100)}%` }}
                   />
                 </div>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 16px' }}>
+                <p className="text-[11px] text-slate-500 mt-2 mb-4">
                   {t('subscription.remaining_quota', { count: Math.max(0, 10 - (subStatus?.invoiceCountThisMonth ?? 0)) })}
                 </p>
                 <Link
                   href="/dashboard/subscription"
-                  className="btn-primary"
-                  style={{ width: '100%', justifyContent: 'center' }}
+                  className="w-full flex items-center justify-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition"
                 >
                   {t('subscription.btn_upgrade_hero')}
                 </Link>
@@ -696,12 +650,12 @@ export default function DashboardPage() {
           </div>
 
           {/* Invoice Status Distribution Widget */}
-          <div className="dash-card glass-card">
-            <h3 className="dash-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5">
+            <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 mb-3">
               <span>📊</span> {t('dashboard.status_distribution')}
             </h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
+            <div className="flex flex-col gap-2.5 mt-2">
               {[
                 { key: 'paid', label: 'Lunas (Paid)', color: 'bg-emerald-500', count: counts.paid_invoices, total: statusStats.paid?.total || 0 },
                 { key: 'unpaid', label: 'Belum Bayar (Unpaid)', color: 'bg-amber-500', count: counts.unpaid_invoices, total: statusStats.unpaid?.total || 0 },
@@ -724,57 +678,31 @@ export default function DashboardPage() {
           </div>
 
           {/* Setup Health & Branding Checklist */}
-          <div className="dash-card glass-card">
-            <h3 className="dash-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5">
+            <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 mb-3">
               <span>⚙️</span> {t('settings.title')}
             </h3>
 
-            <div className="dash-checklist" style={{ marginTop: 14 }}>
-              <div className="dash-check-item">
-                <span className="dash-check-icon">{user?.logo_url ? '✅' : 'ℹ️'}</span>
-                <div style={{ flex: 1 }}>
-                  <p className="dash-check-label">Logo Brand Bisnis</p>
-                  <p className="dash-check-sub">
-                    {user?.logo_url ? 'Logo aktif terpasang' : 'Belum diupload (Gunakan logo standar)'}
-                  </p>
+            <div className="flex flex-col gap-2.5 mt-2">
+              {[
+                { icon: user?.logo_url ? '✅' : 'ℹ️', label: 'Logo Brand Bisnis', sub: user?.logo_url ? 'Logo aktif terpasang' : 'Belum diupload (Gunakan logo standar)' },
+                { icon: user?.business_name ? '✅' : '⚠️', label: t('settings.business_name'), sub: user?.business_name || 'Belum diisi' },
+                { icon: bankAccounts.length > 0 ? '✅' : '⚠️', label: t('settings.bank_section_title'), sub: bankAccounts.length > 0 ? `${bankAccounts.length} rekening` : 'Belum ada' },
+                { icon: user?.midtrans_server_key ? '✅' : 'ℹ️', label: 'Midtrans BYOK', sub: user?.midtrans_server_key ? t('subscription.midtrans_active') : t('subscription.midtrans_inactive') },
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-base mt-0.5">{item.icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-800 truncate">{item.label}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">{item.sub}</p>
+                  </div>
                 </div>
-              </div>
-
-              <div className="dash-check-item">
-                <span className="dash-check-icon">{user?.business_name ? '✅' : '⚠️'}</span>
-                <div style={{ flex: 1 }}>
-                  <p className="dash-check-label">{t('settings.business_name')}</p>
-                  <p className="dash-check-sub">
-                    {user?.business_name ? user.business_name : 'Belum diisi'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="dash-check-item">
-                <span className="dash-check-icon">{bankAccounts.length > 0 ? '✅' : '⚠️'}</span>
-                <div style={{ flex: 1 }}>
-                  <p className="dash-check-label">{t('settings.bank_section_title')}</p>
-                  <p className="dash-check-sub">
-                    {bankAccounts.length > 0 ? `${bankAccounts.length} rekening` : 'Belum ada'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="dash-check-item">
-                <span className="dash-check-icon">{user?.midtrans_server_key ? '✅' : 'ℹ️'}</span>
-                <div style={{ flex: 1 }}>
-                  <p className="dash-check-label">Midtrans BYOK</p>
-                  <p className="dash-check-sub">
-                    {user?.midtrans_server_key ? t('subscription.midtrans_active') : t('subscription.midtrans_inactive')}
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
 
             <Link
               href="/dashboard/settings"
-              className="btn-secondary"
-              style={{ width: '100%', justifyContent: 'center', marginTop: 16 }}
+              className="mt-4 w-full flex items-center justify-center px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition"
             >
               🛠️ {t('nav.settings')} ➜
             </Link>

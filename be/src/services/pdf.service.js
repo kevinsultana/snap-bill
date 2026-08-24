@@ -56,6 +56,11 @@ function buildInvoiceHTML(invoice) {
     ? `
       <div style="margin-top: 24px; padding: 16px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
         <h4 style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; color: #475569; letter-spacing: 0.5px;">Informasi Pembayaran Transfer:</h4>
+        ${
+          invoice.status === 'draft'
+            ? `<p style="margin: 0 0 8px 0; font-size: 11px; color: #b45309; font-weight: 600;">* Pembayaran belum dapat ditransfer karena faktur masih dalam status draft (belum diterbitkan).</p>`
+            : ''
+        }
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
           ${bankAccounts
             .map(
@@ -114,12 +119,26 @@ function buildInvoiceHTML(invoice) {
           ? 'background: #dcfce7; color: #15803d;'
           : invoice.status === 'unpaid'
           ? 'background: #fef3c7; color: #b45309;'
+          : invoice.status === 'draft'
+          ? 'background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;'
           : 'background: #f1f5f9; color: #475569;'
       }">
-        ${invoice.status || 'DRAFT'}
+        ${invoice.status === 'draft' ? 'DRAFT (UNSUBMITTED)' : (invoice.status || 'UNPAID').toUpperCase()}
       </div>
     </div>
   </div>
+
+  ${
+    invoice.status === 'draft'
+      ? `
+    <!-- Draft Warning Notice Banner -->
+    <div style="margin-bottom: 24px; padding: 12px 18px; background-color: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; border-radius: 8px; color: #92400e; font-size: 12px; line-height: 1.5;">
+      <b>⚠️ DOKUMEN DRAFT / BELUM DITERBITKAN (UNSUBMITTED)</b><br/>
+      Faktur ini masih dalam status draf dan belum diterbitkan secara resmi oleh pemilik usaha. <u>Pembayaran belum dapat dilakukan</u> sebelum invoice diterbitkan.
+    </div>
+    `
+      : ''
+  }
 
   <!-- Client & Meta Details Grid -->
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px;">

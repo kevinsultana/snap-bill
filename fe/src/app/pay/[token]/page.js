@@ -26,6 +26,15 @@ function formatDate(dateStr, lang = 'id') {
   });
 }
 
+// Status badge Tailwind map
+const STATUS_BADGE = {
+  draft: 'bg-slate-100 text-slate-700 border border-slate-200',
+  unpaid: 'bg-amber-50 text-amber-800 border border-amber-200',
+  pending_verification: 'bg-blue-50 text-blue-800 border border-blue-200',
+  paid: 'bg-emerald-50 text-emerald-800 border border-emerald-200',
+  overdue: 'bg-rose-50 text-rose-800 border border-rose-200',
+};
+
 export default function PublicPayPage() {
   const { token } = useParams();
   const searchParams = useSearchParams();
@@ -40,7 +49,6 @@ export default function PublicPayPage() {
   const orderId = searchParams?.get('order_id');
   const [checkingStatus, setCheckingStatus] = useState(false);
 
-  // File upload state
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -48,11 +56,11 @@ export default function PublicPayPage() {
   const [payingSnap, setPayingSnap] = useState(false);
 
   const STATUS_MAP = {
-    draft:                { label: t('invoices.status_draft'),                badgeClass: 'badge-gray',    desc: 'Invoice ini masih dalam bentuk draf tagihan.' },
-    unpaid:               { label: t('invoices.status_unpaid'),               badgeClass: 'badge-amber',   desc: 'Silakan lakukan pembayaran sesuai rincian total di bawah ini.' },
-    pending_verification: { label: t('invoices.status_pending_verification'), badgeClass: 'badge-blue',    desc: 'Bukti transfer Anda telah diterima dan sedang diverifikasi oleh pihak pemilik usaha.' },
-    paid:                 { label: t('invoices.status_paid'),                 badgeClass: 'badge-emerald', desc: 'Pembayaran telah berhasil diverifikasi dan lunas. Terima kasih atas kerja sama Anda!' },
-    overdue:              { label: t('invoices.status_overdue'),              badgeClass: 'badge-red',     desc: 'Tagihan telah melewati batas waktu tanggal jatuh tempo.' },
+    draft:                { label: t('invoices.status_draft') },
+    unpaid:               { label: t('invoices.status_unpaid') },
+    pending_verification: { label: t('invoices.status_pending_verification') },
+    paid:                 { label: t('invoices.status_paid') },
+    overdue:              { label: t('invoices.status_overdue') },
   };
 
   const fetchInvoice = useCallback(async () => {
@@ -66,59 +74,28 @@ export default function PublicPayPage() {
     }
   }, [token]);
 
-  // Cek status pembayaran ke server & Midtrans Core API
   const handleCheckPaymentStatus = useCallback(async (showToast = true) => {
     setCheckingStatus(true);
     try {
-      const res = await axios.post(`${API_URL}/api/public/invoices/${token}/check-status`, {
-        order_id: orderId || undefined,
-      });
-
-      if (res.data?.invoice) {
-        setInvoice(res.data.invoice);
-      }
-
+      const res = await axios.post(`${API_URL}/api/public/invoices/${token}/check-status`, { order_id: orderId || undefined });
+      if (res.data?.invoice) setInvoice(res.data.invoice);
       if (res.data?.status === 'paid') {
-        Swal.fire({
-          icon: 'success',
-          title: '🎉 Pembayaran Berhasil Terverifikasi!',
-          text: 'Terima kasih, tagihan invoice Anda telah lunas.',
-          confirmButtonColor: '#6366f1',
-          customClass: { popup: 'swal-custom-popup' },
-        });
+        Swal.fire({ icon: 'success', title: '🎉 Pembayaran Berhasil Terverifikasi!', text: 'Terima kasih, tagihan invoice Anda telah lunas.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       } else if (showToast) {
-        Swal.fire({
-          icon: 'info',
-          title: 'Status Pembayaran',
-          text: 'Transaksi masih dalam proses atau menunggu pembayaran.',
-          confirmButtonColor: '#6366f1',
-          customClass: { popup: 'swal-custom-popup' },
-        });
+        Swal.fire({ icon: 'info', title: 'Status Pembayaran', text: 'Transaksi masih dalam proses atau menunggu pembayaran.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       }
     } catch (err) {
       if (showToast) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Gagal Memeriksa Status',
-          text: err.response?.data?.message || 'Terjadi kesalahan saat memeriksa status.',
-          confirmButtonColor: '#6366f1',
-          customClass: { popup: 'swal-custom-popup' },
-        });
+        Swal.fire({ icon: 'error', title: 'Gagal Memeriksa Status', text: err.response?.data?.message || 'Terjadi kesalahan saat memeriksa status.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       }
     } finally {
       setCheckingStatus(false);
     }
   }, [token, orderId]);
 
+  useEffect(() => { fetchInvoice(); }, [fetchInvoice]);
   useEffect(() => {
-    fetchInvoice();
-  }, [fetchInvoice]);
-
-  // Otomatis cek status transaksi ke Midtrans jika ada query order_id / txStatus
-  useEffect(() => {
-    if (orderId || txStatus) {
-      handleCheckPaymentStatus(false);
-    }
+    if (orderId || txStatus) handleCheckPaymentStatus(false);
   }, [orderId, txStatus, handleCheckPaymentStatus]);
 
   const handleCopyAccount = (accNumber, idx) => {
@@ -130,20 +107,11 @@ export default function PublicPayPage() {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (file.size > 5 * 1024 * 1024) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Ukuran File Terlalu Besar',
-        text: 'Ukuran maksimal bukti transfer adalah 5MB.',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
+      Swal.fire({ icon: 'warning', title: 'Ukuran File Terlalu Besar', text: 'Ukuran maksimal bukti transfer adalah 5MB.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       return;
     }
-
     setSelectedFile(file);
-
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (ev) => setPreviewUrl(ev.target.result);
@@ -156,82 +124,53 @@ export default function PublicPayPage() {
   const handleUploadReceipt = async (e) => {
     e.preventDefault();
     if (!selectedFile) return;
-
     setUploading(true);
     const formData = new FormData();
     formData.append('receipt', selectedFile);
-
     try {
-      await axios.post(`${API_URL}/api/public/invoices/${token}/receipt`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      await Swal.fire({
-        icon: 'success',
-        title: 'Bukti Transfer Terkirim! 🎉',
-        text: 'Bukti pembayaran Anda berhasil diunggah dan akan segera diverifikasi oleh pemilik usaha.',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
-
+      await axios.post(`${API_URL}/api/public/invoices/${token}/receipt`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await Swal.fire({ icon: 'success', title: 'Bukti Transfer Terkirim! 🎉', text: 'Bukti pembayaran Anda berhasil diunggah dan akan segera diverifikasi oleh pemilik usaha.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       setSelectedFile(null);
       setPreviewUrl(null);
       fetchInvoice();
     } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Mengunggah',
-        text: err.response?.data?.message || 'Terjadi kesalahan saat mengunggah bukti pembayaran.',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
+      Swal.fire({ icon: 'error', title: 'Gagal Mengunggah', text: err.response?.data?.message || 'Terjadi kesalahan saat mengunggah bukti pembayaran.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
     } finally {
       setUploading(false);
     }
   };
 
   const handlePaySnap = async () => {
-    if (invoice?.payment_url) {
-      window.location.href = invoice.payment_url;
-      return;
-    }
-
+    if (invoice?.payment_url) { window.location.href = invoice.payment_url; return; }
     setPayingSnap(true);
     try {
       const res = await axios.post(`${API_URL}/api/public/invoices/${token}/pay`);
-      if (res.data?.payment_url) {
-        window.location.href = res.data.payment_url;
-      } else {
-        fetchInvoice();
-      }
+      if (res.data?.payment_url) window.location.href = res.data.payment_url;
+      else fetchInvoice();
     } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Gagal Membuka Pembayaran Online',
-        text: err.response?.data?.message || 'Tidak dapat membuat sesi pembayaran Midtrans.',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
+      Swal.fire({ icon: 'error', title: 'Gagal Membuka Pembayaran Online', text: err.response?.data?.message || 'Tidak dapat membuat sesi pembayaran Midtrans.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
     } finally {
       setPayingSnap(false);
     }
   };
 
+  // ── Loading State ──────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="loading-screen">
-        <div className="loading-spinner" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-10 h-10 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
       </div>
     );
   }
 
+  // ── Error State ────────────────────────────────────────────────────────────
   if (error || !invoice) {
     return (
-      <div className="page-container" style={{ maxWidth: 600, margin: '60px auto', textAlign: 'center' }}>
-        <div className="glass-card" style={{ padding: 40 }}>
-          <span style={{ fontSize: 48 }}>⚠️</span>
-          <h2 style={{ margin: '14px 0 8px', color: 'var(--text-main)' }}>Invoice Tidak Ditemukan</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.6 }}>
+      <div className="min-h-screen flex items-center justify-center px-4 py-16 bg-slate-50">
+        <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 shadow-lg p-10 text-center">
+          <span className="text-5xl">⚠️</span>
+          <h2 className="mt-4 text-xl font-extrabold text-slate-900">Invoice Tidak Ditemukan</h2>
+          <p className="mt-2 text-sm text-slate-500 leading-relaxed">
             {error || 'Tautan pembayaran ini tidak valid atau tagihan telah dihapus.'}
           </p>
         </div>
@@ -244,410 +183,359 @@ export default function PublicPayPage() {
   const items = invoice.items || [];
   const bankAccounts = Array.isArray(user.bank_accounts) ? user.bank_accounts : [];
   const statusInfo = STATUS_MAP[invoice.status] || STATUS_MAP.unpaid;
+  const badgeCls = STATUS_BADGE[invoice.status] || STATUS_BADGE.unpaid;
 
   return (
-    <div className="pay-portal-container" style={{ width: '100%', maxWidth: 1100, boxSizing: 'border-box' }}>
+    // Outer page shell
+    <div className="min-h-screen bg-slate-50 print:bg-white">
+      <div className="w-full max-w-5xl mx-auto px-4 py-6 sm:py-10 pb-16 print:p-0 print:max-w-full">
 
-      {/* Top Header Card */}
-      <div className="glass-card pay-portal-header-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          {user.logo_url ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={user.logo_url}
-              alt="Logo"
-              style={{ maxHeight: 42, maxWidth: 120, objectFit: 'contain' }}
-            />
-          ) : (
-            <div className="sidebar-logo" style={{ width: 42, height: 42, fontSize: 20 }}>⚡</div>
-          )}
-          <div>
-            <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-              {user.business_name || 'SnapBill Invoice'}
-            </h1>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>
-              {t('pay_portal.official_portal')}
-            </p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <LanguageSwitcher size="small" />
-
-          <a
-            href={`${API_URL}/api/public/invoices/${token}/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-secondary"
-            style={{ padding: '6px 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            title="Download PDF Faktur Invoice Resmi"
-          >
-            <span>📄</span>
-            <span>{t('common.download_pdf')}</span>
-          </a>
-          <span className={`status-badge ${statusInfo.badgeClass}`} style={{ fontSize: 13, padding: '6px 14px' }}>
-            {statusInfo.label}
-          </span>
-        </div>
-      </div>
-
-      {/* Midtrans Callback Return Banner */}
-      {(txStatus === 'settlement' || txStatus === 'capture' || statusCode === '200') && invoice.status !== 'paid' && (
-        <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', background: 'linear-gradient(135deg, rgba(209, 250, 229, 0.95), rgba(236, 253, 245, 0.95))', border: '1px solid #34d399', padding: '18px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 32 }}>🎉</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontWeight: 800, color: '#065f46', fontSize: 15 }}>{t('pay_portal.status_success_midtrans_title')}</h3>
-            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#047857' }}>
-              {t('pay_portal.status_success_midtrans_desc')}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {(txStatus === 'pending' || statusCode === '201') && invoice.status !== 'paid' && (
-        <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', background: 'linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(254, 249, 195, 0.95))', border: '1px solid #facc15', padding: '18px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flex: 1, minWidth: 220 }}>
-            <span style={{ fontSize: 32 }}>⏳</span>
-            <div>
-              <h3 style={{ margin: 0, fontWeight: 800, color: '#854d0e', fontSize: 15 }}>{t('pay_portal.status_pending_midtrans_title')}</h3>
-              <p style={{ margin: '2px 0 0', fontSize: 13, color: '#a16207' }}>
-                {t('pay_portal.status_pending_midtrans_desc')}
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => handleCheckPaymentStatus(true)}
-            disabled={checkingStatus}
-            className="btn-primary"
-            style={{ padding: '10px 18px', fontSize: 13, whiteSpace: 'nowrap' }}
-          >
-            {checkingStatus ? (
-              <>
-                <span className="btn-spinner" /> Memeriksa...
-              </>
+        {/* ── Top Header (print:hidden) ─────────────────────────────────── */}
+        <div className="print:hidden mb-5 flex flex-wrap justify-between items-center gap-4 bg-white/90 backdrop-blur-xl border border-slate-200/90 rounded-2xl px-5 py-4 shadow-sm">
+          {/* Identity */}
+          <div className="flex items-center gap-3 flex-wrap min-w-0">
+            {user.logo_url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={user.logo_url} alt="Logo" className="max-h-10 max-w-[120px] object-contain" />
             ) : (
-              <>🔄 Cek Status Pembayaran</>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white text-lg flex items-center justify-center shadow-md shadow-indigo-500/20">
+                ⚡
+              </div>
             )}
-          </button>
-        </div>
-      )}
+            <div className="min-w-0">
+              <h1 className="text-base font-extrabold text-slate-900 truncate">{user.business_name || 'SnapBill Invoice'}</h1>
+              <p className="text-xs text-slate-500 mt-0.5">{t('pay_portal.official_portal')}</p>
+            </div>
+          </div>
 
-      {/* Status Notice Banner */}
-      {invoice.status === 'paid' && (
-        <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', background: 'linear-gradient(135deg, rgba(209, 250, 229, 0.9), rgba(236, 253, 245, 0.9))', border: '1px solid #6ee7b7', padding: '18px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 32 }}>🎉</span>
-          <div style={{ minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontWeight: 800, color: '#065f46', fontSize: 15 }}>{t('pay_portal.status_paid_title')}</h3>
-            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#047857' }}>
-              {t('pay_portal.status_paid_desc')}
-            </p>
+          {/* Controls */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <LanguageSwitcher size="small" />
+            <a
+              href={`${API_URL}/api/public/invoices/${token}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition shadow-xs"
+              title="Download PDF Faktur Invoice Resmi"
+            >
+              <span>📄</span> {t('common.download_pdf')}
+            </a>
+            <span className={`px-3.5 py-1.5 rounded-full text-xs font-bold ${badgeCls}`}>
+              {statusInfo.label}
+            </span>
           </div>
         </div>
-      )}
 
-      {invoice.status === 'pending_verification' && (
-        <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', background: 'linear-gradient(135deg, rgba(224, 231, 255, 0.9), rgba(243, 232, 255, 0.9))', border: '1px solid #a5b4fc', padding: '18px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 32 }}>⏳</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontWeight: 800, color: '#312e81', fontSize: 15 }}>{t('pay_portal.status_pending_verif_title')}</h3>
-            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#4338ca' }}>
-              {t('pay_portal.status_pending_verif_desc')}
-            </p>
+        {/* ── Midtrans Callback Return Banners (print:hidden) ─────────── */}
+        {(txStatus === 'settlement' || txStatus === 'capture' || statusCode === '200') && invoice.status !== 'paid' && (
+          <div className="print:hidden mb-4 flex items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4">
+            <span className="text-3xl">🎉</span>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-extrabold text-emerald-900">{t('pay_portal.status_success_midtrans_title')}</h3>
+              <p className="text-xs text-emerald-700 mt-0.5">{t('pay_portal.status_success_midtrans_desc')}</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Main Grid: Details + Payment Actions */}
-      <div className="pay-portal-grid" style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}>
-
-        {/* ── Left Column: Rincian Invoice & Item ──────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%', maxWidth: '100%', minWidth: 0 }}>
-
-          {/* Info Card */}
-          <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, paddingBottom: 16, borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 12 }}>
+        {(txStatus === 'pending' || statusCode === '201') && invoice.status !== 'paid' && (
+          <div className="print:hidden mb-4 flex flex-wrap items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <span className="text-3xl">⏳</span>
               <div>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{t('dashboard.table_invoice_num')}</p>
-                <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--indigo-dark)', fontFamily: 'var(--font-mono)', margin: '2px 0 0' }}>
-                  #{invoice.invoice_number}
-                </p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{t('dashboard.table_total')}</p>
-                <p style={{ fontSize: 20, fontWeight: 800, color: '#047857', fontFamily: 'var(--font-mono)', margin: '2px 0 0' }}>
-                  {formatRupiah(invoice.total)}
-                </p>
+                <h3 className="text-sm font-extrabold text-amber-900">{t('pay_portal.status_pending_midtrans_title')}</h3>
+                <p className="text-xs text-amber-700 mt-0.5">{t('pay_portal.status_pending_midtrans_desc')}</p>
               </div>
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, fontSize: 13, width: '100%' }}>
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>{t('pay_portal.invoice_for')}:</p>
-                <p style={{ fontWeight: 700, color: 'var(--text-main)' }}>{client.name || '—'}</p>
-                {client.email && <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{client.email}</p>}
-                {client.phone && <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{client.phone}</p>}
-              </div>
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>{t('common.date')}:</p>
-                <p style={{ color: 'var(--text-secondary)' }}>{t('pay_portal.issued_on')} {formatDate(invoice.issue_date, lang)}</p>
-                <p style={{ color: invoice.status === 'overdue' ? 'var(--rose)' : 'var(--text-main)', fontWeight: 600 }}>
-                  {t('pay_portal.due_on')} {formatDate(invoice.due_date, lang)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Items Table Card */}
-          <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-main)', marginBottom: 16 }}>
-              📦 {t('invoices.form_section_items')}
-            </h3>
-
-            <div className="table-responsive" style={{ width: '100%', maxWidth: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: 16 }}>
-              <table className="data-table" style={{ width: '100%', minWidth: 480 }}>
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: 160 }}>{t('invoices.form_item_name')}</th>
-                    <th className="td-right" style={{ minWidth: 60 }}>{t('invoices.form_qty')}</th>
-                    <th className="td-right" style={{ minWidth: 110 }}>{t('invoices.form_price')}</th>
-                    <th className="td-right" style={{ minWidth: 110 }}>{t('invoices.form_subtotal')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((it) => (
-                    <tr key={it.id}>
-                      <td className="td-name">{it.item_name}</td>
-                      <td className="td-right td-secondary">{Number(it.quantity)}</td>
-                      <td className="td-right td-secondary">{formatRupiah(it.unit_price)}</td>
-                      <td className="td-right td-price">{formatRupiah(it.total_price)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Totals */}
-            <div style={{ background: 'rgba(248, 250, 252, 0.9)', padding: '16px 20px', borderRadius: 14, border: '1px solid #e2e8f0', width: '100%', boxSizing: 'border-box' }}>
-              <div className="total-row">
-                <span>{t('common.subtotal')}</span>
-                <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{formatRupiah(invoice.subtotal)}</span>
-              </div>
-              {Number(invoice.discount) > 0 && (
-                <div className="total-row total-discount">
-                  <span>{t('common.discount')}</span>
-                  <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>− {formatRupiah(invoice.discount)}</span>
-                </div>
-              )}
-              {Number(invoice.tax_rate) > 0 && (
-                <div className="total-row" style={{ color: 'var(--indigo-dark)' }}>
-                  <span>{t('common.tax')} ({Number(invoice.tax_rate)}%)</span>
-                  <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)' }}>+ {formatRupiah(((Number(invoice.subtotal) - Number(invoice.discount)) * Number(invoice.tax_rate)) / 100)}</span>
-                </div>
-              )}
-              <div className="total-row total-grand" style={{ borderTop: '2px dashed #cbd5e1', paddingTop: 12 }}>
-                <span style={{ fontWeight: 800 }}>{t('invoices.form_total_payment')}</span>
-                <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--indigo-dark)', fontFamily: 'var(--font-mono)' }}>
-                  {formatRupiah(invoice.total)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* ── Right Column: Payment Options ───────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%', maxWidth: '100%', minWidth: 0 }}>
-
-          {/* Pending Verification Notice Card (Saat bukti transfer sedang diverifikasi) */}
-          {invoice.status === 'pending_verification' && (
-            <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', textAlign: 'center', border: '1px solid rgba(99, 102, 241, 0.25)', background: 'linear-gradient(135deg, rgba(245, 247, 255, 0.95), rgba(238, 242, 255, 0.95))' }}>
-              <div
-                style={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(129, 140, 248, 0.25))',
-                  color: 'var(--indigo)',
-                  fontSize: 28,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  border: '1px solid rgba(99, 102, 241, 0.2)',
-                }}
-              >
-                ⏳
-              </div>
-              <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-main)', marginBottom: 8 }}>
-                {t('pay_portal.status_pending_verif_title')}
-              </h3>
-              <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
-                {t('pay_portal.status_pending_verif_desc')}
-              </p>
-
-              {invoice.receipt_url && (
-                <div style={{ borderTop: '1px solid rgba(226, 232, 240, 0.9)', paddingTop: 16 }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>
-                    Bukti Pembayaran Terkirim
-                  </p>
-                  <a
-                    href={invoice.receipt_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-secondary"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, padding: '8px 16px', margin: '0 auto' }}
-                  >
-                    <span>👁️</span> Lihat Bukti Pembayaran ↗
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 1. Midtrans Snap Online Payment */}
-          {invoice.status !== 'paid' && invoice.status !== 'pending_verification' && user.tier === 'pro' && user.has_midtrans && (
-            <div className="glass-card glass-card-highlight" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-                  <span>💳</span> {t('pay_portal.auto_payment_title')}
-                </h3>
-                <span className="status-badge badge-emerald" style={{ fontSize: 10, fontWeight: 800 }}>
-                  {t('pay_portal.instant_badge')}
-                </span>
-              </div>
-
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18 }}>
-                {t('pay_portal.auto_payment_desc')}
-              </p>
-
-              <button
-                type="button"
-                onClick={handlePaySnap}
-                disabled={payingSnap}
-                className="btn-primary"
-                style={{ width: '100%', padding: '14px', fontSize: 15, justifyContent: 'center' }}
-              >
-                {payingSnap ? (
-                  <>
-                    <span className="btn-spinner" /> Membuka Gateway Pembayaran...
-                  </>
-                ) : (
-                  t('pay_portal.btn_pay_snap')
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* 2. Manual Bank Transfer Option */}
-          {invoice.status !== 'paid' && invoice.status !== 'pending_verification' && (
-            <div className="glass-card" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 6px' }}>
-                <span>🏦</span> {t('pay_portal.manual_transfer_title')}
-              </h3>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-                {t('pay_portal.manual_transfer_desc')}
-              </p>
-
-              {bankAccounts.length === 0 ? (
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  {t('pay_portal.no_bank_accounts')}
-                </p>
+            <button
+              type="button"
+              onClick={() => handleCheckPaymentStatus(true)}
+              disabled={checkingStatus}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition whitespace-nowrap disabled:opacity-60"
+            >
+              {checkingStatus ? (
+                <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Memeriksa...</>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20, width: '100%' }}>
-                  {bankAccounts.map((b, idx) => (
-                    <div key={idx} className="bank-item-glass" style={{ width: '100%', boxSizing: 'border-box' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--indigo)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{b.bank_name}</span>
-                        <p style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-mono)', margin: '2px 0', wordBreak: 'break-all' }}>{b.account_number}</p>
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block' }}>a.n. {b.account_holder || user.business_name || 'Pemilik Usaha'}</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap', flexShrink: 0 }}
-                        onClick={() => handleCopyAccount(b.account_number, idx)}
-                        title="Salin Nomor Rekening"
-                      >
-                        {copiedIndex === idx ? `✅ ${t('common.copied')}` : `📋 ${t('common.copy')}`}
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                '🔄 Cek Status Pembayaran'
               )}
+            </button>
+          </div>
+        )}
 
-              {/* Upload Receipt Section */}
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 18, width: '100%' }}>
-                <h4 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-main)', marginBottom: 4 }}>
-                  {t('pay_portal.upload_proof_title')}
-                </h4>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
-                  {t('pay_portal.upload_proof_hint')}
+        {invoice.status === 'paid' && (
+          <div className="print:hidden mb-4 flex items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4">
+            <span className="text-3xl">🎉</span>
+            <div>
+              <h3 className="text-sm font-extrabold text-emerald-900">{t('pay_portal.status_paid_title')}</h3>
+              <p className="text-xs text-emerald-700 mt-0.5">{t('pay_portal.status_paid_desc')}</p>
+            </div>
+          </div>
+        )}
+
+        {invoice.status === 'pending_verification' && (
+          <div className="print:hidden mb-4 flex items-center gap-4 bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-4">
+            <span className="text-3xl">⏳</span>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-extrabold text-indigo-900">{t('pay_portal.status_pending_verif_title')}</h3>
+              <p className="text-xs text-indigo-700 mt-0.5">{t('pay_portal.status_pending_verif_desc')}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Main Grid: Invoice Details + Payment Panel ─────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 print:grid-cols-1">
+
+          {/* Left / Invoice Details */}
+          <div className="lg:col-span-2 flex flex-col gap-5">
+
+            {/* Invoice Summary Card */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm print:shadow-none print:border-0 p-5 sm:p-6">
+              {/* Invoice # and Grand Total */}
+              <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-slate-100 mb-4">
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{t('dashboard.table_invoice_num')}</p>
+                  <p className="text-xl font-black text-indigo-700 font-mono tracking-tight mt-1">#{invoice.invoice_number}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{t('dashboard.table_total')}</p>
+                  <p className="text-xl font-black text-emerald-600 font-mono tracking-tight mt-1">{formatRupiah(invoice.total)}</p>
+                </div>
+              </div>
+
+              {/* Parties Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs mb-4">
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">{t('pay_portal.invoice_for')}:</p>
+                  <p className="font-bold text-slate-900">{client.name || '—'}</p>
+                  {client.email && <p className="text-slate-500 mt-0.5">{client.email}</p>}
+                  {client.phone && <p className="text-slate-500 mt-0.5">{client.phone}</p>}
+                </div>
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">{t('common.date')}:</p>
+                  <p className="text-slate-500">{t('pay_portal.issued_on')} {formatDate(invoice.issue_date, lang)}</p>
+                  <p className={`font-semibold mt-0.5 ${invoice.status === 'overdue' ? 'text-rose-600' : 'text-slate-700'}`}>
+                    {t('pay_portal.due_on')} {formatDate(invoice.due_date, lang)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Items Table Card */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm print:shadow-none print:border-0 p-5 sm:p-6 overflow-hidden">
+              <h3 className="text-sm font-extrabold text-slate-900 mb-4 flex items-center gap-2">
+                📦 {t('invoices.form_section_items')}
+              </h3>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left text-xs border-collapse min-w-[480px]">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                      <th className="py-2.5 px-3">{t('invoices.form_item_name')}</th>
+                      <th className="py-2.5 px-2 text-right min-w-[60px]">{t('invoices.form_qty')}</th>
+                      <th className="py-2.5 px-2 text-right min-w-[110px]">{t('invoices.form_price')}</th>
+                      <th className="py-2.5 px-3 text-right min-w-[110px]">{t('invoices.form_subtotal')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((it) => (
+                      <tr key={it.id} className="hover:bg-slate-50/60">
+                        <td className="py-3 px-3 font-semibold text-slate-900">{it.item_name}</td>
+                        <td className="py-3 px-2 text-right font-mono text-slate-600">{Number(it.quantity)}</td>
+                        <td className="py-3 px-2 text-right font-mono text-slate-600">{formatRupiah(it.unit_price)}</td>
+                        <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">{formatRupiah(it.total_price)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totals */}
+              <div className="mt-5 pt-4 border-t border-slate-200 flex justify-end">
+                <div className="w-full sm:w-64 flex flex-col gap-1.5 text-xs bg-slate-50 rounded-xl border border-slate-200 p-4">
+                  <div className="flex justify-between text-slate-600">
+                    <span>{t('common.subtotal')}</span>
+                    <span className="font-mono font-bold">{formatRupiah(invoice.subtotal)}</span>
+                  </div>
+                  {Number(invoice.discount) > 0 && (
+                    <div className="flex justify-between text-rose-600">
+                      <span>{t('common.discount')}</span>
+                      <span className="font-mono font-bold">− {formatRupiah(invoice.discount)}</span>
+                    </div>
+                  )}
+                  {Number(invoice.tax_rate) > 0 && (
+                    <div className="flex justify-between text-indigo-700">
+                      <span>{t('common.tax')} ({Number(invoice.tax_rate)}%)</span>
+                      <span className="font-mono font-bold">
+                        + {formatRupiah(((Number(invoice.subtotal) - Number(invoice.discount)) * Number(invoice.tax_rate)) / 100)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t-2 border-dashed border-slate-300">
+                    <span>{t('invoices.form_total_payment')}</span>
+                    <span className="font-mono text-indigo-700 text-base">{formatRupiah(invoice.total)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right: Payment Panel (print:hidden) */}
+          <div className="print:hidden flex flex-col gap-5">
+
+            {/* Draft Notice (Client cannot pay yet) */}
+            {invoice.status === 'draft' && (
+              <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-6 text-center shadow-sm">
+                <div className="w-14 h-14 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-2xl mx-auto mb-3">
+                  📝
+                </div>
+                <h3 className="text-sm font-extrabold text-amber-950 mb-1.5">Faktur Masih Berupa Draft</h3>
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  Tagihan ini masih dalam status draft (belum diterbitkan secara resmi oleh pemilik usaha). <b>Pembayaran belum dapat dilakukan</b> hingga invoice resmi diterbitkan.
                 </p>
+              </div>
+            )}
 
-                <form onSubmit={handleUploadReceipt} style={{ width: '100%' }}>
-                  <div style={{ width: '100%', boxSizing: 'border-box', border: '2px dashed #cbd5e1', borderRadius: 14, padding: 20, textAlign: 'center', background: 'rgba(248, 250, 252, 0.6)', cursor: 'pointer', transition: 'border-color 0.2s' }}>
-                    <input
-                      type="file"
-                      id="receipt-file"
-                      accept="image/jpeg,image/png,image/webp,application/pdf"
-                      onChange={handleFileChange}
-                      style={{ display: 'none' }}
-                    />
-                    <label htmlFor="receipt-file" style={{ cursor: 'pointer', display: 'block', width: '100%' }}>
+            {/* Pending Verification Notice */}
+            {invoice.status === 'pending_verification' && (
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-5 text-center shadow-sm">
+                <div className="w-14 h-14 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-2xl mx-auto mb-4">
+                  ⏳
+                </div>
+                <h3 className="text-sm font-extrabold text-indigo-900 mb-2">{t('pay_portal.status_pending_verif_title')}</h3>
+                <p className="text-xs text-indigo-700/80 leading-relaxed mb-4">{t('pay_portal.status_pending_verif_desc')}</p>
+                {invoice.receipt_url && (
+                  <div className="border-t border-indigo-200/60 pt-4">
+                    <p className="text-[10px] font-bold text-slate-500 mb-2">Bukti Pembayaran Terkirim</p>
+                    <a
+                      href={invoice.receipt_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 transition"
+                    >
+                      <span>👁️</span> Lihat Bukti Pembayaran ↗
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Midtrans Snap Online Payment */}
+            {invoice.status !== 'paid' && invoice.status !== 'draft' && invoice.status !== 'pending_verification' && invoice.status !== 'cancelled' && user.tier === 'pro' && user.has_midtrans && (
+              <div className="bg-gradient-to-br from-indigo-600 to-indigo-500 rounded-2xl p-5 shadow-md shadow-indigo-500/20">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                    <span>💳</span> {t('pay_portal.auto_payment_title')}
+                  </h3>
+                  <span className="text-[10px] font-extrabold px-2 py-1 rounded-full bg-emerald-400 text-white">
+                    {t('pay_portal.instant_badge')}
+                  </span>
+                </div>
+                <p className="text-xs text-indigo-100 mb-4 leading-relaxed">{t('pay_portal.auto_payment_desc')}</p>
+                <button
+                  type="button"
+                  onClick={handlePaySnap}
+                  disabled={payingSnap}
+                  className="w-full py-3.5 px-4 bg-white hover:bg-indigo-50 active:scale-[0.98] text-indigo-700 text-xs font-extrabold rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {payingSnap ? (
+                    <><span className="w-3.5 h-3.5 border-2 border-indigo-300 border-t-indigo-700 rounded-full animate-spin" /> Membuka Gateway...</>
+                  ) : (
+                    t('pay_portal.btn_pay_snap')
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Manual Bank Transfer + Upload Proof */}
+            {invoice.status !== 'paid' && invoice.status !== 'draft' && invoice.status !== 'pending_verification' && invoice.status !== 'cancelled' && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 mb-1">
+                  <span>🏦</span> {t('pay_portal.manual_transfer_title')}
+                </h3>
+                <p className="text-xs text-slate-500 mb-4">{t('pay_portal.manual_transfer_desc')}</p>
+
+                {bankAccounts.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">{t('pay_portal.no_bank_accounts')}</p>
+                ) : (
+                  <div className="flex flex-col gap-2.5 mb-5">
+                    {bankAccounts.map((b, idx) => (
+                      <div key={idx} className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl bg-slate-50 border border-slate-200 min-w-0">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider block">{b.bank_name}</span>
+                          <p className="text-sm font-mono font-extrabold text-slate-900 my-0.5 break-all">{b.account_number}</p>
+                          <span className="text-[11px] text-slate-500">a.n. {b.account_holder || user.business_name || 'Pemilik Usaha'}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyAccount(b.account_number, idx)}
+                          title="Salin Nomor Rekening"
+                          className="shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 transition whitespace-nowrap"
+                        >
+                          {copiedIndex === idx ? `✅ ${t('common.copied')}` : `📋 ${t('common.copy')}`}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload Proof Section */}
+                <div className="border-t border-slate-200 pt-4">
+                  <h4 className="text-xs font-extrabold text-slate-800 mb-1">{t('pay_portal.upload_proof_title')}</h4>
+                  <p className="text-[11px] text-slate-500 mb-3">{t('pay_portal.upload_proof_hint')}</p>
+
+                  <form onSubmit={handleUploadReceipt}>
+                    <label
+                      htmlFor="receipt-file"
+                      className="block w-full border-2 border-dashed border-slate-300 hover:border-indigo-400 rounded-xl p-5 text-center cursor-pointer transition-colors bg-slate-50/60"
+                    >
+                      <input
+                        type="file"
+                        id="receipt-file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
                       {previewUrl ? (
                         <div>
-                          <img
-                            src={previewUrl}
-                            alt="Preview Bukti"
-                            style={{ maxHeight: 120, borderRadius: 8, margin: '0 auto 8px', objectFit: 'contain' }}
-                          />
-                          <p style={{ fontSize: 12, color: 'var(--indigo-dark)', fontWeight: 700 }}>Ganti file terpilih</p>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={previewUrl} alt="Preview Bukti" className="max-h-28 mx-auto object-contain rounded-lg mb-2" />
+                          <p className="text-[11px] font-bold text-indigo-700">Ganti file terpilih</p>
                         </div>
                       ) : selectedFile ? (
                         <div>
-                          <div style={{ fontSize: 32, marginBottom: 4 }}>📄</div>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)' }}>{selectedFile.name}</p>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+                          <div className="text-3xl mb-1">📄</div>
+                          <p className="text-xs font-bold text-slate-800">{selectedFile.name}</p>
+                          <span className="text-[10px] text-slate-500">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
                         </div>
                       ) : (
                         <div>
-                          <div style={{ fontSize: 32, marginBottom: 6 }}>📎</div>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)' }}>
-                            Pilih foto / tangkapan layar bukti transfer
-                          </p>
-                          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                            Klik di sini untuk memilih file
-                          </p>
+                          <div className="text-3xl mb-1.5">📎</div>
+                          <p className="text-xs font-bold text-slate-700">Pilih foto / tangkapan layar bukti transfer</p>
+                          <p className="text-[10px] text-slate-400 mt-1">Klik di sini untuk memilih file</p>
                         </div>
                       )}
                     </label>
-                  </div>
 
-                  <button
-                    type="submit"
-                    disabled={!selectedFile || uploading}
-                    className="btn-primary"
-                    style={{ width: '100%', marginTop: 14, padding: '12px', justifyContent: 'center' }}
-                  >
-                    {uploading ? (
-                      <>
-                        <span className="btn-spinner" /> {t('pay_portal.uploading')}
-                      </>
-                    ) : (
-                      t('pay_portal.btn_upload_proof')
-                    )}
-                  </button>
-                </form>
+                    <button
+                      type="submit"
+                      disabled={!selectedFile || uploading}
+                      className="w-full mt-3 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploading ? (
+                        <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> {t('pay_portal.uploading')}</>
+                      ) : (
+                        t('pay_portal.btn_upload_proof')
+                      )}
+                    </button>
+                  </form>
+                </div>
               </div>
+            )}
 
-            </div>
-          )}
+          </div>
 
         </div>
-
       </div>
-
     </div>
   );
 }

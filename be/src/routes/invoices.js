@@ -404,32 +404,12 @@ router.post('/:id/submit', async (req, res) => {
       publicToken = crypto.randomBytes(16).toString('hex');
     }
 
-    let paymentUrl = existing.payment_url;
-
-    // 1. Generate Midtrans Snap URL jika user sudah konfigurasi Midtrans Server Key
-    if (existing.user?.midtrans_server_key) {
-      try {
-        const snapRes = await createSnapTransaction({
-          serverKey: existing.user.midtrans_server_key,
-          clientKey: existing.user.midtrans_client_key || '',
-          invoice: { ...existing, public_link_token: publicToken },
-          client: existing.client,
-          items: existing.items,
-        });
-        paymentUrl = snapRes.redirect_url;
-      } catch (midtransErr) {
-        console.warn('[submit] ⚠️ Gagal membuat transaksi Midtrans:', midtransErr.message);
-        // Tetap lanjutkan submit meskipun Midtrans opsional
-      }
-    }
-
-    // 2. Update status invoice ke 'unpaid', simpan token & payment_url
+    // 1. Update status invoice ke 'unpaid', simpan publicToken
     const updatedInvoice = await prisma.invoice.update({
       where: { id: existing.id },
       data: {
         status: 'unpaid',
         public_link_token: publicToken,
-        payment_url: paymentUrl,
       },
       include: {
         client: true,

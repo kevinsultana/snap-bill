@@ -45,27 +45,7 @@ router.get('/invoices/:token', async (req, res) => {
       (!invoice.user.subscription_ends_at || new Date(invoice.user.subscription_ends_at) > new Date());
     const hasByok = Boolean(isPro && invoice.user?.midtrans_server_key);
 
-    let paymentUrl = hasByok ? invoice.payment_url : null;
-
-    // Jika pemilik usaha adalah PRO & memiliki Midtrans BYOK, buat payment_url otomatis jika belum ada
-    if (hasByok && !paymentUrl && invoice.status !== 'paid') {
-      try {
-        const snapRes = await createSnapTransaction({
-          serverKey: invoice.user.midtrans_server_key,
-          clientKey: invoice.user.midtrans_client_key || '',
-          invoice,
-          client: invoice.client,
-          items: invoice.items,
-        });
-        paymentUrl = snapRes.redirect_url;
-        await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: { payment_url: paymentUrl },
-        });
-      } catch (snapErr) {
-        console.warn('[public.get] Gagal on-demand Midtrans Snap:', snapErr.message);
-      }
-    }
+    const paymentUrl = hasByok ? invoice.payment_url : null;
 
     // Format response aman tanpa mengekspos midtrans_server_key
     const safeUser = {
@@ -111,6 +91,10 @@ async function handlePaySnap(req, res) {
 
     if (invoice.status === 'paid') {
       return res.status(400).json({ message: 'Invoice ini sudah lunas.' });
+    }
+
+    if (invoice.status === 'draft') {
+      return res.status(400).json({ message: 'Invoice ini masih dalam status draft dan belum diterbitkan secara resmi oleh pemilik usaha.' });
     }
 
     const isPro =
@@ -403,6 +387,10 @@ async function handleReceiptUpload(req, res) {
 
     if (invoice.status === 'paid') {
       return res.status(400).json({ message: 'Invoice ini sudah lunas, tidak perlu mengunggah bukti transfer lagi.' });
+    }
+
+    if (invoice.status === 'draft') {
+      return res.status(400).json({ message: 'Invoice ini masih dalam status draft dan belum diterbitkan secara resmi oleh pemilik usaha.' });
     }
 
     // Upload file ke MinIO
