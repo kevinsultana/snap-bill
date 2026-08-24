@@ -8,7 +8,18 @@ const router = express.Router();
 // Semua route settings butuh autentikasi
 router.use(verifyToken);
 
-// GET /api/settings — ambil profil user (tanpa password_hash)
+/**
+ * Sensor Midtrans Secret Key agar hanya menampilkan beberapa karakter terakhir untuk keamanan
+ * Contoh: "SB-Mid-server-x12345ABCD" -> "••••••••••••••••ABCD"
+ */
+function maskSecretKey(key) {
+  if (!key) return '';
+  const trimmed = key.trim();
+  if (trimmed.length <= 4) return '••••' + trimmed;
+  return '••••••••••••••••' + trimmed.slice(-4);
+}
+
+// GET /api/settings — ambil profil user (tanpa password_hash, dan masked Midtrans secret key)
 router.get('/', async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
@@ -42,7 +53,15 @@ router.get('/', async (req, res) => {
       user.tier = 'free';
     }
 
-    return res.json(user);
+    const sanitizedUser = {
+      ...user,
+      midtrans_server_key: maskSecretKey(user.midtrans_server_key),
+      midtrans_client_key: maskSecretKey(user.midtrans_client_key),
+      has_midtrans_server_key: Boolean(user.midtrans_server_key),
+      has_midtrans_client_key: Boolean(user.midtrans_client_key),
+    };
+
+    return res.json(sanitizedUser);
   } catch (err) {
     console.error('[GET /settings]', err);
     return res.status(500).json({ message: 'Terjadi kesalahan server.' });
@@ -112,8 +131,24 @@ router.put('/', async (req, res) => {
 
     // Hanya pengguna berstatus PRO yang dapat menyimpan konfigurasi Midtrans BYOK
     if (isPro) {
-      if (midtrans_server_key !== undefined) updateData.midtrans_server_key = midtrans_server_key?.trim() || null;
-      if (midtrans_client_key !== undefined) updateData.midtrans_client_key = midtrans_client_key?.trim() || null;
+      if (midtrans_server_key !== undefined) {
+        const trimmed = midtrans_server_key?.trim();
+        if (trimmed === '') {
+          updateData.midtrans_server_key = null;
+        } else if (trimmed && !trimmed.startsWith('••••')) {
+          // Hanya simpan jika user menginput key baru asli, bukan string sensor bawaan
+          updateData.midtrans_server_key = trimmed;
+        }
+      }
+      if (midtrans_client_key !== undefined) {
+        const trimmed = midtrans_client_key?.trim();
+        if (trimmed === '') {
+          updateData.midtrans_client_key = null;
+        } else if (trimmed && !trimmed.startsWith('••••')) {
+          // Hanya simpan jika user menginput key baru asli, bukan string sensor bawaan
+          updateData.midtrans_client_key = trimmed;
+        }
+      }
     }
 
     if (bank_accounts !== undefined) updateData.bank_accounts = bank_accounts;
@@ -134,7 +169,16 @@ router.put('/', async (req, res) => {
       },
     });
 
-    return res.json({ message: 'Pengaturan identitas bisnis berhasil disimpan.', user: updated });
+    return res.json({
+      message: 'Pengaturan identitas bisnis berhasil disimpan.',
+      user: {
+        ...updated,
+        midtrans_server_key: maskSecretKey(updated.midtrans_server_key),
+        midtrans_client_key: maskSecretKey(updated.midtrans_client_key),
+        has_midtrans_server_key: Boolean(updated.midtrans_server_key),
+        has_midtrans_client_key: Boolean(updated.midtrans_client_key),
+      },
+    });
   } catch (err) {
     console.error('[PUT /settings]', err);
     return res.status(500).json({ message: 'Terjadi kesalahan server.' });

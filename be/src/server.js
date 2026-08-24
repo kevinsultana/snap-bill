@@ -12,6 +12,8 @@ const dashboardRoutes = require('./routes/dashboard');
 const publicRoutes = require('./routes/public');
 const subscriptionRoutes = require('./routes/subscriptions');
 
+const { globalLimiter } = require('./middleware/rateLimiter');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -22,6 +24,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Global API rate limit
+app.use('/api', globalLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);

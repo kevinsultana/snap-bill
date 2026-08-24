@@ -4,6 +4,7 @@ const express = require('express');
 const midtransClient = require('midtrans-client');
 const prisma = require('../db/prisma');
 const { verifyToken } = require('../middleware/auth');
+const { subscriptionLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
@@ -163,9 +164,9 @@ router.get('/status', verifyToken, async (req, res) => {
   }
 });
 
-// ─── POST /api/subscriptions/create-snap ─────────────────────────────────────
+// POST /api/subscriptions/create-snap ─────────────────────────────────────
 // Membuat transaksi Snap untuk berlangganan Pro (Rp 99.000)
-router.post('/create-snap', verifyToken, async (req, res) => {
+router.post('/create-snap', verifyToken, subscriptionLimiter, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },

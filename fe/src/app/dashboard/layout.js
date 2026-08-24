@@ -110,14 +110,15 @@ function DashboardLayoutContent({ children }) {
 
         {/* Brand Header */}
         <div className="flex items-center justify-between pb-4 mb-3 border-b border-slate-200/70">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center text-lg font-black shadow-md shadow-indigo-500/20">
-              ⚡
+          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl bg-white border border-indigo-100 p-1 flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="SnapBill Logo" className="w-full h-full object-contain" />
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-900">
               Snap<b className="text-indigo-600">Bill</b>
             </span>
-          </div>
+          </Link>
           <LanguageSwitcher size="small" />
         </div>
 
@@ -219,14 +220,15 @@ function DashboardLayoutContent({ children }) {
 
       {/* ── Mobile Top Header (< md screens) ─────────────────────────── */}
       <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-white/85 backdrop-blur-xl border-b border-slate-200/80 shadow-xs">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center text-sm font-bold shadow-xs">
-            ⚡
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-white border border-indigo-100 p-0.5 flex items-center justify-center shadow-xs overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="SnapBill Logo" className="w-full h-full object-contain" />
           </div>
           <span className="text-lg font-bold tracking-tight text-slate-900">
             Snap<b className="text-indigo-600">Bill</b>
           </span>
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
           <LanguageSwitcher size="small" />
           <button
@@ -255,14 +257,15 @@ function DashboardLayoutContent({ children }) {
         }`}
       >
         <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200/80">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center text-sm font-bold shadow-xs">
-              ⚡
+          <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-white border border-indigo-100 p-1 flex items-center justify-center shadow-xs overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="SnapBill Logo" className="w-full h-full object-contain" />
             </div>
             <span className="text-lg font-bold tracking-tight text-slate-900">
               Snap<b className="text-indigo-600">Bill</b>
             </span>
-          </div>
+          </Link>
           <button
             type="button"
             onClick={() => setMobileMenuOpen(false)}

@@ -51,6 +51,18 @@ export default function InvoicesPage() {
   const [channelCounts, setChannelCounts] = useState({ all: 0, midtrans: 0, manual: 0 });
   const [userSettings, setUserSettings] = useState(null);
 
+  const [openMenuId, setOpenMenuId] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.action-dropdown-container')) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
   const STATUS_CONFIG = {
     draft:                { label: t('invoices.status_draft') },
     unpaid:               { label: t('invoices.status_unpaid') },
@@ -179,14 +191,14 @@ export default function InvoicesPage() {
       {/* Main Card */}
       <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5 sm:p-6">
 
-        {/* ── 1. Payment Channel Tabs ── */}
-        <div className="flex flex-wrap gap-2.5 mb-5 pb-5 border-b border-slate-100">
+        {/* ── 1. Payment Channel Tabs (Horizontal scroll on mobile) ── */}
+        <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-slate-100 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {channelTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => { setFilterChannel(tab.key); setPage(1); }}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border transition-all shrink-0 whitespace-nowrap ${
                 filterChannel === tab.key ? tab.activeClass : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
@@ -199,11 +211,11 @@ export default function InvoicesPage() {
           ))}
         </div>
 
-        {/* ── 2. Status Filter Pills ── */}
-        <div className="flex flex-wrap gap-2 mb-5">
+        {/* ── 2. Status Filter Pills (Horizontal scroll on mobile) ── */}
+        <div className="flex items-center gap-2 mb-5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-1">
           <button
             onClick={() => { setFilterStatus('all'); setPage(1); }}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 whitespace-nowrap ${
               filterStatus === 'all'
                 ? 'bg-slate-900 text-white border-slate-900'
                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -215,7 +227,7 @@ export default function InvoicesPage() {
             <button
               key={key}
               onClick={() => { setFilterStatus(filterStatus === key ? 'all' : key); setPage(1); }}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all ${
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 whitespace-nowrap ${
                 filterStatus === key
                   ? 'bg-slate-900 text-white border-slate-900'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -258,7 +270,7 @@ export default function InvoicesPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 min-h-[260px]">
               <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[780px]">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
@@ -296,29 +308,105 @@ export default function InvoicesPage() {
                         <td className="py-3 px-3">
                           <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold ${color}`}>{label}</span>
                         </td>
-                        <td className="py-3 px-3">
-                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                            {inv.status === 'pending_verification' && (
-                              <button type="button" onClick={() => handleReviewPayment(inv)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold border border-indigo-200 transition">🔍 Review</button>
-                            )}
-                            {inv.status === 'draft' && (
-                              <button type="button" onClick={() => handleSubmitInvoice(inv)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 transition">🚀 Submit</button>
-                            )}
-                            {inv.status === 'draft' && (
-                              <Link href={`/dashboard/invoices/${inv.id}/edit`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 transition">✏️ {t('common.edit')}</Link>
-                            )}
-                            <Link href={`/dashboard/invoices/${inv.id}`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 transition">👁️ {t('common.view')}</Link>
-                            {(inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'pending_verification') && isPro && inv.payment_url && !inv.receipt_url && inv.status !== 'pending_verification' && (
-                              <button type="button" onClick={() => handleRefreshMidtrans(inv)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold border border-indigo-200 transition">🔄 {t('invoices.btn_resubmit_midtrans')}</button>
-                            )}
-                            {(inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'pending_verification') && (
-                              <button type="button" onClick={() => handleCancelInvoice(inv)} className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold border border-rose-200 transition">🚫 {t('invoices.btn_cancel_invoice')}</button>
-                            )}
-                            {inv.status === 'cancelled' && isPro && (
-                              <button type="button" onClick={() => handleRefreshMidtrans(inv)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 transition">🔄 {t('invoices.btn_reactivate_midtrans')}</button>
-                            )}
-                            {inv.status === 'draft' && (
-                              <button onClick={() => handleDelete(inv)} className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold border border-rose-200 transition" title="Hapus Draft">🗑️</button>
+                        <td className="py-3 px-3 text-right">
+                          <div className="relative inline-block text-left action-dropdown-container">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(openMenuId === inv.id ? null : inv.id);
+                              }}
+                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold border border-slate-200 shadow-sm transition active:scale-[0.97]"
+                            >
+                              <span>Aksi</span>
+                              <span className="text-[10px] text-slate-400">▾</span>
+                            </button>
+
+                            {openMenuId === inv.id && (
+                              <div className="absolute right-0 mt-1.5 w-48 rounded-2xl bg-white border border-slate-200 shadow-xl shadow-slate-300/40 py-1.5 z-50 animate-in fade-in-50 zoom-in-95 duration-100 divide-y divide-slate-100 text-left">
+                                <div className="py-1">
+                                  <Link
+                                    href={`/dashboard/invoices/${inv.id}`}
+                                    onClick={() => setOpenMenuId(null)}
+                                    className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition"
+                                  >
+                                    <span>👁️</span> {t('common.view')} Detail
+                                  </Link>
+
+                                  {inv.status === 'draft' && (
+                                    <>
+                                      <Link
+                                        href={`/dashboard/invoices/${inv.id}/edit`}
+                                        onClick={() => setOpenMenuId(null)}
+                                        className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition"
+                                      >
+                                        <span>✏️</span> {t('common.edit')} Invoice
+                                      </Link>
+                                      <button
+                                        type="button"
+                                        onClick={() => { setOpenMenuId(null); handleSubmitInvoice(inv); }}
+                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition text-left"
+                                      >
+                                        <span>🚀</span> Terbitkan (Submit)
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {inv.status === 'pending_verification' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setOpenMenuId(null); handleReviewPayment(inv); }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition text-left"
+                                    >
+                                      <span>🔍</span> Review Pembayaran
+                                    </button>
+                                  )}
+                                </div>
+
+                                {((inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'pending_verification') || (inv.status === 'cancelled' && isPro)) && (
+                                  <div className="py-1">
+                                    {(inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'pending_verification') && isPro && inv.payment_url && !inv.receipt_url && inv.status !== 'pending_verification' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => { setOpenMenuId(null); handleRefreshMidtrans(inv); }}
+                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition text-left"
+                                      >
+                                        <span>🔄</span> {t('invoices.btn_resubmit_midtrans')}
+                                      </button>
+                                    )}
+                                    {(inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'pending_verification') && (
+                                      <button
+                                        type="button"
+                                        onClick={() => { setOpenMenuId(null); handleCancelInvoice(inv); }}
+                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition text-left"
+                                      >
+                                        <span>🚫</span> {t('invoices.btn_cancel_invoice')}
+                                      </button>
+                                    )}
+                                    {inv.status === 'cancelled' && isPro && (
+                                      <button
+                                        type="button"
+                                        onClick={() => { setOpenMenuId(null); handleRefreshMidtrans(inv); }}
+                                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition text-left"
+                                      >
+                                        <span>🔄</span> {t('invoices.btn_reactivate_midtrans')}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+
+                                {inv.status === 'draft' && (
+                                  <div className="py-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setOpenMenuId(null); handleDelete(inv); }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition text-left"
+                                    >
+                                      <span>🗑️</span> Hapus Draft
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         </td>

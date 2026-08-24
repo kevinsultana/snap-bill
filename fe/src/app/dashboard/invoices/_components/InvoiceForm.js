@@ -231,29 +231,98 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
     }
   };
 
-  // Handler auto-create new item directly into Master Items list
+  // Handler auto-create new item directly into Master Items list via interactive modal
   const handleCreateItem = async (idx, inputValue) => {
     const trimmed = (inputValue || '').trim();
     if (!trimmed) return;
 
-    // Langsung update baris invoice
-    updateLine(idx, 'item_name', trimmed);
+    const existingRowPrice = parseRawNumber(lines[idx]?.unit_price);
+    const defaultPriceStr = existingRowPrice > 0 ? String(existingRowPrice) : '';
 
-    try {
-      const currentPrice = parseRawNumber(lines[idx]?.unit_price) || 0;
-      const res = await api.post('/api/items', {
-        name: trimmed,
-        price: currentPrice,
-        description: null,
-      });
-      const createdItem = res.data?.item || res.data;
-      if (createdItem) {
-        setSavedItems((prev) => [createdItem, ...prev]);
-        toast('success', `Item "${trimmed}" otomatis ditambahkan ke daftar layanan!`);
+    const result = await Swal.fire({
+      title: '📦 Tambah Layanan / Item Baru',
+      html: `
+        <div style="text-align:left;font-size:13px;display:flex;flex-direction:column;gap:12px;margin-top:10px;">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;margin-bottom:4px;">
+              Nama Item / Layanan <span style="color:#f43f5e;">*</span>
+            </label>
+            <input id="swal-item-name" class="swal2-input" style="margin:0;width:100%;font-size:13px;height:40px;border-radius:10px;border:1px solid #cbd5e1;box-sizing:border-box;" value="${trimmed}" placeholder="Contoh: Jasa Pembuatan Website" />
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;margin-bottom:4px;">
+              Harga Standar Satuan (Rp) <span style="color:#f43f5e;">*</span>
+            </label>
+            <input id="swal-item-price" type="number" class="swal2-input" style="margin:0;width:100%;font-size:13px;height:40px;border-radius:10px;border:1px solid #cbd5e1;box-sizing:border-box;" value="${defaultPriceStr}" placeholder="0" />
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;margin-bottom:4px;">
+              Deskripsi Singkat (Opsional)
+            </label>
+            <textarea id="swal-item-desc" class="swal2-textarea" style="margin:0;width:100%;font-size:13px;height:65px;border-radius:10px;border:1px solid #cbd5e1;resize:vertical;box-sizing:border-box;" placeholder="Rincian atau spesifikasi layanan..."></textarea>
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: '💾 Simpan & Terapkan',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#6366f1',
+      cancelButtonColor: '#94a3b8',
+      customClass: { popup: 'swal-custom-popup' },
+      focusConfirm: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      preConfirm: async () => {
+        const nameVal = document.getElementById('swal-item-name')?.value?.trim();
+        const priceVal = document.getElementById('swal-item-price')?.value;
+        const descVal = document.getElementById('swal-item-desc')?.value?.trim();
+
+        if (!nameVal) {
+          Swal.showValidationMessage('Nama item / layanan wajib diisi.');
+          return false;
+        }
+
+        const priceNum = parseFloat(priceVal) || 0;
+
+        try {
+          Swal.showLoading();
+          const res = await api.post('/api/items', {
+            name: nameVal,
+            price: priceNum,
+            description: descVal || null,
+          });
+          return {
+            item: res.data?.item || res.data,
+            name: nameVal,
+            price: priceNum,
+            description: descVal,
+          };
+        } catch (err) {
+          Swal.showValidationMessage(
+            err.response?.data?.message || 'Gagal menyimpan item ke database.'
+          );
+          return false;
+        }
+      },
+    });
+
+    if (result.isConfirmed && result.value) {
+      const created = result.value.item;
+      const finalName = result.value.name;
+      const finalPrice = result.value.price;
+
+      // 1. Tambahkan ke master data savedItems
+      if (created) {
+        setSavedItems((prev) => [created, ...prev.filter((i) => i.id !== created.id)]);
       }
-    } catch (err) {
-      console.error('Auto-create item error:', err);
-      toast('info', `Item "${trimmed}" digunakan untuk invoice ini`);
+
+      // 2. Terapkan langsung ke baris tabel saat ini
+      updateLine(idx, 'item_name', finalName);
+      if (finalPrice > 0) {
+        updateLine(idx, 'unit_price', formatThousand(finalPrice));
+      }
+
+      toast('success', `Layanan "${finalName}" berhasil disimpan ke master dan diterapkan!`);
     }
   };
 
@@ -399,16 +468,16 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
           </p>
         </div>
 
-        {/* Action Buttons (Desktop Header) */}
-        <div className="hidden md:flex items-center gap-3">
-          <Link href="/dashboard/invoices" className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-bold transition">
+        {/* Single Primary Action Button (Top Header) */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link href="/dashboard/invoices" className="px-3.5 sm:px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold transition">
             Batal
           </Link>
           <button
             type="button"
             onClick={handleSubmit}
             disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -417,7 +486,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             ) : (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                {mode === 'edit' ? 'Simpan Perubahan' : 'Simpan Draf Invoice'}
+                {mode === 'edit' ? 'Simpan Perubahan' : 'Buat Invoice'}
               </>
             )}
           </button>
@@ -835,26 +904,6 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
               </div>
             </div>
 
-            {/* Mobile Submit Button (Bottom of Form) */}
-            <div className="md:hidden flex flex-col gap-3">
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-60"
-              >
-                {saving ? (
-                  <>
-                    <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Menyimpan...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    {mode === 'edit' ? 'Simpan Perubahan' : 'Simpan Draf Invoice'}
-                  </>
-                )}
-              </button>
-            </div>
-
           </form>
         </div>
 
@@ -1022,32 +1071,6 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
               )}
 
             </div>
-          </div>
-
-          {/* Quick Submit inside Preview (Mobile & Desktop) */}
-          <div className="bg-white/90 backdrop-blur-sm border border-slate-200 rounded-2xl shadow-sm p-4 flex items-center justify-between gap-4">
-            <div>
-              <span className="text-xs text-slate-400 block font-semibold">Total Tagihan</span>
-              <p className="text-lg font-black text-emerald-600 font-mono">{formatRupiah(grandTotal)}</p>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs sm:text-sm font-bold shadow-md transition-all disabled:opacity-60"
-            >
-              {saving ? (
-                <>
-                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Menyimpan...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  {mode === 'edit' ? 'Simpan' : 'Buat Invoice'}
-                </>
-              )}
-            </button>
           </div>
 
         </div>

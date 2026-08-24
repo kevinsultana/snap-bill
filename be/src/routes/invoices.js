@@ -5,6 +5,7 @@ const { verifyToken } = require('../middleware/auth');
 const { generateInvoicePDF } = require('../services/pdf.service');
 const { sendEmail, sendPaymentSuccessEmail } = require('../services/email.service');
 const { createSnapTransaction } = require('../services/midtrans.service');
+const { pdfLimiter, emailLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 router.use(verifyToken);
@@ -190,7 +191,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // ─── GET /api/invoices/:id/pdf ── Download / Stream PDF Invoice ───────────────
-router.get('/:id/pdf', async (req, res) => {
+router.get('/:id/pdf', pdfLimiter, async (req, res) => {
   try {
     const invoice = await prisma.invoice.findFirst({
       where: { id: req.params.id, user_id: req.user.id },
@@ -496,7 +497,7 @@ router.post('/:id/submit', async (req, res) => {
 });
 
 // ─── POST /api/invoices/:id/resend-email ── Kirim ulang email invoice ke klien ───
-router.post('/:id/resend-email', async (req, res) => {
+router.post('/:id/resend-email', emailLimiter, async (req, res) => {
   try {
     const invoice = await prisma.invoice.findFirst({
       where: { id: req.params.id, user_id: req.user.id },

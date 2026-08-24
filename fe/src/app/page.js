@@ -55,7 +55,10 @@ export default function LandingPage() {
       <nav className="landing-nav">
         <div className="landing-nav-container">
           <Link href="/" className="landing-brand">
-            <div className="sidebar-logo" style={{ width: 36, height: 36, fontSize: 18 }}>⚡</div>
+            <div className="w-9 h-9 rounded-xl bg-white border border-indigo-100 p-1 flex items-center justify-center shadow-md shadow-indigo-500/10 shrink-0 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="SnapBill Logo" className="w-full h-full object-contain" />
+            </div>
             <span className="sidebar-name" style={{ fontSize: 20 }}>Snap<b>Bill</b></span>
           </Link>
 
@@ -339,7 +342,10 @@ export default function LandingPage() {
         <div className="footer-container">
           <div>
             <div className="landing-brand">
-              <div className="sidebar-logo" style={{ width: 32, height: 32, fontSize: 16 }}>⚡</div>
+              <div className="w-8 h-8 rounded-xl bg-white border border-indigo-100 p-0.5 flex items-center justify-center shadow-xs overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="SnapBill Logo" className="w-full h-full object-contain" />
+              </div>
               <span className="sidebar-name" style={{ fontSize: 18 }}>Snap<b>Bill</b></span>
             </div>
             <p className="footer-desc">

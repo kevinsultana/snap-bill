@@ -133,14 +133,15 @@ export default function RegisterPage() {
         </div>
 
         {/* Brand */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center text-lg font-black shadow-md shadow-indigo-500/25">
-            ⚡
+        <Link href="/" className="flex items-center gap-3 mb-6 group">
+          <div className="w-10 h-10 rounded-xl bg-white border border-indigo-100 p-1 flex items-center justify-center shadow-md shadow-indigo-500/15 overflow-hidden group-hover:scale-105 transition-transform">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="SnapBill Logo" className="w-full h-full object-contain" />
           </div>
           <span className="text-2xl font-bold tracking-tight text-slate-900">
             Snap<b className="text-indigo-600">Bill</b>
           </span>
-        </div>
+        </Link>
 
         {/* Heading */}
         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight leading-tight">

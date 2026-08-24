@@ -21,6 +21,11 @@ export const metadata = {
   title: 'SnapBill — Smart Invoice Generator & SaaS Billing',
   description:
     'Kelola penagihan klien, pembuatan invoice otomatis, bukti transfer, dan sistem pembayaran online terpadu dengan SnapBill.',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/logo.png',
+  },
 };
 
 export const viewport = {

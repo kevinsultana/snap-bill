@@ -255,6 +255,11 @@ export default function SettingsPage() {
                     {showServerKey ? '🙈' : '👁️'}
                   </button>
                 </div>
+                {isPro && serverKey && (
+                  <p className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1.5">
+                    <span className="text-emerald-600 font-bold">🔒 Terenkripsi:</span> Hanya beberapa karakter terakhir yang ditampilkan demi keamanan.
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="client_key" className={LABEL_CLS}>
@@ -266,6 +271,11 @@ export default function SettingsPage() {
                     {showClientKey ? '🙈' : '👁️'}
                   </button>
                 </div>
+                {isPro && clientKey && (
+                  <p className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1.5">
+                    <span className="text-emerald-600 font-bold">🔒 Terenkripsi:</span> Hanya beberapa karakter terakhir yang ditampilkan demi keamanan.
+                  </p>
+                )}
               </div>
             </div>
           </div>

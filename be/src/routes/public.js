@@ -5,6 +5,7 @@ const { uploadMemory, uploadReceipt } = require('../services/minio.service');
 const { generateInvoicePDF } = require('../services/pdf.service');
 const { createSnapTransaction } = require('../services/midtrans.service');
 const { sendPaymentSuccessEmail } = require('../services/email.service');
+const { publicPaymentLimiter, pdfLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
@@ -133,12 +134,12 @@ async function handlePaySnap(req, res) {
   }
 }
 
-router.post('/invoices/:token/pay', handlePaySnap);
-router.post('/invoices/:token/pay-snap', handlePaySnap);
+router.post('/invoices/:token/pay', publicPaymentLimiter, handlePaySnap);
+router.post('/invoices/:token/pay-snap', publicPaymentLimiter, handlePaySnap);
 
 // ─── POST /api/public/invoices/:token/check-status ────────────────────────────
 // Mengecek status pembayaran langsung ke Midtrans API dan update database jika sukses
-router.post('/invoices/:token/check-status', async (req, res) => {
+router.post('/invoices/:token/check-status', publicPaymentLimiter, async (req, res) => {
   try {
     const { token } = req.params;
     const { order_id } = req.body;
@@ -333,7 +334,7 @@ router.post('/midtrans-webhook', async (req, res) => {
 
 // ─── GET /api/public/invoices/:token/pdf ──────────────────────────────────────
 // Unduh PDF langsung dari link publik
-router.get('/invoices/:token/pdf', async (req, res) => {
+router.get('/invoices/:token/pdf', pdfLimiter, async (req, res) => {
   try {
     const { token } = req.params;
     const invoice = await prisma.invoice.findFirst({
@@ -428,7 +429,7 @@ async function handleReceiptUpload(req, res) {
   }
 }
 
-router.post('/invoices/:token/receipt', uploadMemory.single('receipt'), handleReceiptUpload);
-router.post('/invoices/:token/upload-receipt', uploadMemory.single('receipt'), handleReceiptUpload);
+router.post('/invoices/:token/receipt', publicPaymentLimiter, uploadMemory.single('receipt'), handleReceiptUpload);
+router.post('/invoices/:token/upload-receipt', publicPaymentLimiter, uploadMemory.single('receipt'), handleReceiptUpload);
 
 module.exports = router;
