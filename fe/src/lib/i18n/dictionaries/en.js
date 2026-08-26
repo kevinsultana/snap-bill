@@ -134,7 +134,7 @@ const en = {
     phone: 'Phone / WhatsApp Number',
     phone_placeholder: '081234567890',
     btn_login: 'Sign In',
-    btn_register: 'Create New Account',
+    btn_register: 'Sign Up',
     logging_in: 'Authenticating...',
     registering: 'Creating account...',
     no_account: "Don't have an account?",

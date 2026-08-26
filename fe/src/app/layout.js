@@ -37,7 +37,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="id" className={`${jakarta.variable} ${inter.variable}`}>
-      <body className="min-h-screen relative overflow-x-hidden text-slate-900 bg-slate-50 antialiased font-sans">
+      <body className="min-h-screen relative text-slate-900 bg-slate-50 antialiased font-sans">
         <LanguageProvider>
           {/* Dynamic Ambient Mesh Glow Background using inline Tailwind utility classes */}
           <div className="fixed inset-0 w-screen h-screen overflow-hidden pointer-events-none z-0" aria-hidden="true">

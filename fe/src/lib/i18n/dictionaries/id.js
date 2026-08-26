@@ -134,7 +134,7 @@ const id = {
     phone: 'Nomor Telepon / WhatsApp',
     phone_placeholder: '081234567890',
     btn_login: 'Masuk',
-    btn_register: 'Daftar Akun Baru',
+    btn_register: 'Daftar',
     logging_in: 'Memverifikasi akun...',
     registering: 'Mendaftarkan akun...',
     no_account: 'Belum memiliki akun?',
