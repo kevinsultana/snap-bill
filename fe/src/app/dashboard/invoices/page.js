@@ -9,6 +9,21 @@ import { toast } from '@/lib/toast';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import Pagination from '@/components/Pagination';
+import {
+  Search,
+  FileText,
+  Plus,
+  Eye,
+  Pencil,
+  Send,
+  CheckCircle2,
+  RefreshCw,
+  Ban,
+  Trash2,
+  Building2,
+  Layers,
+  Zap,
+} from 'lucide-react';
 
 function formatRupiah(value) {
   return new Intl.NumberFormat('id-ID', {
@@ -104,34 +119,55 @@ export default function InvoicesPage() {
   const handleSubmitInvoice = async (inv) => {
     const result = await Swal.fire({
       title: 'Terbitkan Invoice ini?',
-      html: `<p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 10px;">Invoice <b style="color:#0f172a;">#${inv.invoice_number}</b> akan diterbitkan ke klien <b style="color:#0f172a;">${inv.client?.name || ''}</b>.</p><p style="color:#64748b;font-size:12px;margin:0;">Status akan diubah menjadi <b>Belum Dibayar</b>, PDF dibuat, dan email tagihan dikirim ke klien.</p>`,
-      icon: 'question', showCancelButton: true, confirmButtonText: '🚀 Ya, Terbitkan',
-      cancelButtonText: t('common.cancel'), confirmButtonColor: '#6366f1', cancelButtonColor: '#94a3b8',
-      customClass: { popup: 'swal-custom-popup' }, showLoaderOnConfirm: true,
+      html: `<p style="color:#475569;font-size:14px;line-height:1.6;margin:0;">Invoice <b>#${inv.invoice_number}</b> akan resmi diterbitkan dan link pembayaran publik dapat dibagikan kepada klien.</p>`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, Terbitkan',
+      cancelButtonText: t('common.cancel'),
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#94a3b8',
+      customClass: { popup: 'swal-custom-popup' },
+      showLoaderOnConfirm: true,
       allowOutsideClick: () => !Swal.isLoading(),
-      preConfirm: async () => { try { Swal.showLoading(); return (await api.post(`/api/invoices/${inv.id}/submit`)).data; } catch (err) { Swal.showValidationMessage(err.response?.data?.message || 'Gagal menerbitkan invoice.'); return false; } },
+      preConfirm: async () => {
+        try {
+          Swal.showLoading();
+          return (await api.post(`/api/invoices/${inv.id}/submit`)).data;
+        } catch (err) {
+          Swal.showValidationMessage(err.response?.data?.message || 'Gagal menerbitkan invoice.');
+          return false;
+        }
+      },
     });
+
     if (result.isConfirmed && result.value) {
-      await Swal.fire({ icon: 'success', title: '🎉 Invoice Berhasil Diterbitkan!', html: `<p style="color:#475569;font-size:13px;margin:0 0 8px;">Link pembayaran publik untuk klien telah aktif:</p><div style="margin-top:6px;padding:12px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;word-break:break-all;font-family:monospace;font-size:12px;color:#4f46e5;user-select:all;">${result.value.public_link}</div>`, confirmButtonText: 'Selesai', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
+      await Swal.fire({
+        icon: 'success',
+        title: 'Invoice Berhasil Diterbitkan!',
+        html: `<p style="color:#475569;font-size:13px;margin:0 0 8px;">Link pembayaran publik untuk klien telah aktif:</p><div style="margin-top:6px;padding:12px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;word-break:break-all;font-family:monospace;font-size:12px;color:#4f46e5;user-select:all;">${result.value.public_link}</div>`,
+        confirmButtonText: 'Selesai',
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
       fetchInvoices();
     }
   };
 
   const handleCancelInvoice = async (inv) => {
-    const result = await Swal.fire({ title: 'Batalkan Invoice ini?', html: `<p style="color:#475569;font-size:14px;line-height:1.6;margin:0;">Invoice <b style="color:#0f172a;">#${inv.invoice_number}</b> akan ditandai sebagai <b>Dibatalkan</b>.</p>`, icon: 'warning', showCancelButton: true, confirmButtonText: '🚫 Ya, Batalkan', cancelButtonText: t('common.cancel'), confirmButtonColor: '#f43f5e', cancelButtonColor: '#94a3b8', customClass: { popup: 'swal-custom-popup' }, showLoaderOnConfirm: true, allowOutsideClick: () => !Swal.isLoading(), preConfirm: async () => { try { Swal.showLoading(); return (await api.post(`/api/invoices/${inv.id}/cancel`)).data; } catch (err) { Swal.showValidationMessage(err.response?.data?.message || 'Gagal membatalkan.'); return false; } } });
+    const result = await Swal.fire({ title: 'Batalkan Invoice ini?', html: `<p style="color:#475569;font-size:14px;line-height:1.6;margin:0;">Invoice <b style="color:#0f172a;">#${inv.invoice_number}</b> akan ditandai sebagai <b>Dibatalkan</b>.</p>`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya, Batalkan', cancelButtonText: t('common.cancel'), confirmButtonColor: '#f43f5e', cancelButtonColor: '#94a3b8', customClass: { popup: 'swal-custom-popup' }, showLoaderOnConfirm: true, allowOutsideClick: () => !Swal.isLoading(), preConfirm: async () => { try { Swal.showLoading(); return (await api.post(`/api/invoices/${inv.id}/cancel`)).data; } catch (err) { Swal.showValidationMessage(err.response?.data?.message || 'Gagal membatalkan.'); return false; } } });
     if (result.isConfirmed) { toast('success', `Invoice #${inv.invoice_number} berhasil dibatalkan.`); fetchInvoices(); }
   };
 
   const handleRefreshMidtrans = async (inv) => {
-    const result = await Swal.fire({ title: 'Ajukan Ulang Sesi Midtrans?', html: `<p style="color:#475569;font-size:14px;">Sistem akan membuatkan token baru untuk invoice <b>#${inv.invoice_number}</b>.</p>`, icon: 'question', showCancelButton: true, confirmButtonText: '🔄 Ya, Ajukan Ulang', cancelButtonText: t('common.cancel'), confirmButtonColor: '#6366f1', cancelButtonColor: '#94a3b8', customClass: { popup: 'swal-custom-popup' }, showLoaderOnConfirm: true, allowOutsideClick: () => !Swal.isLoading(), preConfirm: async () => { try { Swal.showLoading(); return (await api.post(`/api/invoices/${inv.id}/refresh-midtrans`)).data; } catch (err) { Swal.showValidationMessage(err.response?.data?.message || 'Gagal membuat sesi baru.'); return false; } } });
+    const result = await Swal.fire({ title: 'Ajukan Ulang Sesi Midtrans?', html: `<p style="color:#475569;font-size:14px;">Sistem akan membuatkan token baru untuk invoice <b>#${inv.invoice_number}</b>.</p>`, icon: 'question', showCancelButton: true, confirmButtonText: 'Ya, Ajukan Ulang', cancelButtonText: t('common.cancel'), confirmButtonColor: '#6366f1', cancelButtonColor: '#94a3b8', customClass: { popup: 'swal-custom-popup' }, showLoaderOnConfirm: true, allowOutsideClick: () => !Swal.isLoading(), preConfirm: async () => { try { Swal.showLoading(); return (await api.post(`/api/invoices/${inv.id}/refresh-midtrans`)).data; } catch (err) { Swal.showValidationMessage(err.response?.data?.message || 'Gagal membuat sesi baru.'); return false; } } });
     if (result.isConfirmed && result.value) { toast('success', `Sesi Midtrans untuk #${inv.invoice_number} berhasil diperbarui!`); fetchInvoices(); }
   };
 
   const handleReviewPayment = (inv) => {
     const isPdf = inv.receipt_url?.toLowerCase().endsWith('.pdf');
     const receiptContent = inv.receipt_url ? isPdf
-      ? `<div style="margin:16px 0;padding:20px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;text-align:center;"><div style="font-size:36px;margin-bottom:8px;">📄</div><p style="color:#0f172a;font-weight:700;font-size:14px;margin:0 0 8px;">${t('invoices.receipt_pdf_doc')}</p><a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;font-weight:700;text-decoration:underline;font-size:13px;">👁️ ${t('invoices.receipt_click_pdf')}</a></div>`
-      : `<div style="margin:16px 0;text-align:center;"><div style="max-height:320px;overflow-y:auto;background:#f8fafc;padding:10px;border-radius:14px;border:1px solid #e2e8f0;"><img src="${inv.receipt_url}" alt="Bukti Pembayaran" style="max-width:100%;max-height:280px;border-radius:8px;object-fit:contain;margin:0 auto;display:block;"/></div><a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:8px;color:#4f46e5;font-weight:600;font-size:12px;">🔍 ${t('invoices.receipt_open_full')}</a></div>`
+      ? `<div style="margin:16px 0;padding:20px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;text-align:center;"><div style="font-size:13px;font-weight:800;color:#4f46e5;margin-bottom:8px;">[ PDF ]</div><p style="color:#0f172a;font-weight:700;font-size:14px;margin:0 0 8px;">${t('invoices.receipt_pdf_doc')}</p><a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="color:#4f46e5;font-weight:700;text-decoration:underline;font-size:13px;">${t('invoices.receipt_click_pdf')}</a></div>`
+      : `<div style="margin:16px 0;text-align:center;"><div style="max-height:320px;overflow-y:auto;background:#f8fafc;padding:10px;border-radius:14px;border:1px solid #e2e8f0;"><img src="${inv.receipt_url}" alt="Bukti Pembayaran" style="max-width:100%;max-height:280px;border-radius:8px;object-fit:contain;margin:0 auto;display:block;"/></div><a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:8px;color:#4f46e5;font-weight:600;font-size:12px;">${t('invoices.receipt_open_full')}</a></div>`
       : `<div style="margin:20px 0;padding:20px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;text-align:center;color:#64748b;"><p style="margin:0;">${t('invoices.receipt_not_uploaded')}</p></div>`;
 
     Swal.fire({
@@ -165,9 +201,9 @@ export default function InvoicesPage() {
 
   // Channel tab config
   const channelTabs = [
-    { key: 'all',      label: t('invoices.channel_all'),      icon: '📋', count: channelCounts.all ?? totalAll, activeClass: 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' },
-    { key: 'midtrans', label: t('invoices.channel_midtrans'), icon: '⚡', count: channelCounts.midtrans || 0,   activeClass: 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/20' },
-    { key: 'manual',   label: t('invoices.channel_manual'),   icon: '🏦', count: channelCounts.manual || 0,     activeClass: 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20' },
+    { key: 'all',      label: t('invoices.channel_all'),      icon: Layers,    count: channelCounts.all ?? totalAll, activeClass: 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20' },
+    { key: 'midtrans', label: t('invoices.channel_midtrans'), icon: Zap,       count: channelCounts.midtrans || 0,   activeClass: 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/20' },
+    { key: 'manual',   label: t('invoices.channel_manual'),   icon: Building2, count: channelCounts.manual || 0,     activeClass: 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20' },
   ];
 
   return (
@@ -184,7 +220,7 @@ export default function InvoicesPage() {
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-indigo-500/20 transition-all"
           id="btn-create-invoice"
         >
-          ➕ {t('invoices.btn_create')}
+          <Plus className="w-4 h-4" /> {t('invoices.btn_create')}
         </Link>
       </div>
 
@@ -202,7 +238,7 @@ export default function InvoicesPage() {
                 filterChannel === tab.key ? tab.activeClass : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
-              <span>{tab.icon}</span>
+              <tab.icon className="w-4 h-4" />
               <span>{tab.label}</span>
               <span className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold ${
                 filterChannel === tab.key ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
@@ -242,7 +278,7 @@ export default function InvoicesPage() {
         {/* ── 3. Search Toolbar ── */}
         <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
           <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm select-none">🔍</span>
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 select-none" />
             <input
               type="search"
               className={`${INPUT_CLS} pl-9 max-w-xs`}
@@ -263,7 +299,7 @@ export default function InvoicesPage() {
           </div>
         ) : invoices.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-            <span className="text-4xl">🧾</span>
+            <FileText className="w-12 h-12 text-slate-300 mx-auto" />
             <p className="text-sm font-semibold text-slate-700">
               {search || filterStatus !== 'all' || filterChannel !== 'all' ? t('invoices.empty_desc') : t('dashboard.empty_invoices_title')}
             </p>
@@ -295,9 +331,9 @@ export default function InvoicesPage() {
                         <td className="py-3 px-3 font-semibold text-slate-900">{inv.client?.name || '—'}</td>
                         <td className="py-3 px-3">
                           {channel === 'midtrans' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">⚡ {t('invoices.method_midtrans')}</span>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200"><Zap className="w-3 h-3 text-emerald-600" /> {t('invoices.method_midtrans')}</span>
                           ) : channel === 'manual' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">🏦 {t('invoices.method_manual')}</span>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200"><Building2 className="w-3 h-3 text-blue-600" /> {t('invoices.method_manual')}</span>
                           ) : (
                             <span className="text-slate-400 text-xs">—</span>
                           )}
@@ -330,7 +366,7 @@ export default function InvoicesPage() {
                                     onClick={() => setOpenMenuId(null)}
                                     className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition"
                                   >
-                                    <span>👁️</span> {t('common.view')} Detail
+                                    <Eye className="w-3.5 h-3.5" /> {t('common.view')} Detail
                                   </Link>
 
                                   {inv.status === 'draft' && (
@@ -340,14 +376,14 @@ export default function InvoicesPage() {
                                         onClick={() => setOpenMenuId(null)}
                                         className="flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition"
                                       >
-                                        <span>✏️</span> {t('common.edit')} Invoice
+                                        <Pencil className="w-3.5 h-3.5" /> {t('common.edit')} Invoice
                                       </Link>
                                       <button
                                         type="button"
                                         onClick={() => { setOpenMenuId(null); handleSubmitInvoice(inv); }}
                                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition text-left"
                                       >
-                                        <span>🚀</span> Terbitkan (Submit)
+                                        <Send className="w-3.5 h-3.5" /> Terbitkan (Submit)
                                       </button>
                                     </>
                                   )}
@@ -358,7 +394,7 @@ export default function InvoicesPage() {
                                       onClick={() => { setOpenMenuId(null); handleReviewPayment(inv); }}
                                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition text-left"
                                     >
-                                      <span>🔍</span> Review Pembayaran
+                                      <CheckCircle2 className="w-3.5 h-3.5" /> Review Pembayaran
                                     </button>
                                   )}
                                 </div>
@@ -371,7 +407,7 @@ export default function InvoicesPage() {
                                         onClick={() => { setOpenMenuId(null); handleRefreshMidtrans(inv); }}
                                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition text-left"
                                       >
-                                        <span>🔄</span> {t('invoices.btn_resubmit_midtrans')}
+                                        <RefreshCw className="w-3.5 h-3.5" /> {t('invoices.btn_resubmit_midtrans')}
                                       </button>
                                     )}
                                     {(inv.status === 'unpaid' || inv.status === 'overdue' || inv.status === 'pending_verification') && (
@@ -380,7 +416,7 @@ export default function InvoicesPage() {
                                         onClick={() => { setOpenMenuId(null); handleCancelInvoice(inv); }}
                                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition text-left"
                                       >
-                                        <span>🚫</span> {t('invoices.btn_cancel_invoice')}
+                                        <Ban className="w-3.5 h-3.5" /> {t('invoices.btn_cancel_invoice')}
                                       </button>
                                     )}
                                     {inv.status === 'cancelled' && isPro && (
@@ -389,7 +425,7 @@ export default function InvoicesPage() {
                                         onClick={() => { setOpenMenuId(null); handleRefreshMidtrans(inv); }}
                                         className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition text-left"
                                       >
-                                        <span>🔄</span> {t('invoices.btn_reactivate_midtrans')}
+                                        <RefreshCw className="w-3.5 h-3.5" /> {t('invoices.btn_reactivate_midtrans')}
                                       </button>
                                     )}
                                   </div>
@@ -402,7 +438,7 @@ export default function InvoicesPage() {
                                       onClick={() => { setOpenMenuId(null); handleDelete(inv); }}
                                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition text-left"
                                     >
-                                      <span>🗑️</span> Hapus Draft
+                                      <Trash2 className="w-3.5 h-3.5" /> Hapus Draft
                                     </button>
                                   </div>
                                 )}

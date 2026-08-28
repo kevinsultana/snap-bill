@@ -6,6 +6,7 @@ import { openFormModal, confirmDelete } from '@/lib/modals';
 import { toast } from '@/lib/toast';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import Pagination from '@/components/Pagination';
+import { Search, Package, Pencil, Trash2, Plus } from 'lucide-react';
 
 function formatRupiah(value) {
   return new Intl.NumberFormat('id-ID', {
@@ -126,7 +127,7 @@ export default function ItemsPage() {
           onClick={handleAdd}
           id="btn-add-item"
         >
-          ➕ {t('items.btn_add')}
+          <Plus className="w-4 h-4" /> {t('items.btn_add')}
         </button>
       </div>
 
@@ -136,7 +137,7 @@ export default function ItemsPage() {
         {/* Search & Count */}
         <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
           <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm select-none">🔍</span>
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 select-none" />
             <input
               type="search"
               className={`${INPUT_CLS} pl-9 max-w-xs`}
@@ -157,7 +158,7 @@ export default function ItemsPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-            <span className="text-4xl">📦</span>
+            <Package className="w-12 h-12 text-slate-300 mx-auto" />
             <p className="text-sm font-semibold text-slate-700">
               {search ? t('invoices.empty_title') : t('items.empty_title')}
             </p>
@@ -194,14 +195,14 @@ export default function ItemsPage() {
                             onClick={() => handleEdit(item)}
                             title={t('common.edit')}
                           >
-                            ✏️ {t('common.edit')}
+                            <Pencil className="w-3 h-3" /> {t('common.edit')}
                           </button>
                           <button
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-500 text-[11px] font-bold border border-slate-200 hover:border-rose-200 transition"
                             onClick={() => handleDelete(item)}
                             title={t('common.delete')}
                           >
-                            🗑️ {t('common.delete')}
+                            <Trash2 className="w-3 h-3" /> {t('common.delete')}
                           </button>
                         </div>
                       </td>

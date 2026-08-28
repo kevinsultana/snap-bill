@@ -7,6 +7,23 @@ import Swal from 'sweetalert2';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { InvoiceViewSkeleton } from '@/components/Skeleton';
+import {
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  FileDown,
+  Building2,
+  Mail,
+  Phone,
+  MapPin,
+  Zap,
+  CreditCard,
+  Copy,
+  Check,
+  Upload,
+  Send,
+  Eye,
+} from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -82,7 +99,7 @@ export default function PublicInvoicePage() {
       });
       if (res.data?.invoice) setInvoice(res.data.invoice);
       if (res.data?.status === 'paid') {
-        Swal.fire({ icon: 'success', title: '🎉 Pembayaran Berhasil Terverifikasi!', text: 'Terima kasih, tagihan invoice Anda telah lunas.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
+        Swal.fire({ icon: 'success', title: 'Pembayaran Berhasil Terverifikasi!', text: 'Terima kasih, tagihan invoice Anda telah lunas.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       } else if (showToast) {
         Swal.fire({ icon: 'info', title: 'Status Pembayaran', text: 'Transaksi masih dalam proses atau menunggu pembayaran.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       }
@@ -131,7 +148,7 @@ export default function PublicInvoicePage() {
     formData.append('receipt', selectedFile);
     try {
       await axios.post(`${API_URL}/api/public/invoices/${token}/receipt`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      await Swal.fire({ icon: 'success', title: 'Bukti Transfer Terkirim! 🎉', text: 'Bukti pembayaran Anda berhasil diunggah dan akan segera diverifikasi oleh pemilik usaha.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
+      await Swal.fire({ icon: 'success', title: 'Bukti Transfer Terkirim!', text: 'Bukti pembayaran Anda berhasil diunggah dan akan segera diverifikasi oleh pemilik usaha.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       setSelectedFile(null);
       setPreviewUrl(null);
       fetchInvoice();
@@ -170,7 +187,7 @@ export default function PublicInvoicePage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-16 bg-slate-50">
         <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 shadow-lg p-10 text-center">
-          <span className="text-5xl">⚠️</span>
+          <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
           <h2 className="mt-4 text-xl font-extrabold text-slate-900">Invoice Tidak Ditemukan</h2>
           <p className="mt-2 text-sm text-slate-500 leading-relaxed">
             {error || 'Tautan pembayaran ini tidak valid atau tagihan telah dihapus.'}
@@ -203,8 +220,8 @@ export default function PublicInvoicePage() {
                 <img src={user.logo_url} alt={user.business_name || 'Logo'} className="max-h-10 max-w-[130px] object-contain" />
               </div>
             ) : (
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white text-xl flex items-center justify-center shadow-md shadow-indigo-500/20">
-                🏢
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                <Building2 className="w-6 h-6 text-white" />
               </div>
             )}
             <div>
@@ -229,7 +246,7 @@ export default function PublicInvoicePage() {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition shadow-xs"
               title="Download PDF Faktur Invoice Resmi"
             >
-              <span>📄</span> {t('common.download_pdf')}
+              <FileDown className="w-3.5 h-3.5" /> {t('common.download_pdf')}
             </a>
             <span className={`px-3.5 py-1.5 rounded-full text-xs font-bold ${badgeCls}`}>
               {statusInfo.label}
@@ -240,7 +257,7 @@ export default function PublicInvoicePage() {
         {/* ── Status Banners (print:hidden) ──────────────────────────── */}
         {(txStatus === 'settlement' || txStatus === 'capture' || statusCode === '200') && invoice.status !== 'paid' && (
           <div className="print:hidden mb-4 flex items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4">
-            <span className="text-3xl">🎉</span>
+            <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
             <div>
               <h3 className="text-sm font-extrabold text-emerald-900">{t('pay_portal.status_success_midtrans_title')}</h3>
               <p className="text-xs text-emerald-700 mt-0.5">{t('pay_portal.status_success_midtrans_desc')}</p>
@@ -250,7 +267,7 @@ export default function PublicInvoicePage() {
 
         {invoice.status === 'paid' && (
           <div className="print:hidden mb-4 flex items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4">
-            <span className="text-3xl">🎉</span>
+            <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
             <div>
               <h3 className="text-sm font-extrabold text-emerald-900">{t('pay_portal.status_paid_title')}</h3>
               <p className="text-xs text-emerald-700 mt-0.5">{t('pay_portal.status_paid_desc')}</p>
@@ -260,7 +277,7 @@ export default function PublicInvoicePage() {
 
         {invoice.status === 'pending_verification' && (
           <div className="print:hidden mb-4 flex items-center gap-4 bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-4">
-            <span className="text-3xl">⏳</span>
+            <Clock className="w-8 h-8 text-indigo-600 shrink-0" />
             <div>
               <h3 className="text-sm font-extrabold text-indigo-900">{t('pay_portal.status_pending_verif_title')}</h3>
               <p className="text-xs text-indigo-700 mt-0.5">{t('pay_portal.status_pending_verif_desc')}</p>
@@ -283,7 +300,9 @@ export default function PublicInvoicePage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={user.logo_url} alt={user.business_name || 'Logo'} className="max-h-12 max-w-[140px] object-contain" />
                 ) : (
-                  <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white text-xl flex items-center justify-center">🏢</div>
+                  <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+                    <Building2 className="w-6 h-6 text-white" />
+                  </div>
                 )}
                 <div>
                   <h1 className="text-lg font-extrabold text-slate-900">{user.business_name || 'SnapBill Invoice'}</h1>
@@ -312,16 +331,46 @@ export default function PublicInvoicePage() {
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
                   <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">Ditagihkan Kepada:</p>
                   <p className="font-extrabold text-slate-900 text-sm">{client.name || '—'}</p>
-                  {client.email && <p className="text-xs text-slate-500 mt-1">📧 {client.email}</p>}
-                  {client.phone && <p className="text-xs text-slate-500 mt-0.5">📞 {client.phone}</p>}
-                  {client.address && <p className="text-xs text-slate-400 mt-1">📍 {client.address}</p>}
+                  {client.email && (
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                      <span>{client.email}</span>
+                    </p>
+                  )}
+                  {client.phone && (
+                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                      <span>{client.phone}</span>
+                    </p>
+                  )}
+                  {client.address && (
+                    <p className="text-xs text-slate-400 mt-1 flex items-start gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400 mt-0.5" />
+                      <span>{client.address}</span>
+                    </p>
+                  )}
                 </div>
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
                   <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">Penerbit Faktur:</p>
                   <p className="font-extrabold text-slate-900 text-sm">{user.business_name || 'SnapBill Vendor'}</p>
-                  {user.email && <p className="text-xs text-slate-500 mt-1">📧 {user.email}</p>}
-                  {user.phone && <p className="text-xs text-slate-500 mt-0.5">📞 {user.phone}</p>}
-                  {user.address && <p className="text-xs text-slate-400 mt-1">📍 {user.address}</p>}
+                  {user.email && (
+                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                      <span>{user.email}</span>
+                    </p>
+                  )}
+                  {user.phone && (
+                    <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                      <span>{user.phone}</span>
+                    </p>
+                  )}
+                  {user.address && (
+                    <p className="text-xs text-slate-400 mt-1 flex items-start gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 shrink-0 text-slate-400 mt-0.5" />
+                      <span>{user.address}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -342,7 +391,7 @@ export default function PublicInvoicePage() {
               {/* Line Items Table */}
               <div>
                 <h3 className="text-sm font-extrabold text-slate-900 mb-3 flex items-center gap-2">
-                  <span>📋</span> Rincian Item &amp; Layanan
+                  Rincian Item &amp; Layanan
                 </h3>
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
                   <table className="w-full text-left text-xs border-collapse min-w-[440px]">
@@ -358,7 +407,7 @@ export default function PublicInvoicePage() {
                       {items.map((item, idx) => (
                         <tr key={item.id || idx} className="hover:bg-slate-50/60">
                           <td className="py-3 px-3 font-semibold text-slate-900">{item.item_name}</td>
-                          <td className="py-3 px-2 text-center font-mono text-slate-600">{Number(item.quantity || 1)}</td>
+                          <td className="py-3 px-2 text-center font-mono text-slate-600">{Number(item.quantity)}</td>
                           <td className="py-3 px-2 text-right font-mono text-slate-600">{formatRupiah(item.unit_price)}</td>
                           <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">{formatRupiah(item.total_price)}</td>
                         </tr>
@@ -368,24 +417,24 @@ export default function PublicInvoicePage() {
                 </div>
               </div>
 
-              {/* Totals Summary */}
-              <div className="flex justify-end border-t border-slate-100 pt-4">
+              {/* Totals Breakdown */}
+              <div className="flex justify-end pt-2 border-t border-slate-100">
                 <div className="w-full sm:w-64 flex flex-col gap-1.5 text-xs">
                   <div className="flex justify-between text-slate-600">
                     <span>Subtotal</span>
-                    <span className="font-mono font-bold">{formatRupiah(invoice.subtotal)}</span>
+                    <span className="font-mono font-semibold">{formatRupiah(invoice.subtotal)}</span>
                   </div>
                   {Number(invoice.discount) > 0 && (
                     <div className="flex justify-between text-rose-600">
                       <span>Diskon</span>
-                      <span className="font-mono font-bold">- {formatRupiah(invoice.discount)}</span>
+                      <span className="font-mono font-semibold">− {formatRupiah(invoice.discount)}</span>
                     </div>
                   )}
                   {Number(invoice.tax_rate) > 0 && (
-                    <div className="flex justify-between text-slate-600">
-                      <span>Pajak ({invoice.tax_rate}%)</span>
-                      <span className="font-mono font-bold">
-                        + {formatRupiah(((Number(invoice.subtotal) - Number(invoice.discount || 0)) * Number(invoice.tax_rate)) / 100)}
+                    <div className="flex justify-between text-indigo-700">
+                      <span>PPN ({Number(invoice.tax_rate)}%)</span>
+                      <span className="font-mono font-semibold">
+                        + {formatRupiah(((Number(invoice.subtotal) - Number(invoice.discount)) * Number(invoice.tax_rate)) / 100)}
                       </span>
                     </div>
                   )}
@@ -406,7 +455,8 @@ export default function PublicInvoicePage() {
             {user.has_midtrans && invoice.status !== 'paid' && (
               <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-5 shadow-sm">
                 <h3 className="text-sm font-extrabold text-indigo-950 mb-1 flex items-center gap-2">
-                  <span>⚡</span> Pembayaran Instan Online
+                  <Zap className="w-4 h-4 text-indigo-700" />
+                  <span>Pembayaran Instan Online</span>
                 </h3>
                 <p className="text-xs text-indigo-700/80 mb-4">
                   Bayar instan via QRIS, GoPay, OVO, Virtual Account BCA, Mandiri, BNI, BRI, atau Kartu Kredit.
@@ -420,7 +470,7 @@ export default function PublicInvoicePage() {
                   {payingSnap ? (
                     <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Menyiapkan...</>
                   ) : (
-                    <><span>💳</span> Bayar Sekarang via Midtrans ➜</>
+                    <><CreditCard className="w-4 h-4" /> Bayar Sekarang via Midtrans ➜</>
                   )}
                 </button>
               </div>
@@ -430,7 +480,8 @@ export default function PublicInvoicePage() {
             {bankAccounts.length > 0 && (
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <h3 className="text-sm font-extrabold text-slate-900 mb-1 flex items-center gap-2">
-                  <span>🏦</span> Transfer Bank Manual
+                  <Building2 className="w-4 h-4 text-slate-700" />
+                  <span>Transfer Bank Manual</span>
                 </h3>
                 <p className="text-xs text-slate-500 mb-4">Kirim pembayaran ke salah satu rekening resmi di bawah ini:</p>
                 <div className="flex flex-col gap-2.5">
@@ -446,7 +497,17 @@ export default function PublicInvoicePage() {
                         onClick={() => handleCopyAccount(bank.account_number, idx)}
                         className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 transition whitespace-nowrap"
                       >
-                        {copiedIndex === idx ? '✓ Tersalin' : '📋 Salin'}
+                        {copiedIndex === idx ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
+                            <Check className="w-3 h-3" />
+                            <span>Tersalin</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 font-bold">
+                            <Copy className="w-3 h-3" />
+                            <span>Salin</span>
+                          </span>
+                        )}
                       </button>
                     </div>
                   ))}
@@ -458,7 +519,8 @@ export default function PublicInvoicePage() {
             {invoice.status !== 'paid' && (
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <h3 className="text-sm font-extrabold text-slate-900 mb-1 flex items-center gap-2">
-                  <span>📤</span> Upload Bukti Transfer
+                  <Upload className="w-4 h-4 text-slate-700" />
+                  <span>Upload Bukti Transfer</span>
                 </h3>
                 <p className="text-xs text-slate-500 mb-4">
                   Sudah melakukan transfer manual? Unggah bukti struk transfer agar dapat segera diverifikasi.
@@ -479,9 +541,13 @@ export default function PublicInvoicePage() {
                   <button
                     type="submit"
                     disabled={!selectedFile || uploading}
-                    className="w-full mt-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition"
+                    className="w-full mt-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition inline-flex items-center justify-center gap-1.5"
                   >
-                    {uploading ? 'Mengunggah Bukti...' : '🚀 Kirim Bukti Transfer'}
+                    {uploading ? (
+                      <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Mengunggah Bukti...</>
+                    ) : (
+                      <><Send className="w-3.5 h-3.5" /> Kirim Bukti Transfer</>
+                    )}
                   </button>
                 </form>
               </div>
@@ -497,7 +563,8 @@ export default function PublicInvoicePage() {
                   rel="noopener noreferrer"
                   className="text-xs text-indigo-600 font-bold hover:underline inline-flex items-center gap-1"
                 >
-                  <span>🔍</span> Buka Bukti Struk Pembayaran ↗
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Buka Bukti Struk Pembayaran ↗</span>
                 </a>
               </div>
             )}

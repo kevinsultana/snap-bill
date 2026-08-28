@@ -7,6 +7,21 @@ import { toast } from '@/lib/toast';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import { MetricCardSkeleton, TopClientsSkeleton, TableSkeleton } from '@/components/Skeleton';
+import {
+  Sparkles,
+  AlertCircle,
+  Bell,
+  Clock,
+  TrendingUp,
+  Coins,
+  Users,
+  FileText,
+  CheckCircle2,
+  Info,
+  Plus,
+  RefreshCw,
+  Eye,
+} from 'lucide-react';
 
 function formatRupiah(value) {
   return new Intl.NumberFormat('id-ID', {
@@ -93,10 +108,10 @@ export default function DashboardPage() {
       ? isPdf
         ? `
           <div style="margin: 16px 0; padding: 20px; background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0; text-align: center;">
-            <div style="font-size: 36px; margin-bottom: 8px;">📄</div>
+            <div style="font-size: 13px; font-weight: 800; color: #4f46e5; margin-bottom: 8px;">[ PDF ]</div>
             <p style="color: #0f172a; font-weight: 700; font-size: 14px; margin: 0 0 8px;">Dokumen Bukti Transfer (PDF)</p>
             <a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="color: #4f46e5; font-weight: 700; text-decoration: underline; font-size: 13px;">
-              👁️ Klik untuk Membuka Dokumen Bukti ↗
+              Klik untuk Membuka Dokumen Bukti ↗
             </a>
           </div>
         `
@@ -110,7 +125,7 @@ export default function DashboardPage() {
               />
             </div>
             <a href="${inv.receipt_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; margin-top: 8px; color: #4f46e5; font-weight: 600; font-size: 12px;">
-              🔍 Buka gambar ukuran penuh ↗
+              Buka gambar ukuran penuh ↗
             </a>
           </div>
         `
@@ -196,11 +211,11 @@ export default function DashboardPage() {
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              {t('dashboard.welcome')} {user?.business_name || user?.email?.split('@')[0]}! 👋
+              {t('dashboard.welcome')} {user?.business_name || user?.email?.split('@')[0]}!
             </h1>
             {isPro && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-800 border border-yellow-300">
-                👑 PRO
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-800 border border-yellow-300">
+                <Sparkles className="w-3 h-3 text-amber-700" /> PRO
               </span>
             )}
           </div>
@@ -211,10 +226,10 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-2.5 flex-wrap">
           <Link href="/dashboard/invoices/create" className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-indigo-500/20 transition-all">
-            <span>➕</span> {t('dashboard.btn_create_invoice')}
+            <Plus className="w-4 h-4" /> {t('dashboard.btn_create_invoice')}
           </Link>
           <Link href="/dashboard/clients" className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold shadow-xs transition-all">
-            <span>👥</span> {t('clients.btn_add')}
+            <Users className="w-4 h-4" /> {t('clients.btn_add')}
           </Link>
         </div>
       </div>
@@ -223,7 +238,7 @@ export default function DashboardPage() {
       {error && !loading && (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-rose-50 border border-rose-200 rounded-2xl px-5 py-4">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">⚠️</span>
+            <AlertCircle className="w-6 h-6 text-rose-600 shrink-0" />
             <div>
               <p className="font-bold text-rose-800 text-sm">{error}</p>
               <p className="text-xs text-rose-600 mt-0.5">Gagal memuat sebagian data statistik dashboard.</p>
@@ -232,9 +247,9 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={fetchDashboardData}
-            className="px-3.5 py-1.5 rounded-xl bg-white border border-rose-200 text-rose-700 text-xs font-bold hover:bg-rose-50 transition"
+            className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-white border border-rose-200 text-rose-700 text-xs font-bold hover:bg-rose-50 transition"
           >
-            🔄 {t('dashboard.retry')}
+            <RefreshCw className="w-3.5 h-3.5" /> {t('dashboard.retry')}
           </button>
         </div>
       )}
@@ -244,7 +259,7 @@ export default function DashboardPage() {
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl px-5 py-4 shadow-sm shadow-indigo-100">
           <div className="flex items-center gap-3.5 flex-1 min-w-[240px]">
             <div className="w-11 h-11 rounded-xl bg-indigo-100 text-indigo-600 text-xl flex items-center justify-center shrink-0">
-              🔔
+              <Bell className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-sm font-extrabold text-indigo-900">
@@ -261,7 +276,7 @@ export default function DashboardPage() {
               onClick={() => handleReviewPayment(recentInvoices.find((i) => i.status === 'pending_verification'))}
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition whitespace-nowrap"
             >
-              🔍 Review Bukti Transfer ➜
+              Review Bukti Transfer ➜
             </button>
           )}
         </div>
@@ -286,7 +301,7 @@ export default function DashboardPage() {
                 {t('dashboard.outstanding_title')}
               </span>
               <div className="w-10 h-10 rounded-xl bg-amber-100/80 text-amber-700 flex items-center justify-center text-lg flex-shrink-0">
-                ⏳
+                <Clock className="w-5 h-5 text-amber-700" />
               </div>
             </div>
             <p className="text-2xl font-black text-amber-600 font-mono tracking-tight my-1">
@@ -316,7 +331,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="w-10 h-10 rounded-xl bg-emerald-100/80 text-emerald-700 flex items-center justify-center text-lg flex-shrink-0">
-                📈
+                <TrendingUp className="w-5 h-5 text-emerald-700" />
               </div>
             </div>
             <p className="text-2xl font-black text-emerald-600 font-mono tracking-tight my-1">
@@ -349,7 +364,7 @@ export default function DashboardPage() {
                 {t('dashboard.all_time_revenue')}
               </span>
               <div className="w-10 h-10 rounded-xl bg-indigo-100/80 text-indigo-700 flex items-center justify-center text-lg flex-shrink-0">
-                💰
+                <Coins className="w-5 h-5 text-indigo-700" />
               </div>
             </div>
             <p className="text-2xl font-black text-indigo-600 font-mono tracking-tight my-1">
@@ -372,7 +387,7 @@ export default function DashboardPage() {
                 {t('dashboard.total_clients')}
               </span>
               <div className="w-10 h-10 rounded-xl bg-purple-100/80 text-purple-700 flex items-center justify-center text-lg flex-shrink-0">
-                👥
+                <Users className="w-5 h-5 text-purple-700" />
               </div>
             </div>
             <p className="text-2xl font-black text-purple-700 tracking-tight my-1">
@@ -403,7 +418,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                  <span>🏆</span> {t('dashboard.top_clients_title')}
+                  {t('dashboard.top_clients_title')}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {t('dashboard.top_clients_desc')}
@@ -421,7 +436,7 @@ export default function DashboardPage() {
               <TopClientsSkeleton />
             ) : topClients.length === 0 ? (
               <div className="text-center py-8 px-4 bg-slate-50/70 rounded-xl border border-dashed border-slate-200">
-                <span className="text-3xl block mb-2">👥</span>
+                <Users className="w-10 h-10 text-slate-300 mx-auto block mb-2" />
                 <p className="text-sm font-bold text-slate-700 mb-1">Belum Ada Riwayat Transaksi Klien</p>
                 <p className="text-xs text-slate-500 mb-3">Buat invoice pertama Anda untuk mulai mengumpulkan data peringkat klien.</p>
                 <Link href="/dashboard/invoices/create" className="inline-flex px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition">
@@ -432,9 +447,9 @@ export default function DashboardPage() {
               <div className="flex flex-col gap-3">
                 {topClients.map((client, index) => {
                   const rankColors = [
-                    { bg: 'bg-amber-400', text: 'text-amber-950', badge: '🥇 #1' },
-                    { bg: 'bg-slate-300', text: 'text-slate-900', badge: '🥈 #2' },
-                    { bg: 'bg-amber-700', text: 'text-amber-100', badge: '🥉 #3' },
+                    { bg: 'bg-amber-400', text: 'text-amber-950', badge: '#1' },
+                    { bg: 'bg-slate-300', text: 'text-slate-900', badge: '#2' },
+                    { bg: 'bg-amber-700', text: 'text-amber-100', badge: '#3' },
                     { bg: 'bg-slate-100', text: 'text-slate-700', badge: `#4` },
                     { bg: 'bg-slate-100', text: 'text-slate-700', badge: `#5` },
                   ];
@@ -493,7 +508,7 @@ export default function DashboardPage() {
             <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5 sm:p-6">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                  <span>📈</span> {t('dashboard.revenue_trend')}
+                  {t('dashboard.revenue_trend')}
                 </h3>
                 <span className="text-xs text-slate-500 font-medium">Berdasarkan invoice lunas</span>
               </div>
@@ -544,7 +559,7 @@ export default function DashboardPage() {
               <TableSkeleton rows={4} />
             ) : recentInvoices.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
-                <span className="text-4xl">🧾</span>
+                <FileText className="w-10 h-10 text-slate-300 mx-auto block mb-2" />
                 <p className="text-sm font-semibold text-slate-700">{t('dashboard.empty_invoices_title')}</p>
                 <Link href="/dashboard/invoices/create" className="mt-3 inline-flex px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition">
                   {t('dashboard.btn_create_invoice')}
@@ -584,11 +599,12 @@ export default function DashboardPage() {
                                   onClick={() => handleReviewPayment(inv)}
                                   title="Review Bukti Transfer"
                                 >
-                                  🔍 Review
+                                  Review
                                 </button>
                               )}
-                              <Link href={`/dashboard/invoices/${inv.id}`} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 transition">
-                                👁️ {t('common.view')}
+                              <Link href={`/dashboard/invoices/${inv.id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold border border-slate-200 transition">
+                                <Eye className="w-3 h-3" />
+                                <span>{t('common.view')}</span>
                               </Link>
                             </div>
                           </td>
@@ -609,13 +625,13 @@ export default function DashboardPage() {
           {/* Subscription Tier Widget */}
           <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5">
             <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 mb-3">
-              <span>💎</span> {t('nav.subscription')}
+              {t('nav.subscription')}
             </h3>
 
             {isPro ? (
               <div className="mt-2 p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-yellow-50 border border-yellow-200">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">👑</span>
+                <div className="flex items-center gap-2.5">
+                  <Sparkles className="w-5 h-5 text-amber-600 shrink-0" />
                   <div>
                     <b className="text-sm text-amber-900">{t('subscription.active_pro_badge')}</b>
                     <p className="text-xs text-amber-700 mt-0.5">{t('subscription.pro_hero_desc')}</p>
@@ -652,7 +668,7 @@ export default function DashboardPage() {
           {/* Invoice Status Distribution Widget */}
           <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5">
             <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 mb-3">
-              <span>📊</span> {t('dashboard.status_distribution')}
+              {t('dashboard.status_distribution')}
             </h3>
 
             <div className="flex flex-col gap-2.5 mt-2">
@@ -680,18 +696,24 @@ export default function DashboardPage() {
           {/* Setup Health & Branding Checklist */}
           <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5">
             <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 mb-3">
-              <span>⚙️</span> {t('settings.title')}
+              {t('settings.title')}
             </h3>
 
             <div className="flex flex-col gap-2.5 mt-2">
               {[
-                { icon: user?.logo_url ? '✅' : 'ℹ️', label: 'Logo Brand Bisnis', sub: user?.logo_url ? 'Logo aktif terpasang' : 'Belum diupload (Gunakan logo standar)' },
-                { icon: user?.business_name ? '✅' : '⚠️', label: t('settings.business_name'), sub: user?.business_name || 'Belum diisi' },
-                { icon: bankAccounts.length > 0 ? '✅' : '⚠️', label: t('settings.bank_section_title'), sub: bankAccounts.length > 0 ? `${bankAccounts.length} rekening` : 'Belum ada' },
-                { icon: user?.midtrans_server_key ? '✅' : 'ℹ️', label: 'Midtrans BYOK', sub: user?.midtrans_server_key ? t('subscription.midtrans_active') : t('subscription.midtrans_inactive') },
+                { status: user?.logo_url ? 'ok' : 'info', label: 'Logo Brand Bisnis', sub: user?.logo_url ? 'Logo aktif terpasang' : 'Belum diupload (Gunakan logo standar)' },
+                { status: user?.business_name ? 'ok' : 'warn', label: t('settings.business_name'), sub: user?.business_name || 'Belum diisi' },
+                { status: bankAccounts.length > 0 ? 'ok' : 'warn', label: t('settings.bank_section_title'), sub: bankAccounts.length > 0 ? `${bankAccounts.length} rekening` : 'Belum ada' },
+                { status: user?.midtrans_server_key ? 'ok' : 'info', label: 'Midtrans BYOK', sub: user?.midtrans_server_key ? t('subscription.midtrans_active') : t('subscription.midtrans_inactive') },
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-base mt-0.5">{item.icon}</span>
+                  {item.status === 'ok' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  ) : item.status === 'warn' ? (
+                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                  )}
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-800 truncate">{item.label}</p>
                     <p className="text-[11px] text-slate-500 mt-0.5 truncate">{item.sub}</p>
@@ -704,7 +726,7 @@ export default function DashboardPage() {
               href="/dashboard/settings"
               className="mt-4 w-full flex items-center justify-center px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition"
             >
-              🛠️ {t('nav.settings')} ➜
+              {t('nav.settings')} ➜
             </Link>
           </div>
 

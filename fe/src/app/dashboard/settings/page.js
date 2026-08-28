@@ -4,6 +4,16 @@ import { useState, useEffect, useRef } from 'react';
 import api from '@/lib/api';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/lib/i18n/useTranslation';
+import {
+  Building2,
+  Upload,
+  Trash2,
+  Eye,
+  EyeOff,
+  Lock,
+  Sparkles,
+  Save,
+} from 'lucide-react';
 
 const MAX_BANKS = 5;
 const EMPTY_BANK = { bank_name: '', account_number: '', account_holder: '' };
@@ -112,7 +122,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await api.put('/api/settings', { business_name: businessName, email, phone, address, midtrans_server_key: isPro ? serverKey : undefined, midtrans_client_key: isPro ? clientKey : undefined, bank_accounts: validBanks });
-      Swal.fire({ icon: 'success', title: 'Pengaturan Tersimpan! ✨', text: 'Semua perubahan data bisnis dan rekening bank berhasil diperbarui.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
+      Swal.fire({ icon: 'success', title: 'Pengaturan Tersimpan!', text: 'Semua perubahan data bisnis dan rekening bank berhasil diperbarui.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'Gagal Menyimpan', text: err.response?.data?.message || 'Terjadi kesalahan saat menyimpan pengaturan.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
     } finally { setSaving(false); }
@@ -143,7 +153,7 @@ export default function SettingsPage() {
           {/* ── 1. Identitas Brand & Logo ── */}
           <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5 sm:p-6 h-full">
             <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2 mb-1">
-              <span>🏢</span> 1. {t('settings.tab_profile')}
+              1. {t('settings.tab_profile')}
             </h2>
             <p className="text-xs text-slate-500 mb-5">{t('settings.logo_label')}</p>
 
@@ -154,7 +164,7 @@ export default function SettingsPage() {
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={logoUrl} alt="Logo Bisnis" className="w-full h-full object-contain p-1.5" />
                 ) : (
-                  <span className="text-3xl opacity-40">🏢</span>
+                  <Building2 className="w-10 h-10 text-slate-300 mx-auto" />
                 )}
               </div>
               <div className="flex-1 min-w-[160px]">
@@ -171,7 +181,7 @@ export default function SettingsPage() {
                     {uploadingLogo ? (
                       <><span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin" /> {t('common.saving')}</>
                     ) : (
-                      <>📁 {logoUrl ? 'Ganti Logo' : 'Upload Logo'}</>
+                      <><Upload className="w-3.5 h-3.5" /> {logoUrl ? 'Ganti Logo' : 'Upload Logo'}</>
                     )}
                   </button>
                   {logoUrl && (
@@ -181,7 +191,7 @@ export default function SettingsPage() {
                       onClick={handleDeleteLogo}
                       className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 text-xs font-bold transition disabled:opacity-60"
                     >
-                      🗑️ {t('common.delete')}
+                      <Trash2 className="w-3.5 h-3.5" /> {t('common.delete')}
                     </button>
                   )}
                 </div>
@@ -218,19 +228,23 @@ export default function SettingsPage() {
           <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5 sm:p-6 h-full">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
-                <span>💳</span> 2. {t('settings.midtrans_title')}
+                2. {t('settings.midtrans_title')}
               </h2>
               {isPro ? (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">👑 PRO ACTIVE</span>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <Sparkles className="w-3 h-3 text-emerald-600" /> PRO ACTIVE
+                </span>
               ) : (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-200">🔒 {t('subscription.midtrans_inactive')}</span>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+                  <Lock className="w-3 h-3 text-amber-600" /> {t('subscription.midtrans_inactive')}
+                </span>
               )}
             </div>
 
             {!isPro ? (
               <div className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-2xl p-4 mb-4">
                 <div className="flex items-start gap-3 flex-1 min-w-[180px]">
-                  <span className="text-2xl">🔒</span>
+                  <Lock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="text-xs font-extrabold text-amber-900 mb-0.5">{t('subscription.midtrans_inactive')}</h4>
                     <p className="text-xs text-amber-700 leading-relaxed">{t('subscription.midtrans_inactive_desc')}</p>
@@ -252,14 +266,10 @@ export default function SettingsPage() {
                 <div className="flex gap-2">
                   <input id="server_key" type={showServerKey ? 'text' : 'password'} value={serverKey} disabled={!isPro} onChange={(e) => setServerKey(e.target.value)} className={INPUT_CLS} placeholder={isPro ? 'SB-Mid-server-...' : 'Fitur ini khusus untuk paket Pro'} autoComplete="off" />
                   <button type="button" disabled={!isPro} onClick={() => setShowServerKey((v) => !v)} className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 transition shrink-0" title={showServerKey ? 'Sembunyikan' : 'Tampilkan'}>
-                    {showServerKey ? '🙈' : '👁️'}
+                    {showServerKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {isPro && serverKey && (
-                  <p className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1.5">
-                    <span className="text-emerald-600 font-bold">🔒 Terenkripsi:</span> Hanya beberapa karakter terakhir yang ditampilkan demi keamanan.
-                  </p>
-                )}
+
               </div>
               <div>
                 <label htmlFor="client_key" className={LABEL_CLS}>
@@ -268,14 +278,10 @@ export default function SettingsPage() {
                 <div className="flex gap-2">
                   <input id="client_key" type={showClientKey ? 'text' : 'password'} value={clientKey} disabled={!isPro} onChange={(e) => setClientKey(e.target.value)} className={INPUT_CLS} placeholder={isPro ? 'SB-Mid-client-...' : 'Fitur ini khusus untuk paket Pro'} autoComplete="off" />
                   <button type="button" disabled={!isPro} onClick={() => setShowClientKey((v) => !v)} className="px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 transition shrink-0" title={showClientKey ? 'Sembunyikan' : 'Tampilkan'}>
-                    {showClientKey ? '🙈' : '👁️'}
+                    {showClientKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {isPro && clientKey && (
-                  <p className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1.5">
-                    <span className="text-emerald-600 font-bold">🔒 Terenkripsi:</span> Hanya beberapa karakter terakhir yang ditampilkan demi keamanan.
-                  </p>
-                )}
+
               </div>
             </div>
           </div>
@@ -286,7 +292,7 @@ export default function SettingsPage() {
         <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
             <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
-              <span>🏦</span> 3. {t('settings.bank_section_title')}
+              3. {t('settings.bank_section_title')}
             </h2>
             <span className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-600">
               {banks.length} / {MAX_BANKS} Rekening
@@ -344,7 +350,7 @@ export default function SettingsPage() {
             {saving ? (
               <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> {t('common.saving')}</>
             ) : (
-              `💾 ${t('settings.btn_save_profile')} ➜`
+              <><Save className="w-4 h-4" /> {t('settings.btn_save_profile')} ➜</>
             )}
           </button>
         </div>

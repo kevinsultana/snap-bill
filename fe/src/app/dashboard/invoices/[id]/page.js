@@ -7,6 +7,20 @@ import api from '@/lib/api';
 import { toast } from '@/lib/toast';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/lib/i18n/useTranslation';
+import {
+  FileDown,
+  Mail,
+  RefreshCw,
+  Ban,
+  Pencil,
+  Send,
+  CheckCircle2,
+  AlertTriangle,
+  Copy,
+  ExternalLink,
+  Paperclip,
+  Eye,
+} from 'lucide-react';
 
 function formatRupiah(v) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(Number(v || 0));
@@ -37,76 +51,87 @@ export default function InvoiceDetailPage() {
     cancelled:            { label: t('invoices.status_cancelled'),            color: 'bg-slate-100 text-slate-600 border border-slate-200' },
   };
 
-  const fetchInvoice = () => {
-    return api.get(`/api/invoices/${id}`)
-      .then((r) => setInvoice(r.data))
-      .catch(() => toast('error', 'Invoice tidak ditemukan'))
-      .finally(() => setLoading(false));
+  // Fetch invoice detail
+  const fetchInvoice = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/api/invoices/${id}`);
+      setInvoice(res.data);
+    } catch (err) {
+      toast('error', err.response?.data?.message || t('invoices.msg_load_failed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch user settings for branding
+  const fetchSettings = async () => {
+    try {
+      const res = await api.get('/api/settings');
+      setUserSettings(res.data?.user || {});
+    } catch (e) {
+      // Non-blocking
+    }
   };
 
   useEffect(() => {
-    fetchInvoice();
-    api.get('/api/settings').then((r) => setUserSettings(r.data)).catch(() => {});
+    if (id) {
+      fetchInvoice();
+      fetchSettings();
+    }
   }, [id]);
 
   const isPro = userSettings?.tier === 'pro' && (!userSettings?.subscription_ends_at || new Date(userSettings.subscription_ends_at) > new Date());
 
-  // Download / Generate PDF
+  // Download PDF Faktur
   const handleDownloadPdf = async () => {
-    setDownloadingPdf(true);
     try {
+      setDownloadingPdf(true);
       const response = await api.get(`/api/invoices/${id}/pdf`, {
         responseType: 'blob',
       });
       const blob = new Blob([response.data], { type: 'application/pdf' });
-      const fileUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = fileUrl;
-      link.setAttribute('download', `Invoice-${invoice.invoice_number}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(fileUrl);
-      toast('success', 'PDF Invoice berhasil diunduh!');
-    } catch {
-      toast('error', 'Gagal men-generate file PDF invoice.');
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice-${invoice.invoice_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      toast('success', t('invoices.msg_download_success'));
+    } catch (err) {
+      toast('error', err.response?.data?.message || t('invoices.msg_download_failed'));
     } finally {
       setDownloadingPdf(false);
     }
   };
 
-  // Resend Email to client
+  // Resend Email Faktur ke Klien
   const handleResendEmail = async () => {
     if (!invoice?.client?.email) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Email',
-        text: 'Klien ini tidak memiliki alamat email yang terdaftar pada sistem.',
-        confirmButtonColor: '#6366f1',
-        customClass: { popup: 'swal-custom-popup' },
-      });
+      toast('error', 'Klien belum memiliki alamat email yang terdaftar.');
       return;
     }
 
     const result = await Swal.fire({
       title: 'Kirim Ulang Email Tagihan?',
       html: `
-        <div style="text-align: left; font-family: 'Plus Jakarta Sans', sans-serif;">
-          <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 12px;">
-            Email tagihan untuk Invoice <b style="color: #0f172a;">#${invoice.invoice_number}</b> akan dikirimkan ulang ke:
+        <div style="text-align: left; font-size: 14px; color: #475569;">
+          <p style="margin: 0 0 8px;">
+            Email faktur tagihan beserta lampiran PDF dan tautan pembayaran akan dikirim ulang ke:
           </p>
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px;">
-            <p style="margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b;">Penerima Email</p>
-            <p style="margin: 2px 0 0; font-size: 14px; font-weight: 800; color: #4f46e5;">${invoice.client.name} &lt;${invoice.client.email}&gt;</p>
+          <div style="padding: 10px 12px; background: #f1f5f9; border-radius: 8px; font-weight: 700; color: #0f172a; word-break: break-all; margin-bottom: 8px;">
+            ${invoice.client.name} &lt;${invoice.client.email}&gt;
           </div>
-          <p style="color: #64748b; font-size: 12px; margin: 0;">
-            Email akan berisi rincian tagihan, link portal pembayaran publik, dan lampiran file <b>PDF Invoice</b> resmi.
+          <p style="font-size: 12px; color: #64748b; margin: 0;">
+            Invoice #${invoice.invoice_number} · Total ${formatRupiah(invoice.total)}
           </p>
         </div>
       `,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: '📧 Ya, Kirim Ulang',
+      confirmButtonText: 'Ya, Kirim Ulang',
       cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
@@ -115,13 +140,10 @@ export default function InvoiceDetailPage() {
       allowOutsideClick: () => !Swal.isLoading(),
       preConfirm: async () => {
         try {
-          Swal.showLoading();
           const res = await api.post(`/api/invoices/${id}/resend-email`);
           return res.data;
         } catch (err) {
-          Swal.showValidationMessage(
-            err.response?.data?.message || 'Gagal mengirim ulang email invoice.'
-          );
+          Swal.showValidationMessage(err.response?.data?.message || 'Gagal mengirim ulang email.');
           return false;
         }
       },
@@ -130,7 +152,7 @@ export default function InvoiceDetailPage() {
     if (result.isConfirmed && result.value) {
       await Swal.fire({
         icon: 'success',
-        title: 'Email Berhasil Terkirim! 🎉',
+        title: 'Email Berhasil Terkirim!',
         html: `
           <p style="color: #475569; font-size: 14px; margin: 0 0 8px;">
             ${result.value.message || 'Email tagihan invoice telah berhasil dikirimkan ke klien.'}
@@ -155,7 +177,7 @@ export default function InvoiceDetailPage() {
       `,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: '🚫 Ya, Batalkan Invoice',
+      confirmButtonText: 'Ya, Batalkan Invoice',
       cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#f43f5e',
       cancelButtonColor: '#94a3b8',
@@ -164,7 +186,6 @@ export default function InvoiceDetailPage() {
       allowOutsideClick: () => !Swal.isLoading(),
       preConfirm: async () => {
         try {
-          Swal.showLoading();
           const res = await api.post(`/api/invoices/${id}/cancel`);
           return res.data;
         } catch (err) {
@@ -191,7 +212,7 @@ export default function InvoiceDetailPage() {
       `,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: '🔄 Ya, Buat Sesi Baru',
+      confirmButtonText: 'Ya, Buat Sesi Baru',
       cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
@@ -200,7 +221,6 @@ export default function InvoiceDetailPage() {
       allowOutsideClick: () => !Swal.isLoading(),
       preConfirm: async () => {
         try {
-          Swal.showLoading();
           const res = await api.post(`/api/invoices/${id}/refresh-midtrans`);
           return res.data;
         } catch (err) {
@@ -227,7 +247,7 @@ export default function InvoiceDetailPage() {
       `,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: '🚀 Ya, Terbitkan Sekarang',
+      confirmButtonText: 'Ya, Terbitkan Sekarang',
       cancelButtonText: t('common.cancel'),
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
@@ -240,32 +260,46 @@ export default function InvoiceDetailPage() {
           const res = await api.post(`/api/invoices/${id}/submit`);
           return res.data;
         } catch (err) {
-          Swal.showValidationMessage(
-            err.response?.data?.message || 'Terjadi kesalahan saat menerbitkan invoice.'
-          );
+          Swal.showValidationMessage(err.response?.data?.message || 'Gagal menerbitkan invoice.');
           return false;
         }
       },
     });
 
     if (result.isConfirmed && result.value) {
-      toast('success', 'Invoice berhasil diterbitkan!');
+      await Swal.fire({
+        icon: 'success',
+        title: 'Invoice Berhasil Diterbitkan!',
+        html: `
+          <p style="color: #475569; font-size: 14px; margin: 0 0 8px;">
+            Link pembayaran publik untuk klien telah aktif:
+          </p>
+          <div style="margin-top: 6px; padding: 12px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; word-break: break-all; font-family: monospace; font-size: 12px; color: #4f46e5; user-select: all;">
+            ${result.value.public_link}
+          </div>
+        `,
+        confirmButtonText: 'Selesai',
+        confirmButtonColor: '#6366f1',
+        customClass: { popup: 'swal-custom-popup' },
+      });
       fetchInvoice();
     }
   };
 
-  // Review payment
+  // Review Bukti Pembayaran Manual
   const handleReviewPayment = () => {
-    const isPdf = invoice.receipt_url && invoice.receipt_url.toLowerCase().endsWith('.pdf');
+    if (!invoice.receipt_url) return;
+
+    const isPdf = invoice.receipt_url.toLowerCase().endsWith('.pdf');
 
     const receiptContent = invoice.receipt_url
       ? isPdf
         ? `
           <div style="margin: 16px 0; padding: 20px; background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0; text-align: center;">
-            <div style="font-size: 36px; margin-bottom: 8px;">📄</div>
+            <div style="font-size: 13px; font-weight: 800; color: #4f46e5; margin-bottom: 8px;">[ PDF ]</div>
             <p style="color: #0f172a; font-weight: 700; font-size: 14px; margin: 0 0 8px;">${t('invoices.receipt_pdf_doc')}</p>
             <a href="${invoice.receipt_url}" target="_blank" rel="noopener noreferrer" style="color: #4f46e5; font-weight: 700; text-decoration: underline; font-size: 13px;">
-              👁️ ${t('invoices.receipt_click_pdf')}
+              ${t('invoices.receipt_click_pdf')}
             </a>
           </div>
         `
@@ -279,7 +313,7 @@ export default function InvoiceDetailPage() {
               />
             </div>
             <a href="${invoice.receipt_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; margin-top: 8px; color: #4f46e5; font-weight: 600; font-size: 12px;">
-              🔍 ${t('invoices.receipt_open_full')}
+              ${t('invoices.receipt_open_full')}
             </a>
           </div>
         `
@@ -371,7 +405,7 @@ export default function InvoiceDetailPage() {
     return (
       <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-16">
         <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-10 text-center">
-          <span className="text-5xl block mb-3">⚠️</span>
+          <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
           <h3 className="text-lg font-extrabold text-slate-900 mb-4">Invoice Tidak Ditemukan</h3>
           <Link
             href="/dashboard/invoices"
@@ -421,7 +455,8 @@ export default function InvoiceDetailPage() {
               onClick={handleReviewPayment}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs sm:text-sm font-bold transition shadow-sm"
             >
-              🔍 Review Bukti
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Review Bukti</span>
             </button>
           )}
 
@@ -431,7 +466,8 @@ export default function InvoiceDetailPage() {
                 href={`/dashboard/invoices/${invoice.id}/edit`}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold transition shadow-sm"
               >
-                ✏️ {t('common.edit')}
+                <Pencil className="w-3.5 h-3.5" />
+                <span>{t('common.edit')}</span>
               </Link>
               <button
                 type="button"
@@ -442,7 +478,10 @@ export default function InvoiceDetailPage() {
                 {submitting ? (
                   <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 ) : (
-                  '🚀 Submit'
+                  <>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Submit</span>
+                  </>
                 )}
               </button>
             </>
@@ -463,7 +502,7 @@ export default function InvoiceDetailPage() {
               </>
             ) : (
               <>
-                <span>📄</span>
+                <FileDown className="w-3.5 h-3.5" />
                 <span>{invoice.status === 'draft' ? 'Unduh PDF (Draft)' : t('common.download_pdf')}</span>
               </>
             )}
@@ -478,7 +517,7 @@ export default function InvoiceDetailPage() {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold transition shadow-sm disabled:opacity-60"
               title="Kirim Ulang Email Tagihan ke Klien"
             >
-              <span>📧</span>
+              <Mail className="w-3.5 h-3.5" />
               <span>{t('invoices.btn_resend_email')}</span>
             </button>
           )}
@@ -492,7 +531,7 @@ export default function InvoiceDetailPage() {
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs sm:text-sm font-bold transition shadow-sm"
                   title="Buat Ulang Sesi Midtrans / Ajukan Ulang"
                 >
-                  <span>🔄</span>
+                  <RefreshCw className="w-3.5 h-3.5" />
                   <span>{t('invoices.btn_resubmit_midtrans')}</span>
                 </button>
               )}
@@ -502,7 +541,7 @@ export default function InvoiceDetailPage() {
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs sm:text-sm font-bold transition shadow-sm"
                 title="Batalkan Invoice"
               >
-                <span>🚫</span>
+                <Ban className="w-3.5 h-3.5" />
                 <span>{t('invoices.btn_cancel_invoice')}</span>
               </button>
             </>
@@ -515,7 +554,7 @@ export default function InvoiceDetailPage() {
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold transition shadow-md shadow-indigo-500/20 active:scale-[0.98]"
               title="Aktifkan Kembali & Buat Sesi Midtrans Baru"
             >
-              <span>🔄</span>
+              <RefreshCw className="w-3.5 h-3.5" />
               <span>{t('invoices.btn_reactivate_midtrans')}</span>
             </button>
           )}
@@ -529,7 +568,8 @@ export default function InvoiceDetailPage() {
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold transition shadow-sm"
                 title="Salin Tautan Publik"
               >
-                📋 {t('invoices.btn_copy_paylink')}
+                <Copy className="w-3.5 h-3.5" />
+                <span>{t('invoices.btn_copy_paylink')}</span>
               </button>
               <a
                 href={publicPayUrl}
@@ -537,7 +577,8 @@ export default function InvoiceDetailPage() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold transition shadow-md shadow-emerald-500/20 active:scale-[0.98]"
               >
-                🔗 {t('invoices.btn_open_client_portal')}
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>{t('invoices.btn_open_client_portal')}</span>
               </a>
             </>
           )}
@@ -586,7 +627,7 @@ export default function InvoiceDetailPage() {
         {invoice.receipt_url && (
           <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-indigo-50/70 border border-indigo-200 rounded-2xl mb-6">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">📎</span>
+              <Paperclip className="w-5 h-5 text-indigo-700 shrink-0" />
               <div>
                 <p className="text-xs font-extrabold text-indigo-950">{t('invoices.receipt_attached_title')}</p>
                 <p className="text-xs text-indigo-700">{t('invoices.receipt_attached_desc')}</p>
@@ -598,7 +639,8 @@ export default function InvoiceDetailPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-indigo-200 text-indigo-700 text-xs font-bold hover:bg-indigo-50 transition shadow-sm"
             >
-              👁️ {t('invoices.receipt_btn_view')}
+              <Eye className="w-3.5 h-3.5" />
+              <span>{t('invoices.receipt_btn_view')}</span>
             </a>
           </div>
         )}

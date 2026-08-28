@@ -47,7 +47,6 @@ export function toast(typeOrMessage, maybeMessage) {
         });
       case 'warning':
         return hotToast(message, {
-          icon: '⚠️',
           style: {
             ...DEFAULT_STYLE,
             borderLeft: '4px solid #f59e0b',
@@ -55,7 +54,6 @@ export function toast(typeOrMessage, maybeMessage) {
         });
       case 'info':
         return hotToast(message, {
-          icon: 'ℹ️',
           style: {
             ...DEFAULT_STYLE,
             borderLeft: '4px solid #6366f1',
@@ -87,7 +85,6 @@ toast.error = (msg, opts = {}) =>
 
 toast.info = (msg, opts = {}) =>
   hotToast(msg, {
-    icon: 'ℹ️',
     style: {
       ...DEFAULT_STYLE,
       borderLeft: '4px solid #6366f1',
@@ -97,7 +94,6 @@ toast.info = (msg, opts = {}) =>
 
 toast.warning = (msg, opts = {}) =>
   hotToast(msg, {
-    icon: '⚠️',
     style: {
       ...DEFAULT_STYLE,
       borderLeft: '4px solid #f59e0b',

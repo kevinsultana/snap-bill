@@ -20,6 +20,7 @@ import {
   Building,
   Sparkles,
   ArrowLeft,
+  Zap,
 } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
 
@@ -240,7 +241,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
     const defaultPriceStr = existingRowPrice > 0 ? String(existingRowPrice) : '';
 
     const result = await Swal.fire({
-      title: '📦 Tambah Layanan / Item Baru',
+      title: 'Tambah Layanan / Item Baru',
       html: `
         <div style="text-align:left;font-size:13px;display:flex;flex-direction:column;gap:12px;margin-top:10px;">
           <div>
@@ -274,7 +275,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
         </div>
       `,
       showCancelButton: true,
-      confirmButtonText: '💾 Simpan & Terapkan',
+      confirmButtonText: 'Simpan & Terapkan',
       cancelButtonText: 'Batal',
       confirmButtonColor: '#6366f1',
       cancelButtonColor: '#94a3b8',
@@ -452,7 +453,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
           icon: 'warning',
           title: 'Batas Kuota Tercapai',
           text: msg,
-          confirmButtonText: 'Upgrade ke PRO ⚡',
+          confirmButtonText: 'Upgrade ke PRO',
           confirmButtonColor: '#6366f1',
           showCancelButton: true,
           cancelButtonText: 'Tutup',
@@ -713,7 +714,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                                 }
                                 onChange={(selected) => handleSelectItem(idx, selected)}
                                 onCreateOption={(val) => handleCreateItem(idx, val)}
-                                formatCreateLabel={(inputValue) => `➕ Tambah "${inputValue}" ke Master Layanan`}
+                                formatCreateLabel={(inputValue) => `+ Tambah "${inputValue}" ke Master Layanan`}
                                 formatOptionLabel={(option) => (
                                   <div className="flex items-center justify-between gap-2">
                                     <span className="font-semibold text-slate-800">{option.label}</span>
@@ -971,7 +972,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                      ⚡
+                      <Zap className="w-5 h-5 text-white" />
                     </div>
                   )}
                   <div>

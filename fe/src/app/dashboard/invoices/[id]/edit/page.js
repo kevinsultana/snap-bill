@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import InvoiceForm from '../../_components/InvoiceForm';
+import { AlertTriangle } from 'lucide-react';
 
 export default function EditInvoicePage() {
   const { id } = useParams();
@@ -37,7 +38,7 @@ export default function EditInvoicePage() {
     return (
       <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-16">
         <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-10 text-center max-w-lg mx-auto">
-          <span className="text-5xl block mb-3">⚠️</span>
+          <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
           <p className="text-sm font-semibold text-slate-700 mb-5">{error}</p>
           <Link
             href="/dashboard/invoices"

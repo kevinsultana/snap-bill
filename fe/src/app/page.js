@@ -161,7 +161,7 @@ export default function LandingPage() {
                 href="/dashboard"
                 className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-sm sm:text-base shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/35 hover:-translate-y-0.5 active:translate-y-0 transition-all"
               >
-                <span>📊 {t('dashboard.welcome')} {t('nav.dashboard')}</span>
+                <span>{t('dashboard.welcome')} {t('nav.dashboard')}</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
@@ -184,7 +184,7 @@ export default function LandingPage() {
                 href="#harga"
                 className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white/90 hover:bg-white border border-slate-200 text-slate-800 font-bold text-sm sm:text-base shadow-sm hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 active:translate-y-0 transition-all"
               >
-                <span>💎 {t('landing.pricing_badge')}</span>
+                <span>{t('landing.pricing_badge')}</span>
               </a>
             </>
           )}
@@ -601,7 +601,7 @@ export default function LandingPage() {
         </div>
 
         <div className="max-w-6xl mx-auto border-t border-slate-200/60 pt-6 text-center text-xs text-slate-400 font-medium">
-          <p>© {new Date().getFullYear()} SnapBill SaaS. {t('landing.footer_rights')}</p>
+          <p>&copy; {new Date().getFullYear()} SnapBill SaaS. {t('landing.footer_rights')}</p>
         </div>
       </footer>
     </div>

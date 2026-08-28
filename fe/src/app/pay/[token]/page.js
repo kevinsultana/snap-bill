@@ -6,6 +6,21 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import {
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  FileText,
+  FileDown,
+  RefreshCw,
+  Zap,
+  Eye,
+  CreditCard,
+  Building2,
+  Copy,
+  Check,
+  Paperclip,
+} from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -80,7 +95,7 @@ export default function PublicPayPage() {
       const res = await axios.post(`${API_URL}/api/public/invoices/${token}/check-status`, { order_id: orderId || undefined });
       if (res.data?.invoice) setInvoice(res.data.invoice);
       if (res.data?.status === 'paid') {
-        Swal.fire({ icon: 'success', title: '🎉 Pembayaran Berhasil Terverifikasi!', text: 'Terima kasih, tagihan invoice Anda telah lunas.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
+        Swal.fire({ icon: 'success', title: 'Pembayaran Berhasil Terverifikasi!', text: 'Terima kasih, tagihan invoice Anda telah lunas.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       } else if (showToast) {
         Swal.fire({ icon: 'info', title: 'Status Pembayaran', text: 'Transaksi masih dalam proses atau menunggu pembayaran.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       }
@@ -129,7 +144,7 @@ export default function PublicPayPage() {
     formData.append('receipt', selectedFile);
     try {
       await axios.post(`${API_URL}/api/public/invoices/${token}/receipt`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      await Swal.fire({ icon: 'success', title: 'Bukti Transfer Terkirim! 🎉', text: 'Bukti pembayaran Anda berhasil diunggah dan akan segera diverifikasi oleh pemilik usaha.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
+      await Swal.fire({ icon: 'success', title: 'Bukti Transfer Terkirim!', text: 'Bukti pembayaran Anda berhasil diunggah dan akan segera diverifikasi oleh pemilik usaha.', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       setSelectedFile(null);
       setPreviewUrl(null);
       fetchInvoice();
@@ -168,7 +183,7 @@ export default function PublicPayPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-16 bg-slate-50">
         <div className="max-w-md w-full bg-white rounded-3xl border border-slate-200 shadow-lg p-10 text-center">
-          <span className="text-5xl">⚠️</span>
+          <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto" />
           <h2 className="mt-4 text-xl font-extrabold text-slate-900">Invoice Tidak Ditemukan</h2>
           <p className="mt-2 text-sm text-slate-500 leading-relaxed">
             {error || 'Tautan pembayaran ini tidak valid atau tagihan telah dihapus.'}
@@ -198,8 +213,8 @@ export default function PublicPayPage() {
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={user.logo_url} alt="Logo" className="max-h-10 max-w-[120px] object-contain" />
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white text-lg flex items-center justify-center shadow-md shadow-indigo-500/20">
-                ⚡
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                <Zap className="w-5 h-5 text-white" />
               </div>
             )}
             <div className="min-w-0">
@@ -218,7 +233,7 @@ export default function PublicPayPage() {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition shadow-xs"
               title="Download PDF Faktur Invoice Resmi"
             >
-              <span>📄</span> {t('common.download_pdf')}
+              <FileDown className="w-3.5 h-3.5" /> {t('common.download_pdf')}
             </a>
             <span className={`px-3.5 py-1.5 rounded-full text-xs font-bold ${badgeCls}`}>
               {statusInfo.label}
@@ -229,7 +244,7 @@ export default function PublicPayPage() {
         {/* ── Midtrans Callback Return Banners (print:hidden) ─────────── */}
         {(txStatus === 'settlement' || txStatus === 'capture' || statusCode === '200') && invoice.status !== 'paid' && (
           <div className="print:hidden mb-4 flex items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4">
-            <span className="text-3xl">🎉</span>
+            <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-extrabold text-emerald-900">{t('pay_portal.status_success_midtrans_title')}</h3>
               <p className="text-xs text-emerald-700 mt-0.5">{t('pay_portal.status_success_midtrans_desc')}</p>
@@ -240,7 +255,7 @@ export default function PublicPayPage() {
         {(txStatus === 'pending' || statusCode === '201') && invoice.status !== 'paid' && (
           <div className="print:hidden mb-4 flex flex-wrap items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
             <div className="flex items-start gap-3 flex-1 min-w-0">
-              <span className="text-3xl">⏳</span>
+              <Clock className="w-8 h-8 text-amber-600 shrink-0" />
               <div>
                 <h3 className="text-sm font-extrabold text-amber-900">{t('pay_portal.status_pending_midtrans_title')}</h3>
                 <p className="text-xs text-amber-700 mt-0.5">{t('pay_portal.status_pending_midtrans_desc')}</p>
@@ -255,7 +270,7 @@ export default function PublicPayPage() {
               {checkingStatus ? (
                 <><span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Memeriksa...</>
               ) : (
-                '🔄 Cek Status Pembayaran'
+                <><RefreshCw className="w-3.5 h-3.5 mr-1 inline" /> Cek Status Pembayaran</>
               )}
             </button>
           </div>
@@ -263,7 +278,7 @@ export default function PublicPayPage() {
 
         {invoice.status === 'paid' && (
           <div className="print:hidden mb-4 flex items-center gap-4 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-4">
-            <span className="text-3xl">🎉</span>
+            <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
             <div>
               <h3 className="text-sm font-extrabold text-emerald-900">{t('pay_portal.status_paid_title')}</h3>
               <p className="text-xs text-emerald-700 mt-0.5">{t('pay_portal.status_paid_desc')}</p>
@@ -273,7 +288,7 @@ export default function PublicPayPage() {
 
         {invoice.status === 'pending_verification' && (
           <div className="print:hidden mb-4 flex items-center gap-4 bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-4">
-            <span className="text-3xl">⏳</span>
+            <Clock className="w-8 h-8 text-indigo-600 shrink-0" />
             <div className="flex-1 min-w-0">
               <h3 className="text-sm font-extrabold text-indigo-900">{t('pay_portal.status_pending_verif_title')}</h3>
               <p className="text-xs text-indigo-700 mt-0.5">{t('pay_portal.status_pending_verif_desc')}</p>
@@ -322,7 +337,7 @@ export default function PublicPayPage() {
             {/* Items Table Card */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm print:shadow-none print:border-0 p-5 sm:p-6 overflow-hidden">
               <h3 className="text-sm font-extrabold text-slate-900 mb-4 flex items-center gap-2">
-                📦 {t('invoices.form_section_items')}
+                {t('invoices.form_section_items')}
               </h3>
 
               <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -385,8 +400,8 @@ export default function PublicPayPage() {
             {/* Draft Notice (Client cannot pay yet) */}
             {invoice.status === 'draft' && (
               <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-6 text-center shadow-sm">
-                <div className="w-14 h-14 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-2xl mx-auto mb-3">
-                  📝
+                <div className="w-14 h-14 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center mx-auto mb-3">
+                  <FileText className="w-6 h-6 text-amber-700" />
                 </div>
                 <h3 className="text-sm font-extrabold text-amber-950 mb-1.5">Faktur Masih Berupa Draft</h3>
                 <p className="text-xs text-amber-800 leading-relaxed">
@@ -398,8 +413,8 @@ export default function PublicPayPage() {
             {/* Pending Verification Notice */}
             {invoice.status === 'pending_verification' && (
               <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl p-5 text-center shadow-sm">
-                <div className="w-14 h-14 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-2xl mx-auto mb-4">
-                  ⏳
+                <div className="w-14 h-14 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center mx-auto mb-4">
+                  <Clock className="w-6 h-6 text-indigo-700" />
                 </div>
                 <h3 className="text-sm font-extrabold text-indigo-900 mb-2">{t('pay_portal.status_pending_verif_title')}</h3>
                 <p className="text-xs text-indigo-700/80 leading-relaxed mb-4">{t('pay_portal.status_pending_verif_desc')}</p>
@@ -412,7 +427,8 @@ export default function PublicPayPage() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 transition"
                     >
-                      <span>👁️</span> Lihat Bukti Pembayaran ↗
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Lihat Bukti Pembayaran ↗</span>
                     </a>
                   </div>
                 )}
@@ -424,7 +440,8 @@ export default function PublicPayPage() {
               <div className="bg-gradient-to-br from-indigo-600 to-indigo-500 rounded-2xl p-5 shadow-md shadow-indigo-500/20">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-                    <span>💳</span> {t('pay_portal.auto_payment_title')}
+                    <CreditCard className="w-4 h-4 text-white" />
+                    <span>{t('pay_portal.auto_payment_title')}</span>
                   </h3>
                   <span className="text-[10px] font-extrabold px-2 py-1 rounded-full bg-emerald-400 text-white">
                     {t('pay_portal.instant_badge')}
@@ -450,7 +467,8 @@ export default function PublicPayPage() {
             {invoice.status !== 'paid' && invoice.status !== 'draft' && invoice.status !== 'pending_verification' && invoice.status !== 'cancelled' && (
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 mb-1">
-                  <span>🏦</span> {t('pay_portal.manual_transfer_title')}
+                  <Building2 className="w-4 h-4 text-slate-700" />
+                  <span>{t('pay_portal.manual_transfer_title')}</span>
                 </h3>
                 <p className="text-xs text-slate-500 mb-4">{t('pay_portal.manual_transfer_desc')}</p>
 
@@ -471,7 +489,17 @@ export default function PublicPayPage() {
                           title="Salin Nomor Rekening"
                           className="shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 transition whitespace-nowrap"
                         >
-                          {copiedIndex === idx ? `✅ ${t('common.copied')}` : `📋 ${t('common.copy')}`}
+                          {copiedIndex === idx ? (
+                            <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
+                              <Check className="w-3.5 h-3.5" />
+                              <span>{t('common.copied')}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-slate-700 font-bold">
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>{t('common.copy')}</span>
+                            </span>
+                          )}
                         </button>
                       </div>
                     ))}
@@ -503,13 +531,13 @@ export default function PublicPayPage() {
                         </div>
                       ) : selectedFile ? (
                         <div>
-                          <div className="text-3xl mb-1">📄</div>
+                          <FileText className="w-8 h-8 text-indigo-600 mx-auto mb-1" />
                           <p className="text-xs font-bold text-slate-800">{selectedFile.name}</p>
                           <span className="text-[10px] text-slate-500">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
                         </div>
                       ) : (
                         <div>
-                          <div className="text-3xl mb-1.5">📎</div>
+                          <Paperclip className="w-8 h-8 text-slate-400 mx-auto mb-1.5" />
                           <p className="text-xs font-bold text-slate-700">Pilih foto / tangkapan layar bukti transfer</p>
                           <p className="text-[10px] text-slate-400 mt-1">Klik di sini untuk memilih file</p>
                         </div>

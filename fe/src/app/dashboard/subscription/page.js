@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import toast from '@/lib/toast';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/lib/i18n/useTranslation';
+import { Clock, CreditCard, RefreshCw, Sparkles, Package } from 'lucide-react';
 
 const BTN_PRIMARY = 'inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-sm font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed';
 const BTN_SECONDARY = 'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold transition-all disabled:opacity-60';
@@ -63,7 +64,7 @@ function SubscriptionContent() {
         }
         setPendingTransaction(null); setPendingPaymentUrl(null);
         await fetchStatus();
-        if (showToast) Swal.fire({ icon: 'success', title: '🎉 Selamat Datang di SnapBill PRO!', text: data.message || 'Pembayaran berhasil diverifikasi!', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
+        if (showToast) Swal.fire({ icon: 'success', title: 'Selamat Datang di SnapBill PRO!', text: data.message || 'Pembayaran berhasil diverifikasi!', confirmButtonColor: '#6366f1', customClass: { popup: 'swal-custom-popup' } });
       } else if (data.status === 'pending') {
         if (typeof window !== 'undefined') localStorage.setItem('pending_sub_order_id', orderIdToCheck);
         setPendingTransaction(data);
@@ -146,7 +147,7 @@ function SubscriptionContent() {
             <div className="mb-6 bg-gradient-to-r from-amber-50 to-yellow-50 border border-yellow-300 rounded-2xl p-5 shadow-sm shadow-amber-100">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex items-start gap-3.5 flex-1 min-w-[240px]">
-                  <span className="text-3xl leading-none shrink-0">⏳</span>
+                  <Clock className="w-8 h-8 text-amber-600 shrink-0" />
                   <div>
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h4 className="text-sm font-extrabold text-amber-900">{t('subscription.pending_title')}</h4>
@@ -165,11 +166,11 @@ function SubscriptionContent() {
                 <div className="flex flex-wrap gap-2 items-center">
                   {pendingPaymentUrl && (
                     <a href={pendingPaymentUrl} target="_blank" rel="noopener noreferrer" className={BTN_PRIMARY} style={{ background: '#6366f1' }}>
-                      💳 {t('subscription.btn_reopen_payment')}
+                      <CreditCard className="w-4 h-4" /> {t('subscription.btn_reopen_payment')}
                     </a>
                   )}
                   <button type="button" onClick={() => handleCheckStatus(pendingTransaction.order_id, true)} disabled={checkingStatus} className={BTN_PRIMARY} style={{ background: '#d97706' }}>
-                    🔄 {checkingStatus ? 'Memeriksa...' : t('subscription.btn_check_status')}
+                    <RefreshCw className={`w-4 h-4 ${checkingStatus ? 'animate-spin' : ''}`} /> {checkingStatus ? 'Memeriksa...' : t('subscription.btn_check_status')}
                   </button>
                   <button type="button" onClick={handleUpgrade} disabled={actionLoading} className={BTN_SECONDARY} style={{ color: '#92400e', borderColor: '#fde68a' }}>
                     {t('subscription.btn_new_session')}
@@ -190,7 +191,11 @@ function SubscriptionContent() {
             <div className="flex flex-wrap justify-between items-start gap-5">
               <div>
                 <div className="flex items-center gap-3 mb-3">
-                  <span className="text-3xl">{isPro ? '👑' : '📦'}</span>
+                  {isPro ? (
+                    <Sparkles className="w-7 h-7 text-emerald-600" />
+                  ) : (
+                    <Package className="w-7 h-7 text-slate-500" />
+                  )}
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider text-white ${isPro ? 'bg-emerald-500' : 'bg-slate-500'}`}>
                     {isPro ? t('subscription.active_pro_badge') : t('subscription.free_badge')}
                   </span>

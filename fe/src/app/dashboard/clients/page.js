@@ -6,6 +6,7 @@ import { openFormModal, confirmDelete } from '@/lib/modals';
 import { toast } from '@/lib/toast';
 import { useTranslation } from '@/lib/i18n/useTranslation';
 import Pagination from '@/components/Pagination';
+import { Search, Users, Pencil, Trash2, Plus } from 'lucide-react';
 
 const INPUT_CLS =
   'w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all duration-150';
@@ -119,7 +120,7 @@ export default function ClientsPage() {
           onClick={handleAdd}
           id="btn-add-client"
         >
-          ➕ {t('clients.btn_add')}
+          <Plus className="w-4 h-4" /> {t('clients.btn_add')}
         </button>
       </div>
 
@@ -129,7 +130,7 @@ export default function ClientsPage() {
         {/* Search & Count */}
         <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
           <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm select-none">🔍</span>
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 select-none" />
             <input
               type="search"
               className={`${INPUT_CLS} pl-9 max-w-xs`}
@@ -150,7 +151,7 @@ export default function ClientsPage() {
           </div>
         ) : clients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-            <span className="text-4xl">👥</span>
+            <Users className="w-12 h-12 text-slate-300 mx-auto" />
             <p className="text-sm font-semibold text-slate-700">
               {search ? t('invoices.empty_title') : t('clients.empty_title')}
             </p>
@@ -201,14 +202,14 @@ export default function ClientsPage() {
                             onClick={() => handleEdit(client)}
                             title={t('common.edit')}
                           >
-                            ✏️ {t('common.edit')}
+                            <Pencil className="w-3 h-3" /> {t('common.edit')}
                           </button>
                           <button
                             className="inline-flex items-center px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-500 text-[11px] font-bold border border-slate-200 hover:border-rose-200 transition"
                             onClick={() => handleDelete(client)}
                             title={t('common.delete')}
                           >
-                            🗑️
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>

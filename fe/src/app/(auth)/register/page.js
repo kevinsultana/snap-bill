@@ -93,7 +93,7 @@ export default function RegisterPage() {
 
       await Swal.fire({
         icon: 'success',
-        title: '🎉 Registrasi Berhasil!',
+        title: 'Registrasi Berhasil!',
         text: 'Selamat datang di SnapBill! Akun Anda aktif dengan paket Free (10 invoice/bulan).',
         confirmButtonColor: '#6366f1',
         customClass: { popup: 'swal-custom-popup' },
@@ -261,7 +261,7 @@ export default function RegisterPage() {
             {loading ? (
               <span className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
             ) : (
-              `🚀 ${t('auth.btn_register')} ➜`
+              `${t('auth.btn_register')} ➜`
             )}
           </button>
         </form>

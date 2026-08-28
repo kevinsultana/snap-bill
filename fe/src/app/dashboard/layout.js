@@ -154,7 +154,7 @@ function DashboardLayoutContent({ children }) {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-black text-amber-900">
-                  <span>👑</span>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <span>{t('nav.pro_active')}</span>
                 </div>
                 <span className="text-[10px] text-amber-700 font-bold">{t('common.view')} ↗</span>
