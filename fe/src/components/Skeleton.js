@@ -2,7 +2,7 @@
 
 /**
  * Modern Skeleton Loading Components
- * Inline Tailwind CSS utility classes — no custom global CSS
+ * Inline Tailwind CSS utility classes - no custom global CSS
  */
 
 // Base shimmer animation via inline style (keyframe defined in globals.css)
@@ -27,7 +27,7 @@ export function Skeleton({ className = '', style = {} }) {
  */
 export function MetricCardSkeleton() {
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-white/80 backdrop-blur-xl border border-white/90 shadow-[0_10px_30px_-5px_rgba(99,102,241,0.06)] p-6 flex flex-col gap-3.5">
+    <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 shadow-xs p-6 flex flex-col gap-3.5">
       <div className="flex justify-between items-center">
         <Skeleton className="h-4 w-[45%] rounded-md" />
         <Skeleton className="h-9 w-9 rounded-xl" />
@@ -46,7 +46,7 @@ export function MetricCardSkeleton() {
  */
 export function TopClientsSkeleton() {
   return (
-    <div className="rounded-3xl bg-white/80 backdrop-blur-xl border border-white/90 shadow-[0_10px_30px_-5px_rgba(99,102,241,0.06)] p-6 flex flex-col gap-4">
+    <div className="rounded-2xl bg-white border border-slate-200/80 shadow-xs p-6 flex flex-col gap-4">
       <div className="flex justify-between items-center">
         <Skeleton className="h-5 w-[40%] rounded-md" />
         <Skeleton className="h-3.5 w-[20%] rounded-md" />
@@ -105,7 +105,7 @@ export function InvoiceViewSkeleton() {
   return (
     <div className="w-full max-w-4xl mx-auto flex flex-col gap-5">
       {/* Header Skeleton */}
-      <div className="rounded-3xl bg-white/80 backdrop-blur-xl border border-white/90 shadow-[0_10px_30px_-5px_rgba(99,102,241,0.06)] p-6 flex justify-between items-center flex-wrap gap-4">
+      <div className="rounded-2xl bg-white border border-slate-200/80 shadow-xs p-6 flex justify-between items-center flex-wrap gap-4">
         <div className="flex items-center gap-3.5">
           <Skeleton className="w-12 h-12 rounded-xl" />
           <div className="flex flex-col gap-2">
@@ -120,7 +120,7 @@ export function InvoiceViewSkeleton() {
       </div>
 
       {/* Invoice Body Skeleton */}
-      <div className="rounded-3xl bg-white/80 backdrop-blur-xl border border-white/90 shadow-[0_10px_30px_-5px_rgba(99,102,241,0.06)] p-8 flex flex-col gap-6">
+      <div className="rounded-2xl bg-white border border-slate-200/80 shadow-xs p-8 flex flex-col gap-6">
         <div className="flex justify-between flex-wrap gap-4">
           <div className="flex flex-col gap-2">
             <Skeleton className="rounded-md" style={{ width: 180, height: 28 }} />

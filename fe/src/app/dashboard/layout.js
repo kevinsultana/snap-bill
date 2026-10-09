@@ -17,7 +17,7 @@ import {
   LogOut,
   Menu,
   X,
-  Sparkles,
+  Crown,
 } from 'lucide-react';
 
 function DashboardLayoutContent({ children }) {
@@ -105,8 +105,8 @@ function DashboardLayoutContent({ children }) {
   return (
     <div className="min-h-screen flex flex-col md:flex-row relative z-10 w-full bg-slate-50">
 
-      {/* ── Desktop Floating Glass Sidebar ────────────────────────────── */}
-      <aside className="hidden md:flex flex-col w-64 lg:w-72 h-[calc(100vh-2rem)] sticky top-4 ml-4 my-4 p-5 rounded-3xl bg-white/80 backdrop-blur-xl border border-white/90 shadow-[0_10px_30px_-5px_rgba(99,102,241,0.06),0_4px_12px_-2px_rgba(0,0,0,0.03)] z-30 shrink-0">
+      {/* ── Desktop Floating Sidebar ─────────────────────────────────── */}
+      <aside className="hidden md:flex flex-col w-64 lg:w-72 h-[calc(100vh-2rem)] sticky top-4 ml-4 my-4 p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs z-30 shrink-0">
 
         {/* Brand Header */}
         <div className="flex items-center justify-between pb-4 mb-3 border-b border-slate-200/70">
@@ -150,19 +150,19 @@ function DashboardLayoutContent({ children }) {
           {isPro ? (
             <Link
               href="/dashboard/subscription"
-              className="p-3 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100/80 border border-amber-200/80 shadow-xs block transition hover:border-amber-300"
+              className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 shadow-xs block transition hover:border-amber-300"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-black text-amber-900">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <Crown className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <span>{t('nav.pro_active')}</span>
                 </div>
-                <span className="text-[10px] text-amber-700 font-bold">{t('common.view')} ↗</span>
+                <span className="text-[10px] text-amber-700 font-bold">{t('common.view')}</span>
               </div>
               <span className="text-[11px] text-amber-800 font-semibold block mt-1">Unlimited Invoices</span>
             </Link>
           ) : (
-            <div className="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80">
+            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
               <div className="flex justify-between items-center mb-1 text-xs">
                 <span className="font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
                   {t('nav.free_package')}
@@ -183,9 +183,9 @@ function DashboardLayoutContent({ children }) {
                 type="button"
                 onClick={handleUpgradePro}
                 disabled={upgrading}
-                className="w-full mt-1 py-1.5 px-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center gap-1"
+                className="w-full mt-1 min-h-11 px-3 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-all flex items-center justify-center gap-1.5"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Crown className="w-3.5 h-3.5" />
                 <span>{upgrading ? t('common.loading') : t('nav.upgrade_pro')}</span>
               </button>
             </div>
@@ -195,7 +195,7 @@ function DashboardLayoutContent({ children }) {
         {/* User Profile & Logout Footer */}
         <div className="pt-3 border-t border-slate-200/70 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
+            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
               {user?.business_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
             </div>
             <div className="min-w-0 flex-1">
@@ -210,7 +210,7 @@ function DashboardLayoutContent({ children }) {
 
           <button
             onClick={handleLogout}
-            className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+            className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
             title={t('nav.logout')}
           >
             <LogOut className="w-4 h-4" />
@@ -219,7 +219,7 @@ function DashboardLayoutContent({ children }) {
       </aside>
 
       {/* ── Mobile Top Header (< md screens) ─────────────────────────── */}
-      <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-white/85 backdrop-blur-xl border-b border-slate-200/80 shadow-xs">
+      <div className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-white/95 border-b border-slate-200/80 shadow-xs">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-white border border-indigo-100 p-0.5 flex items-center justify-center shadow-xs overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -233,7 +233,7 @@ function DashboardLayoutContent({ children }) {
           <LanguageSwitcher size="small" />
           <button
             type="button"
-            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
+            className="w-11 h-11 flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -244,7 +244,7 @@ function DashboardLayoutContent({ children }) {
 
       {/* Mobile Drawer Overlay */}
       <div
-        className={`fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 transition-opacity duration-300 md:hidden ${
+        className={`fixed inset-0 bg-slate-900/40 z-50 transition-opacity duration-300 md:hidden ${
           mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setMobileMenuOpen(false)}
@@ -252,7 +252,7 @@ function DashboardLayoutContent({ children }) {
 
       {/* Mobile Drawer Sidebar */}
       <div
-        className={`fixed top-0 left-0 bottom-0 w-72 bg-white/95 backdrop-blur-2xl p-5 shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-out md:hidden ${
+        className={`fixed top-0 left-0 bottom-0 w-72 bg-white p-5 shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-out md:hidden ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -269,7 +269,7 @@ function DashboardLayoutContent({ children }) {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(false)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
+            className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700"
           >
             <X className="w-5 h-5" />
           </button>
@@ -300,7 +300,7 @@ function DashboardLayoutContent({ children }) {
         <div className="mt-auto pt-4 border-t border-slate-200">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
                 {user?.business_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
               </div>
               <div className="min-w-0 flex-1">
@@ -314,7 +314,7 @@ function DashboardLayoutContent({ children }) {
             </div>
             <button
               onClick={handleLogout}
-              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+              className="w-11 h-11 flex items-center justify-center rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
               title={t('nav.logout')}
             >
               <LogOut className="w-4 h-4" />

@@ -16,7 +16,7 @@ function formatRupiah(num) {
 }
 
 /**
- * Format string/angka ke format ribuan bertitik (misal: 500000 → "500.000")
+ * Format string/angka ke format ribuan bertitik (misal: 500000 => "500.000")
  */
 function formatThousand(val) {
   if (val === null || val === undefined || val === '') return '';
@@ -26,9 +26,9 @@ function formatThousand(val) {
 }
 
 /**
- * SweetAlert2 modal form — all styling via inline `style` attributes
- * using raw CSS values (SweetAlert2 renders into its own DOM, Tailwind
- * classes cannot apply there). This is unavoidable for Swal-based modals.
+ * SweetAlert2 modal form - styling via clean utility classes and attributes
+ * using CSS values (SweetAlert2 renders into its own DOM, Tailwind
+ * classes cannot apply there).
  *
  * Props:
  *   title: string
@@ -211,7 +211,7 @@ export function openFormModal({ title, fields, initialValues = {}, onSubmit }) {
 }
 
 /**
- * Konfirmasi hapus — mengembalikan true jika user konfirmasi.
+ * Konfirmasi hapus - mengembalikan true jika user konfirmasi.
  */
 export async function confirmDelete(itemName) {
   const result = await Swal.fire({

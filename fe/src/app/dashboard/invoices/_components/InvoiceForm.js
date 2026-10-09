@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Swal from 'sweetalert2';
-import api from '@/lib/api';
-import toast from '@/lib/toast';
-import { useTranslation } from '@/lib/i18n/useTranslation';
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Swal from "sweetalert2";
+import api from "@/lib/api";
+import toast from "@/lib/toast";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 import {
   Plus,
   Trash2,
@@ -18,68 +18,68 @@ import {
   Percent,
   CheckCircle2,
   Building,
-  Sparkles,
   ArrowLeft,
   Zap,
-} from 'lucide-react';
-import CreatableSelect from 'react-select/creatable';
+} from "lucide-react";
+import CreatableSelect from "react-select/creatable";
 
 const customSelectStyles = {
   control: (base, state) => ({
     ...base,
-    minHeight: '38px',
-    height: '38px',
-    borderRadius: '0.5rem',
-    borderColor: state.isFocused ? '#6366f1' : '#e2e8f0',
-    boxShadow: state.isFocused ? '0 0 0 2px rgba(99, 102, 241, 0.15)' : 'none',
-    '&:hover': {
-      borderColor: '#cbd5e1',
+    minHeight: "38px",
+    height: "38px",
+    borderRadius: "0.5rem",
+    borderColor: state.isFocused ? "#6366f1" : "#e2e8f0",
+    boxShadow: state.isFocused ? "0 0 0 2px rgba(99, 102, 241, 0.15)" : "none",
+    "&:hover": {
+      borderColor: "#cbd5e1",
     },
-    fontSize: '0.8125rem',
-    fontWeight: '600',
-    backgroundColor: '#ffffff',
+    fontSize: "0.8125rem",
+    fontWeight: "600",
+    backgroundColor: "#ffffff",
   }),
   valueContainer: (base) => ({
     ...base,
-    padding: '0 8px',
+    padding: "0 8px",
   }),
   menuPortal: (base) => ({ ...base, zIndex: 9999 }),
   menu: (base) => ({
     ...base,
-    borderRadius: '0.75rem',
-    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-    border: '1px solid #e2e8f0',
-    overflow: 'hidden',
+    borderRadius: "0.75rem",
+    boxShadow:
+      "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+    border: "1px solid #e2e8f0",
+    overflow: "hidden",
     zIndex: 9999,
   }),
   option: (base, state) => ({
     ...base,
-    fontSize: '0.8125rem',
-    fontWeight: state.isSelected ? '700' : '500',
+    fontSize: "0.8125rem",
+    fontWeight: state.isSelected ? "700" : "500",
     backgroundColor: state.isSelected
-      ? '#6366f1'
+      ? "#6366f1"
       : state.isFocused
-      ? '#eef2ff'
-      : '#ffffff',
-    color: state.isSelected ? '#ffffff' : '#1e293b',
-    cursor: 'pointer',
-    padding: '8px 12px',
+        ? "#eef2ff"
+        : "#ffffff",
+    color: state.isSelected ? "#ffffff" : "#1e293b",
+    cursor: "pointer",
+    padding: "8px 12px",
   }),
   placeholder: (base) => ({
     ...base,
-    color: '#94a3b8',
-    fontSize: '0.8125rem',
-    fontWeight: '500',
+    color: "#94a3b8",
+    fontSize: "0.8125rem",
+    fontWeight: "500",
   }),
   singleValue: (base) => ({
     ...base,
-    color: '#0f172a',
-    fontSize: '0.8125rem',
-    fontWeight: '600',
+    color: "#0f172a",
+    fontSize: "0.8125rem",
+    fontWeight: "600",
   }),
   input: (base) => ({
     ...base,
-    color: '#0f172a',
+    color: "#0f172a",
     margin: 0,
     padding: 0,
   }),
@@ -87,55 +87,62 @@ const customSelectStyles = {
 
 // Helper pemformat ribuan (e.g. 1000000 -> "1.000.000")
 function formatThousand(val) {
-  if (val === undefined || val === null || val === '') return '';
-  const str = String(val).replace(/[^0-9]/g, '');
-  if (!str) return '';
-  return str.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  if (val === undefined || val === null || val === "") return "";
+  const str = String(val).replace(/[^0-9]/g, "");
+  if (!str) return "";
+  return str.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 // Helper pengurai angka (e.g. "1.000.000" -> 1000000)
 function parseRawNumber(val) {
-  if (val === undefined || val === null || val === '') return 0;
-  const str = String(val).replace(/\./g, '').replace(/,/g, '.');
+  if (val === undefined || val === null || val === "") return 0;
+  const str = String(val).replace(/\./g, "").replace(/,/g, ".");
   const num = parseFloat(str);
   return isNaN(num) ? 0 : num;
 }
 
 function formatRupiah(value) {
-  if (!value && value !== 0) return 'Rp 0';
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
+  if (!value && value !== 0) return "Rp 0";
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
     minimumFractionDigits: 0,
   }).format(Number(value));
 }
 
 function toDateInput(dateStr) {
-  if (!dateStr) return '';
-  return new Date(dateStr).toISOString().split('T')[0];
+  if (!dateStr) return "";
+  return new Date(dateStr).toISOString().split("T")[0];
 }
 
-function formatDateDisplay(dateStr, lang = 'id') {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+function formatDateDisplay(dateStr, lang = "id") {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleDateString(
+    lang === "en" ? "en-US" : "id-ID",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    },
+  );
 }
 
-const EMPTY_LINE = { item_name: '', quantity: '1', unit_price: '' };
+const EMPTY_LINE = { item_name: "", quantity: "1", unit_price: "" };
 
 /**
- * InvoiceForm — Split-Screen Desktop & Tabbed Mobile Layout
+ * InvoiceForm - Split-Screen Desktop & Tabbed Mobile Layout
  * with Real-time Inline Spreadsheet Editing and Live Preview
  */
-export default function InvoiceForm({ mode = 'create', invoiceId, initialData }) {
+export default function InvoiceForm({
+  mode = "create",
+  invoiceId,
+  initialData,
+}) {
   const router = useRouter();
   const { t, lang } = useTranslation();
 
   // Mobile Tab state ('form' | 'preview')
-  const [activeTab, setActiveTab] = useState('form');
+  const [activeTab, setActiveTab] = useState("form");
 
   // Master data state
   const [clients, setClients] = useState([]);
@@ -144,32 +151,47 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
   const [saving, setSaving] = useState(false);
 
   // Form fields
-  const [clientId, setClientId] = useState(initialData?.client_id || '');
-  const [issueDate, setIssueDate] = useState(toDateInput(initialData?.issue_date) || toDateInput(new Date()));
-  const [dueDate, setDueDate] = useState(toDateInput(initialData?.due_date) || '');
-  const [taxRate, setTaxRate] = useState(initialData?.tax_rate ? String(initialData.tax_rate) : '');
-  const [discountType, setDiscountType] = useState('fixed'); // 'fixed' (Rp) | 'percent' (%)
-  const [discountValue, setDiscountValue] = useState(
-    initialData?.discount ? formatThousand(initialData.discount) : ''
+  const [clientId, setClientId] = useState(initialData?.client_id || "");
+  const [issueDate, setIssueDate] = useState(
+    toDateInput(initialData?.issue_date) || toDateInput(new Date()),
   );
-  const [notes, setNotes] = useState(initialData?.notes || '');
+  const [dueDate, setDueDate] = useState(
+    toDateInput(initialData?.due_date) || "",
+  );
+  const [taxRate, setTaxRate] = useState(
+    initialData?.tax_rate ? String(initialData.tax_rate) : "",
+  );
+  const [discountType, setDiscountType] = useState("fixed"); // 'fixed' (Rp) | 'percent' (%)
+  const [discountValue, setDiscountValue] = useState(
+    initialData?.discount ? formatThousand(initialData.discount) : "",
+  );
+  const [notes, setNotes] = useState(initialData?.notes || "");
 
   // Line items state
   const [lines, setLines] = useState(
     initialData?.items?.length
       ? initialData.items.map((it) => ({
-          item_name: it.item_name || '',
-          quantity: formatThousand(it.quantity) || '1',
-          unit_price: formatThousand(it.unit_price) || '',
+          item_name: it.item_name || "",
+          quantity: formatThousand(it.quantity) || "1",
+          unit_price: formatThousand(it.unit_price) || "",
         }))
-      : [{ ...EMPTY_LINE }]
+      : [{ ...EMPTY_LINE }],
   );
 
   // Load clients, saved items, and user profile settings
   useEffect(() => {
-    api.get('/api/clients').then((r) => setClients(r.data || [])).catch(() => {});
-    api.get('/api/items').then((r) => setSavedItems(r.data || [])).catch(() => {});
-    api.get('/api/settings').then((r) => setUserProfile(r.data || {})).catch(() => {});
+    api
+      .get("/api/clients")
+      .then((r) => setClients(r.data || []))
+      .catch(() => {});
+    api
+      .get("/api/items")
+      .then((r) => setSavedItems(r.data || []))
+      .catch(() => {});
+    api
+      .get("/api/settings")
+      .then((r) => setUserProfile(r.data || {}))
+      .catch(() => {});
   }, []);
 
   // Mounted state for SSR-safe react-select
@@ -216,94 +238,103 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
   const updateLine = (idx, field, value) => {
     setLines((prev) =>
-      prev.map((line, i) => (i === idx ? { ...line, [field]: value } : line))
+      prev.map((line, i) => (i === idx ? { ...line, [field]: value } : line)),
     );
   };
 
   // Handler select existing item from react-select dropdown
   const handleSelectItem = (idx, selectedOption) => {
     if (!selectedOption) {
-      updateLine(idx, 'item_name', '');
+      updateLine(idx, "item_name", "");
       return;
     }
-    updateLine(idx, 'item_name', selectedOption.label);
-    if (selectedOption.price !== undefined && selectedOption.price !== null && selectedOption.price > 0) {
-      updateLine(idx, 'unit_price', formatThousand(selectedOption.price));
+    updateLine(idx, "item_name", selectedOption.label);
+    if (
+      selectedOption.price !== undefined &&
+      selectedOption.price !== null &&
+      selectedOption.price > 0
+    ) {
+      updateLine(idx, "unit_price", formatThousand(selectedOption.price));
     }
   };
 
   // Handler auto-create new item directly into Master Items list via interactive modal
   const handleCreateItem = async (idx, inputValue) => {
-    const trimmed = (inputValue || '').trim();
+    const trimmed = (inputValue || "").trim();
     if (!trimmed) return;
 
     const existingRowPrice = parseRawNumber(lines[idx]?.unit_price);
-    const defaultPriceStr = existingRowPrice > 0 ? String(existingRowPrice) : '';
+    const defaultPriceStr =
+      existingRowPrice > 0 ? String(existingRowPrice) : "";
 
     const result = await Swal.fire({
-      title: 'Tambah Layanan / Item Baru',
+      title: "Tambah Layanan / Item Baru",
       html: `
-        <div style="text-align:left;font-size:13px;display:flex;flex-direction:column;gap:12px;margin-top:10px;">
+        <div class="text-left text-xs flex flex-col gap-3 mt-2">
           <div>
-            <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;margin-bottom:4px;">
-              Nama Item / Layanan <span style="color:#f43f5e;">*</span>
+            <label class="block text-[11px] font-extrabold uppercase text-slate-600 mb-1">
+              Nama Item / Layanan <span class="text-rose-500">*</span>
             </label>
-            <input id="swal-item-name" class="swal2-input" style="margin:0;width:100%;font-size:13px;height:40px;border-radius:10px;border:1.5px solid #cbd5e1;box-sizing:border-box;" value="${trimmed}" placeholder="Contoh: Jasa Pembuatan Website" />
+            <input id="swal-item-name" class="swal2-input m-0! w-full! text-xs! h-10! rounded-xl! border-slate-300! box-border!" value="${trimmed}" placeholder="Contoh: Jasa Pembuatan Website" />
           </div>
           <div>
-            <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;margin-bottom:4px;">
-              Harga Standar Satuan <span style="color:#f43f5e;">*</span>
+            <label class="block text-[11px] font-extrabold uppercase text-slate-600 mb-1">
+              Harga Standar Satuan <span class="text-rose-500">*</span>
             </label>
-            <div style="display:flex;align-items:center;border:1.5px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#ffffff;">
-              <span style="padding:10px 12px;font-weight:800;font-size:13px;color:#64748b;background:#f8fafc;border-right:1.5px solid #cbd5e1;user-select:none;">Rp</span>
+            <div class="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-white">
+              <span class="px-3 py-2 font-bold text-xs text-slate-600 bg-slate-50 border-r border-slate-300 select-none">Rp</span>
               <input
                 id="swal-item-price"
                 type="text"
                 inputmode="numeric"
-                style="flex:1;padding:10px 12px;border:none;outline:none;font-size:13px;font-weight:700;color:#0f172a;background:transparent;font-family:'ui-monospace','SFMono-Regular','Menlo',monospace;"
+                class="flex-1 px-3 py-2 border-0 outline-none text-xs font-bold text-slate-900 bg-transparent font-mono"
                 value="${formatThousand(defaultPriceStr)}"
                 placeholder="0"
               />
             </div>
           </div>
           <div>
-            <label style="display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#475569;margin-bottom:4px;">
+            <label class="block text-[11px] font-extrabold uppercase text-slate-600 mb-1">
               Deskripsi Singkat (Opsional)
             </label>
-            <textarea id="swal-item-desc" class="swal2-textarea" style="margin:0;width:100%;font-size:13px;height:65px;border-radius:10px;border:1.5px solid #cbd5e1;resize:vertical;box-sizing:border-box;" placeholder="Rincian atau spesifikasi layanan..."></textarea>
+            <textarea id="swal-item-desc" class="swal2-textarea m-0! w-full! text-xs! h-16! rounded-xl! border-slate-300! box-border!" placeholder="Rincian atau spesifikasi layanan..."></textarea>
           </div>
         </div>
       `,
       showCancelButton: true,
-      confirmButtonText: 'Simpan & Terapkan',
-      cancelButtonText: 'Batal',
-      confirmButtonColor: '#6366f1',
-      cancelButtonColor: '#94a3b8',
-      customClass: { popup: 'swal-custom-popup' },
+      confirmButtonText: "Simpan & Terapkan",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#6366f1",
+      cancelButtonColor: "#94a3b8",
+      customClass: { popup: "swal-custom-popup" },
       focusConfirm: false,
       showLoaderOnConfirm: true,
       allowOutsideClick: () => !Swal.isLoading(),
       didOpen: () => {
-        const priceInput = document.getElementById('swal-item-price');
+        const priceInput = document.getElementById("swal-item-price");
         if (priceInput) {
-          priceInput.addEventListener('input', (e) => {
-            const rawNumbers = e.target.value.replace(/[^0-9]/g, '');
+          priceInput.addEventListener("input", (e) => {
+            const rawNumbers = e.target.value.replace(/[^0-9]/g, "");
             if (!rawNumbers) {
-              e.target.value = '';
+              e.target.value = "";
               return;
             }
             const num = parseInt(rawNumbers, 10);
-            e.target.value = new Intl.NumberFormat('id-ID').format(num);
+            e.target.value = new Intl.NumberFormat("id-ID").format(num);
           });
         }
       },
       preConfirm: async () => {
-        const nameVal = document.getElementById('swal-item-name')?.value?.trim();
-        const priceRaw = document.getElementById('swal-item-price')?.value;
-        const descVal = document.getElementById('swal-item-desc')?.value?.trim();
+        const nameVal = document
+          .getElementById("swal-item-name")
+          ?.value?.trim();
+        const priceRaw = document.getElementById("swal-item-price")?.value;
+        const descVal = document
+          .getElementById("swal-item-desc")
+          ?.value?.trim();
 
         if (!nameVal) {
-          Swal.showValidationMessage('Nama item / layanan wajib diisi.');
+          Swal.showValidationMessage("Nama item / layanan wajib diisi.");
           return false;
         }
 
@@ -311,7 +342,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
         try {
           Swal.showLoading();
-          const res = await api.post('/api/items', {
+          const res = await api.post("/api/items", {
             name: nameVal,
             price: priceNum,
             description: descVal || null,
@@ -324,7 +355,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
           };
         } catch (err) {
           Swal.showValidationMessage(
-            err.response?.data?.message || 'Gagal menyimpan item ke database.'
+            err.response?.data?.message || "Gagal menyimpan item ke database.",
           );
           return false;
         }
@@ -338,42 +369,48 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
       // 1. Tambahkan ke master data savedItems
       if (created) {
-        setSavedItems((prev) => [created, ...prev.filter((i) => i.id !== created.id)]);
+        setSavedItems((prev) => [
+          created,
+          ...prev.filter((i) => i.id !== created.id),
+        ]);
       }
 
       // 2. Terapkan langsung ke baris tabel saat ini
-      updateLine(idx, 'item_name', finalName);
+      updateLine(idx, "item_name", finalName);
       if (finalPrice > 0) {
-        updateLine(idx, 'unit_price', formatThousand(finalPrice));
+        updateLine(idx, "unit_price", formatThousand(finalPrice));
       }
 
-      toast('success', `Layanan "${finalName}" berhasil disimpan ke master dan diterapkan!`);
+      toast(
+        "success",
+        `Layanan "${finalName}" berhasil disimpan ke master dan diterapkan!`,
+      );
     }
   };
 
   // Handler input Item Name directly if needed
   const handleItemNameChange = (idx, val) => {
-    updateLine(idx, 'item_name', val);
+    updateLine(idx, "item_name", val);
 
     // Auto-fill price if matched in catalog
     const matched = savedItems.find(
-      (it) => it.name.toLowerCase().trim() === val.toLowerCase().trim()
+      (it) => it.name.toLowerCase().trim() === val.toLowerCase().trim(),
     );
     if (matched && matched.price !== undefined) {
-      updateLine(idx, 'unit_price', formatThousand(matched.price));
+      updateLine(idx, "unit_price", formatThousand(matched.price));
     }
   };
 
   // Handler input Qty
   const handleQtyChange = (idx, rawVal) => {
-    const digits = rawVal.replace(/[^0-9]/g, '');
-    updateLine(idx, 'quantity', digits ? formatThousand(digits) : '');
+    const digits = rawVal.replace(/[^0-9]/g, "");
+    updateLine(idx, "quantity", digits ? formatThousand(digits) : "");
   };
 
   // Handler input Harga Satuan
   const handlePriceChange = (idx, rawVal) => {
-    const digits = rawVal.replace(/[^0-9]/g, '');
-    updateLine(idx, 'unit_price', digits ? formatThousand(digits) : '');
+    const digits = rawVal.replace(/[^0-9]/g, "");
+    updateLine(idx, "unit_price", digits ? formatThousand(digits) : "");
   };
 
   // ─── Dynamic Calculations ──────────────────────────────────────────────────
@@ -387,7 +424,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
   const rawDiscount = parseRawNumber(discountValue) || 0;
   const discountAmt = useMemo(() => {
-    if (discountType === 'percent') {
+    if (discountType === "percent") {
       return (subtotal * Math.min(100, Math.max(0, rawDiscount))) / 100;
     }
     return Math.min(subtotal, Math.max(0, rawDiscount));
@@ -402,18 +439,24 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
     if (e) e.preventDefault();
 
     if (!clientId) {
-      toast('error', 'Pilih klien tujuan invoice terlebih dahulu');
-      setActiveTab('form');
+      toast("error", "Pilih klien tujuan invoice terlebih dahulu");
+      setActiveTab("form");
       return;
     }
 
     const validLines = lines.filter(
-      (l) => l.item_name.trim() && parseRawNumber(l.quantity) > 0 && parseRawNumber(l.unit_price) >= 0
+      (l) =>
+        l.item_name.trim() &&
+        parseRawNumber(l.quantity) > 0 &&
+        parseRawNumber(l.unit_price) >= 0,
     );
 
     if (validLines.length === 0) {
-      toast('error', 'Masukkan minimal 1 item dengan nama, jumlah, dan harga satuan yang valid');
-      setActiveTab('form');
+      toast(
+        "error",
+        "Masukkan minimal 1 item dengan nama, jumlah, dan harga satuan yang valid",
+      );
+      setActiveTab("form");
       return;
     }
 
@@ -432,36 +475,36 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
         })),
       };
 
-      if (mode === 'create') {
-        const res = await api.post('/api/invoices', payload);
-        toast('success', 'Invoice draft berhasil dibuat!');
+      if (mode === "create") {
+        const res = await api.post("/api/invoices", payload);
+        toast("success", "Invoice draft berhasil dibuat!");
         const newId = res.data?.invoice?.id || res.data?.id;
         if (newId) {
           router.push(`/dashboard/invoices/${newId}`);
         } else {
-          router.push('/dashboard/invoices');
+          router.push("/dashboard/invoices");
         }
       } else {
         await api.put(`/api/invoices/${invoiceId}`, payload);
-        toast('success', 'Invoice berhasil diperbarui!');
+        toast("success", "Invoice berhasil diperbarui!");
         router.push(`/dashboard/invoices/${invoiceId}`);
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Gagal menyimpan invoice';
+      const msg = err.response?.data?.message || "Gagal menyimpan invoice";
       if (err.response?.status === 403 && err.response?.data?.tier_limit) {
         Swal.fire({
-          icon: 'warning',
-          title: 'Batas Kuota Tercapai',
+          icon: "warning",
+          title: "Batas Kuota Tercapai",
           text: msg,
-          confirmButtonText: 'Upgrade ke PRO',
-          confirmButtonColor: '#6366f1',
+          confirmButtonText: "Upgrade ke PRO",
+          confirmButtonColor: "#6366f1",
           showCancelButton: true,
-          cancelButtonText: 'Tutup',
+          cancelButtonText: "Tutup",
         }).then((res) => {
-          if (res.isConfirmed) router.push('/dashboard/subscription');
+          if (res.isConfirmed) router.push("/dashboard/subscription");
         });
       } else {
-        toast('error', msg);
+        toast("error", msg);
       }
     } finally {
       setSaving(false);
@@ -470,48 +513,54 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
   return (
     <div className="w-full max-w-7xl mx-auto pb-16 px-3 sm:px-6">
-
       {/* ── Top Header ─────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-3">
             <Link
               href="/dashboard/invoices"
-              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition shadow-sm"
+              className="inline-flex items-center justify-center min-h-11 min-w-11 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition shadow-xs"
               title="Kembali ke Daftar Invoice"
+              aria-label="Kembali ke Daftar Invoice"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              {mode === 'create' ? 'Buat Invoice Baru' : `Edit Invoice #${initialData?.invoice_number || ''}`}
+              {mode === "create"
+                ? "Buat Invoice Baru"
+                : `Edit Invoice #${initialData?.invoice_number || ""}`}
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 pl-11">
-            {mode === 'create'
-              ? 'Isi formulir transaksi di bawah ini dengan live preview otomatis.'
-              : 'Perbarui rincian draf invoice Anda secara langsung.'}
+            {mode === "create"
+              ? "Isi formulir transaksi di bawah ini dengan live preview otomatis."
+              : "Perbarui rincian draf invoice Anda secara langsung."}
           </p>
         </div>
 
         {/* Single Primary Action Button (Top Header) */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link href="/dashboard/invoices" className="px-3.5 sm:px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold transition">
+          <Link
+            href="/dashboard/invoices"
+            className="inline-flex items-center justify-center min-h-11 px-3.5 sm:px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold transition"
+          >
             Batal
           </Link>
           <button
             type="button"
             onClick={handleSubmit}
             disabled={saving}
-            className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-500/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center min-h-11 gap-2 px-4 sm:px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs sm:text-sm font-bold shadow-xs transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
-                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Menyimpan...
+                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />{" "}
+                Menyimpan...
               </>
             ) : (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                {mode === 'edit' ? 'Simpan Perubahan' : 'Buat Invoice'}
+                {mode === "edit" ? "Simpan Perubahan" : "Buat Invoice"}
               </>
             )}
           </button>
@@ -519,14 +568,14 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
       </div>
 
       {/* ── Mobile Tab Switcher (< 768px) ───────────────────────────── */}
-      <div className="md:hidden flex items-center p-1.5 mb-5 rounded-2xl bg-slate-200/70 backdrop-blur-sm border border-slate-300/60 shadow-inner">
+      <div className="md:hidden flex items-center p-1 mb-5 rounded-xl bg-slate-100 border border-slate-200">
         <button
           type="button"
-          onClick={() => setActiveTab('form')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 ${
-            activeTab === 'form'
-              ? 'bg-white text-indigo-700 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900'
+          onClick={() => setActiveTab("form")}
+          className={`flex-1 min-h-11 py-2 px-3 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+            activeTab === "form"
+              ? "bg-white text-indigo-700 shadow-xs border border-slate-200"
+              : "text-slate-600 hover:text-slate-900"
           }`}
         >
           <Edit3 className="w-4 h-4" />
@@ -534,11 +583,11 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab('preview')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 ${
-            activeTab === 'preview'
-              ? 'bg-white text-indigo-700 shadow-sm'
-              : 'text-slate-600 hover:text-slate-900'
+          onClick={() => setActiveTab("preview")}
+          className={`flex-1 min-h-11 py-2 px-3 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+            activeTab === "preview"
+              ? "bg-white text-indigo-700 shadow-xs border border-slate-200"
+              : "text-slate-600 hover:text-slate-900"
           }`}
         >
           <Eye className="w-4 h-4" />
@@ -551,19 +600,17 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
       {/* ── Responsive Split-Screen Layout (Grid md:grid-cols-12) ───── */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-
         {/* ═══════════════════════════════════════════════════════════════════
             LEFT PANE: INPUT FORM (Full on Mobile if tab='form', 6/12 on md, 7/12 on lg)
            ═══════════════════════════════════════════════════════════════════ */}
         <div
           className={`md:col-span-6 lg:col-span-7 flex flex-col gap-6 ${
-            activeTab === 'form' ? 'block' : 'hidden md:block'
+            activeTab === "form" ? "block" : "hidden md:block"
           }`}
         >
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-
             {/* 1. Client & Dates Information Card */}
-            <div className="bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm p-5 sm:p-6">
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5 sm:p-6">
               <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2 mb-4">
                 <User className="w-4 h-4 text-indigo-600" />
                 <span>Informasi Klien & Tanggal</span>
@@ -573,52 +620,68 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                 {/* Client Select */}
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-                    Klien Penerima Tagihan <span className="text-rose-500">*</span>
+                    Klien Penerima Tagihan{" "}
+                    <span className="text-rose-500">*</span>
                   </label>
                   {isMounted ? (
                     <CreatableSelect
                       instanceId="client-select"
                       isClearable
-                      placeholder="— Cari atau pilih klien terdaftar —"
+                      placeholder="Cari atau pilih klien terdaftar..."
                       options={clientOptions}
                       value={
                         selectedClient
-                          ? { value: selectedClient.id, label: selectedClient.name, email: selectedClient.email }
+                          ? {
+                              value: selectedClient.id,
+                              label: selectedClient.name,
+                              email: selectedClient.email,
+                            }
                           : null
                       }
-                      onChange={(selected) => setClientId(selected ? selected.value : '')}
+                      onChange={(selected) =>
+                        setClientId(selected ? selected.value : "")
+                      }
                       formatOptionLabel={(option) => (
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-slate-900">{option.label}</span>
+                          <span className="font-semibold text-slate-900">
+                            {option.label}
+                          </span>
                           {option.email && (
-                            <span className="text-xs text-slate-400 font-medium">{option.email}</span>
+                            <span className="text-xs text-slate-400 font-medium">
+                              {option.email}
+                            </span>
                           )}
                         </div>
                       )}
                       styles={customSelectStyles}
-                      menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                      menuPortalTarget={
+                        typeof document !== "undefined" ? document.body : null
+                      }
                       menuPosition="fixed"
-                      noOptionsMessage={() => 'Klien tidak ditemukan'}
+                      noOptionsMessage={() => "Klien tidak ditemukan"}
                     />
                   ) : (
                     <select
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all min-h-11"
                       value={clientId}
                       onChange={(e) => setClientId(e.target.value)}
                       required
                     >
-                      <option value="">— Pilih Klien Terdaftar —</option>
+                      <option value="">Pilih Klien Terdaftar</option>
                       {clients.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name} {c.email ? `(${c.email})` : ''}
+                          {c.name} {c.email ? `(${c.email})` : ""}
                         </option>
                       ))}
                     </select>
                   )}
                   {clients.length === 0 && (
                     <p className="text-xs text-slate-500 mt-1.5">
-                      Belum ada klien terdaftar.{' '}
-                      <Link href="/dashboard/clients" className="text-indigo-600 font-bold hover:underline">
+                      Belum ada klien terdaftar.{" "}
+                      <Link
+                        href="/dashboard/clients"
+                        className="text-indigo-600 font-bold hover:underline"
+                      >
                         + Tambah Klien Baru
                       </Link>
                     </p>
@@ -627,9 +690,10 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
                 {/* Issue Date */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Tanggal Terbit</span> <span className="text-rose-500">*</span>
+                    <span>Tanggal Terbit</span>{" "}
+                    <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="date"
@@ -642,7 +706,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
                 {/* Due Date */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     <span>Jatuh Tempo</span>
                   </label>
@@ -658,7 +722,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             </div>
 
             {/* 2. Responsive Inline Editable Table for Invoice Items */}
-            <div className="bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm p-5 sm:p-6">
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5 sm:p-6">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
                   <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
@@ -666,14 +730,15 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     <span>Rincian Item & Layanan</span>
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Ketik langsung pada tabel untuk mengubah nama, jumlah, atau harga satuan.
+                    Ketik langsung pada tabel untuk mengubah nama, jumlah, atau
+                    harga satuan.
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={addLine}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition border border-indigo-200/60 shadow-sm"
+                  className="inline-flex items-center justify-center min-h-11 gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition border border-indigo-200 shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Tambah Baris</span>
@@ -682,25 +747,33 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
               {/* Inline Editable Table Container */}
               <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-slate-50/50">
-                <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[540px]">
+                <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-135">
                   <thead>
                     <tr className="bg-slate-100/80 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-600">
-                      <th className="py-2.5 px-3 w-[46%]">Nama Item / Layanan</th>
+                      <th className="py-2.5 px-3 w-[46%]">
+                        Nama Item / Layanan
+                      </th>
                       <th className="py-2.5 px-2 text-center w-[14%]">Qty</th>
-                      <th className="py-2.5 px-2 text-right w-[24%]">Harga Satuan</th>
+                      <th className="py-2.5 px-2 text-right w-[24%]">
+                        Harga Satuan
+                      </th>
                       <th className="py-2.5 px-3 text-right w-[16%]">Total</th>
-                      <th className="py-2.5 px-2 w-[40px] text-center" />
+                      <th className="py-2.5 px-2 w-10 text-center" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200/60 bg-white">
                     {lines.map((line, idx) => {
                       const lineTotal =
-                        (parseRawNumber(line.quantity) || 0) * (parseRawNumber(line.unit_price) || 0);
+                        (parseRawNumber(line.quantity) || 0) *
+                        (parseRawNumber(line.unit_price) || 0);
 
                       return (
-                        <tr key={idx} className="hover:bg-indigo-50/20 transition-colors">
+                        <tr
+                          key={idx}
+                          className="hover:bg-indigo-50/20 transition-colors"
+                        >
                           {/* Item Name (React Select Creatable with Auto-Save) */}
-                          <td className="p-2 min-w-[200px]">
+                          <td className="p-2 min-w-50">
                             {isMounted ? (
                               <CreatableSelect
                                 instanceId={`line-item-select-${idx}`}
@@ -709,24 +782,41 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                                 options={itemOptions}
                                 value={
                                   line.item_name
-                                    ? { value: line.item_name, label: line.item_name }
+                                    ? {
+                                        value: line.item_name,
+                                        label: line.item_name,
+                                      }
                                     : null
                                 }
-                                onChange={(selected) => handleSelectItem(idx, selected)}
-                                onCreateOption={(val) => handleCreateItem(idx, val)}
-                                formatCreateLabel={(inputValue) => `+ Tambah "${inputValue}" ke Master Layanan`}
+                                onChange={(selected) =>
+                                  handleSelectItem(idx, selected)
+                                }
+                                onCreateOption={(val) =>
+                                  handleCreateItem(idx, val)
+                                }
+                                formatCreateLabel={(inputValue) =>
+                                  `+ Tambah "${inputValue}" ke Master Layanan`
+                                }
                                 formatOptionLabel={(option) => (
                                   <div className="flex items-center justify-between gap-2">
-                                    <span className="font-semibold text-slate-800">{option.label}</span>
-                                    {option.price !== undefined && option.price !== null && option.price > 0 && (
-                                      <span className="text-[11px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded font-bold">
-                                        {formatRupiah(option.price)}
-                                      </span>
-                                    )}
+                                    <span className="font-semibold text-slate-800">
+                                      {option.label}
+                                    </span>
+                                    {option.price !== undefined &&
+                                      option.price !== null &&
+                                      option.price > 0 && (
+                                        <span className="text-[11px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded font-bold">
+                                          {formatRupiah(option.price)}
+                                        </span>
+                                      )}
                                   </div>
                                 )}
                                 styles={customSelectStyles}
-                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                menuPortalTarget={
+                                  typeof document !== "undefined"
+                                    ? document.body
+                                    : null
+                                }
                                 menuPosition="fixed"
                               />
                             ) : (
@@ -735,7 +825,9 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                                 className="w-full px-2.5 py-2 text-xs sm:text-sm font-semibold rounded-lg border border-slate-200 bg-white"
                                 placeholder="Nama produk/jasa..."
                                 value={line.item_name}
-                                onChange={(e) => handleItemNameChange(idx, e.target.value)}
+                                onChange={(e) =>
+                                  handleItemNameChange(idx, e.target.value)
+                                }
                               />
                             )}
                           </td>
@@ -749,7 +841,9 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                               placeholder="1"
                               value={line.quantity}
                               onFocus={(e) => e.target.select()}
-                              onChange={(e) => handleQtyChange(idx, e.target.value)}
+                              onChange={(e) =>
+                                handleQtyChange(idx, e.target.value)
+                              }
                               required
                             />
                           </td>
@@ -767,7 +861,9 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                                 placeholder="0"
                                 value={line.unit_price}
                                 onFocus={(e) => e.target.select()}
-                                onChange={(e) => handlePriceChange(idx, e.target.value)}
+                                onChange={(e) =>
+                                  handlePriceChange(idx, e.target.value)
+                                }
                                 required
                               />
                             </div>
@@ -810,7 +906,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
             </div>
 
             {/* 3. Adjustments (Discount, Tax, Notes) Card */}
-            <div className="bg-white/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm p-5 sm:p-6">
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5 sm:p-6">
               <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2 mb-4">
                 <Percent className="w-4 h-4 text-indigo-600" />
                 <span>Diskon, Pajak & Catatan</span>
@@ -827,13 +923,13 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                       <button
                         type="button"
                         onClick={() => {
-                          setDiscountType('fixed');
-                          setDiscountValue('');
+                          setDiscountType("fixed");
+                          setDiscountValue("");
                         }}
                         className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
-                          discountType === 'fixed'
-                            ? 'bg-white text-indigo-600 shadow-xs'
-                            : 'text-slate-500 hover:text-slate-800'
+                          discountType === "fixed"
+                            ? "bg-white text-indigo-600 shadow-xs"
+                            : "text-slate-500 hover:text-slate-800"
                         }`}
                       >
                         Rp
@@ -841,13 +937,13 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                       <button
                         type="button"
                         onClick={() => {
-                          setDiscountType('percent');
-                          setDiscountValue('');
+                          setDiscountType("percent");
+                          setDiscountValue("");
                         }}
                         className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
-                          discountType === 'percent'
-                            ? 'bg-white text-indigo-600 shadow-xs'
-                            : 'text-slate-500 hover:text-slate-800'
+                          discountType === "percent"
+                            ? "bg-white text-indigo-600 shadow-xs"
+                            : "text-slate-500 hover:text-slate-800"
                         }`}
                       >
                         %
@@ -857,7 +953,7 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
                   <div className="relative flex items-center">
                     <span className="absolute left-3 text-xs font-bold text-slate-400">
-                      {discountType === 'fixed' ? 'Rp' : '%'}
+                      {discountType === "fixed" ? "Rp" : "%"}
                     </span>
                     <input
                       type="text"
@@ -867,12 +963,12 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                       value={discountValue}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => {
-                        if (discountType === 'percent') {
-                          const digits = e.target.value.replace(/[^0-9.]/g, '');
-                          if (parseFloat(digits) > 100) setDiscountValue('100');
+                        if (discountType === "percent") {
+                          const digits = e.target.value.replace(/[^0-9.]/g, "");
+                          if (parseFloat(digits) > 100) setDiscountValue("100");
                           else setDiscountValue(digits);
                         } else {
-                          const digits = e.target.value.replace(/[^0-9]/g, '');
+                          const digits = e.target.value.replace(/[^0-9]/g, "");
                           setDiscountValue(formatThousand(digits));
                         }
                       }}
@@ -891,7 +987,9 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     Pajak PPN (%)
                   </label>
                   <div className="relative flex items-center">
-                    <span className="absolute left-3 text-xs font-bold text-slate-400">%</span>
+                    <span className="absolute left-3 text-xs font-bold text-slate-400">
+                      %
+                    </span>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -900,8 +998,8 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                       value={taxRate}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => {
-                        const cleaned = e.target.value.replace(/[^0-9.]/g, '');
-                        if (parseFloat(cleaned) > 100) setTaxRate('100');
+                        const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                        if (parseFloat(cleaned) > 100) setTaxRate("100");
                         else setTaxRate(cleaned);
                       }}
                     />
@@ -928,7 +1026,6 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                 </div>
               </div>
             </div>
-
           </form>
         </div>
 
@@ -937,20 +1034,21 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
            ═══════════════════════════════════════════════════════════════════ */}
         <div
           className={`md:col-span-6 lg:col-span-5 md:sticky md:top-6 flex flex-col gap-4 ${
-            activeTab === 'preview' ? 'block' : 'hidden md:block'
+            activeTab === "preview" ? "block" : "hidden md:block"
           }`}
         >
           {/* Live Preview Document Card */}
-          <div className="rounded-3xl bg-white border border-slate-200/90 shadow-xl overflow-hidden text-slate-800">
-
+          <div className="rounded-2xl bg-white border border-slate-200/80 shadow-xs overflow-hidden text-slate-800">
             {/* Live Indicator Banner */}
-            <div className="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white px-5 py-3 flex items-center justify-between text-xs">
+            <div className="bg-linear-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white px-5 py-3 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
-                <span className="font-extrabold uppercase tracking-wider text-[11px]">Real-time Live Preview</span>
+                <span className="font-extrabold uppercase tracking-wider text-[11px]">
+                  Real-time Live Preview
+                </span>
               </div>
               <span className="font-mono text-emerald-300 font-bold text-xs">
                 {formatRupiah(grandTotal)}
@@ -959,7 +1057,6 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
 
             {/* Document Body */}
             <div className="p-6 sm:p-7 flex flex-col gap-6 text-xs sm:text-sm">
-
               {/* 1. Header (Logo & Business Info) */}
               <div className="flex items-start justify-between gap-4 pb-5 border-b border-slate-100">
                 <div className="flex items-center gap-3">
@@ -968,29 +1065,29 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     <img
                       src={userProfile.logo_url}
                       alt="Logo Bisnis"
-                      className="max-h-11 max-w-[120px] object-contain"
+                      className="max-h-11 max-w-30 object-contain"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                    <div className="w-10 h-10 rounded-xl bg-linear-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
                       <Zap className="w-5 h-5 text-white" />
                     </div>
                   )}
                   <div>
                     <h3 className="font-black text-slate-900 text-sm sm:text-base leading-tight">
-                      {userProfile?.business_name || 'SnapBill Business'}
+                      {userProfile?.business_name || "SnapBill Business"}
                     </h3>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      {userProfile?.email || 'vendor@snapbill.id'}
+                      {userProfile?.email || "vendor@snapbill.id"}
                     </p>
                   </div>
                 </div>
 
                 <div className="text-right">
                   <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-                    {mode === 'edit' ? 'DRAFT' : 'NEW INVOICE'}
+                    {mode === "edit" ? "DRAFT" : "NEW INVOICE"}
                   </span>
                   <p className="text-xs font-mono font-extrabold text-indigo-700 mt-1">
-                    #{initialData?.invoice_number || 'INV-PREVIEW'}
+                    #{initialData?.invoice_number || "INV-PREVIEW"}
                   </p>
                 </div>
               </div>
@@ -1002,10 +1099,16 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     Ditagihkan Kepada:
                   </span>
                   <p className="font-bold text-slate-900 text-xs sm:text-sm">
-                    {selectedClient?.name || '— Belum Memilih Klien —'}
+                    {selectedClient?.name || "(Belum Memilih Klien)"}
                   </p>
-                  {selectedClient?.email && <p className="text-slate-500 mt-0.5">{selectedClient.email}</p>}
-                  {selectedClient?.phone && <p className="text-slate-500">{selectedClient.phone}</p>}
+                  {selectedClient?.email && (
+                    <p className="text-slate-500 mt-0.5">
+                      {selectedClient.email}
+                    </p>
+                  )}
+                  {selectedClient?.phone && (
+                    <p className="text-slate-500">{selectedClient.phone}</p>
+                  )}
                 </div>
 
                 <div className="text-right">
@@ -1013,10 +1116,16 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                     Jadwal Tagihan:
                   </span>
                   <p className="text-slate-700">
-                    Terbit: <b className="text-slate-900">{formatDateDisplay(issueDate, lang)}</b>
+                    Terbit:{" "}
+                    <b className="text-slate-900">
+                      {formatDateDisplay(issueDate, lang)}
+                    </b>
                   </p>
                   <p className="text-slate-700 mt-0.5">
-                    Jatuh Tempo: <b className="text-slate-900">{formatDateDisplay(dueDate, lang)}</b>
+                    Jatuh Tempo:{" "}
+                    <b className="text-slate-900">
+                      {formatDateDisplay(dueDate, lang)}
+                    </b>
                   </p>
                 </div>
               </div>
@@ -1035,15 +1144,20 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                   <tbody className="divide-y divide-slate-100">
                     {lines.map((line, idx) => {
                       const lineTotal =
-                        (parseRawNumber(line.quantity) || 0) * (parseRawNumber(line.unit_price) || 0);
+                        (parseRawNumber(line.quantity) || 0) *
+                        (parseRawNumber(line.unit_price) || 0);
 
                       return (
                         <tr key={idx} className="hover:bg-slate-50/50">
                           <td className="py-2.5 px-3 font-semibold text-slate-900">
-                            {line.item_name || <span className="text-slate-300 italic">Item tanpa nama</span>}
+                            {line.item_name || (
+                              <span className="text-slate-300 italic">
+                                Item tanpa nama
+                              </span>
+                            )}
                           </td>
                           <td className="py-2.5 px-1 text-center font-mono text-slate-600">
-                            {line.quantity || '0'}
+                            {line.quantity || "0"}
                           </td>
                           <td className="py-2.5 px-2 text-right font-mono text-slate-600">
                             {formatRupiah(parseRawNumber(line.unit_price))}
@@ -1063,26 +1177,39 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
                 <div className="w-full sm:w-64 flex flex-col gap-1.5 text-xs">
                   <div className="flex justify-between text-slate-500">
                     <span>Subtotal</span>
-                    <span className="font-mono font-semibold text-slate-800">{formatRupiah(subtotal)}</span>
+                    <span className="font-mono font-semibold text-slate-800">
+                      {formatRupiah(subtotal)}
+                    </span>
                   </div>
 
                   {discountAmt > 0 && (
                     <div className="flex justify-between text-rose-600">
-                      <span>Diskon {discountType === 'percent' ? `(${discountValue}%)` : ''}</span>
-                      <span className="font-mono font-bold">− {formatRupiah(discountAmt)}</span>
+                      <span>
+                        Diskon{" "}
+                        {discountType === "percent"
+                          ? `(${discountValue}%)`
+                          : ""}
+                      </span>
+                      <span className="font-mono font-bold">
+                        − {formatRupiah(discountAmt)}
+                      </span>
                     </div>
                   )}
 
                   {taxAmt > 0 && (
                     <div className="flex justify-between text-indigo-600">
                       <span>Pajak ({taxRate}%)</span>
-                      <span className="font-mono font-bold">+ {formatRupiah(taxAmt)}</span>
+                      <span className="font-mono font-bold">
+                        + {formatRupiah(taxAmt)}
+                      </span>
                     </div>
                   )}
 
                   <div className="flex justify-between text-sm sm:text-base font-black text-slate-900 pt-2 border-t border-slate-200 mt-1">
                     <span>Total Pembayaran</span>
-                    <span className="font-mono text-emerald-600">{formatRupiah(grandTotal)}</span>
+                    <span className="font-mono text-emerald-600">
+                      {formatRupiah(grandTotal)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1090,18 +1217,16 @@ export default function InvoiceForm({ mode = 'create', invoiceId, initialData })
               {/* 5. Notes in Preview if present */}
               {notes && (
                 <div className="p-3 bg-amber-50/70 border border-amber-200/60 rounded-xl text-xs text-amber-900">
-                  <b className="block text-[11px] font-bold uppercase text-amber-800 mb-0.5">Catatan:</b>
+                  <b className="block text-[11px] font-bold uppercase text-amber-800 mb-0.5">
+                    Catatan:
+                  </b>
                   <p className="whitespace-pre-line text-slate-700">{notes}</p>
                 </div>
               )}
-
             </div>
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 }

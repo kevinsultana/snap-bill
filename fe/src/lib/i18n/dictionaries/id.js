@@ -161,7 +161,7 @@ const id = {
     total_clients: 'Total Klien Terdaftar',
     revenue_growth: 'Meningkat dari bulan lalu',
     recent_invoices_title: 'Invoice Terbaru',
-    all_invoices_link: 'Lihat Semua Invoice →',
+    all_invoices_link: 'Lihat Semua Invoice',
     empty_invoices_title: 'Belum ada invoice yang dibuat.',
     empty_invoices_desc: 'Mulai terbitkan invoice pertama Anda sekarang!',
     table_invoice_num: 'No. Invoice',
@@ -236,7 +236,7 @@ const id = {
     table_payment_method: 'Metode Bayar',
     method_midtrans: 'Midtrans',
     method_manual: 'Transfer',
-    method_unspecified: '—',
+    method_unspecified: '-',
     empty_title: 'Tidak Ada Invoice Ditemukan',
     empty_desc: 'Belum ada invoice yang sesuai dengan filter atau pencarian Anda.',
 

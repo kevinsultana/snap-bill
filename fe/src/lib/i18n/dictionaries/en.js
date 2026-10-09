@@ -161,7 +161,7 @@ const en = {
     total_clients: 'Registered Clients',
     revenue_growth: 'Increased from last month',
     recent_invoices_title: 'Recent Invoices',
-    all_invoices_link: 'View All Invoices →',
+    all_invoices_link: 'View All Invoices',
     empty_invoices_title: 'No invoices created yet.',
     empty_invoices_desc: 'Start issuing your first invoice now!',
     table_invoice_num: 'Invoice No.',
@@ -236,7 +236,7 @@ const en = {
     table_payment_method: 'Payment Method',
     method_midtrans: 'Midtrans',
     method_manual: 'Transfer',
-    method_unspecified: '—',
+    method_unspecified: '-',
     empty_title: 'No Invoices Found',
     empty_desc: 'No invoices match your selected filter or search query.',
 

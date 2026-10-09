@@ -37,14 +37,14 @@ export default function EditInvoicePage() {
   if (error) {
     return (
       <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-6 pb-16">
-        <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-sm p-10 text-center max-w-lg mx-auto">
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-10 text-center max-w-lg mx-auto">
           <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
           <p className="text-sm font-semibold text-slate-700 mb-5">{error}</p>
           <Link
             href="/dashboard/invoices"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold shadow-md transition"
+            className="inline-flex items-center justify-center min-h-11 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold shadow-md transition"
           >
-            ← Kembali ke daftar invoice
+            Kembali ke daftar invoice
           </Link>
         </div>
       </div>

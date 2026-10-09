@@ -10,7 +10,7 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 // Shared input classes
 const INPUT_CLS =
-  'w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold placeholder:text-slate-400 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all duration-150';
+  'w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold placeholder:text-slate-500 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all duration-150';
 const LABEL_CLS =
   'block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5';
 
@@ -125,7 +125,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12">
-      <div className="relative w-full max-w-lg bg-white/90 backdrop-blur-xl border border-white/90 rounded-3xl shadow-[0_20px_60px_-12px_rgba(99,102,241,0.15)] p-8 sm:p-10">
+      <div className="relative w-full max-w-lg bg-white border border-slate-200/80 rounded-2xl shadow-xs p-8 sm:p-10">
 
         {/* Language Switcher */}
         <div className="absolute top-5 right-5">
@@ -261,7 +261,7 @@ export default function RegisterPage() {
             {loading ? (
               <span className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
             ) : (
-              `${t('auth.btn_register')} ➜`
+              t('auth.btn_register')
             )}
           </button>
         </form>
@@ -277,9 +277,9 @@ export default function RegisterPage() {
         <div className="mt-5 pt-5 border-t border-slate-200/80 text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs text-slate-400 font-semibold hover:text-slate-700 transition-colors duration-150"
+            className="inline-flex items-center justify-center min-h-11 px-3 py-1.5 text-xs text-slate-500 font-semibold hover:text-slate-800 transition-colors duration-150"
           >
-            <span>←</span> {t('common.back')}
+            {t('common.back')}
           </Link>
         </div>
       </div>
