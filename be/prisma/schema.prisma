@@ -68,6 +68,8 @@ model Invoice {
   tax_rate             Decimal?      @default(0) @db.Decimal(5, 2)
   discount             Decimal?      @default(0) @db.Decimal(15, 2)
   total                Decimal       @default(0) @db.Decimal(15, 2)
+  amount_paid          Decimal?      @default(0) @db.Decimal(15, 2)
+  payment_date         DateTime?     @db.Date
   public_link_token    String?       @unique
   payment_url          String?
   receipt_url          String?

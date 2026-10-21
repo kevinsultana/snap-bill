@@ -222,7 +222,7 @@ router.get('/:id/pdf', pdfLimiter, async (req, res) => {
 // ─── POST /api/invoices ── Buat draft baru ────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { client_id, issue_date, due_date, tax_rate, discount, items } = req.body;
+    const { client_id, issue_date, due_date, tax_rate, discount, items, amount_paid, payment_date } = req.body;
 
     if (!client_id) return res.status(400).json({ message: 'Klien wajib dipilih.' });
     if (!issue_date) return res.status(400).json({ message: 'Tanggal invoice wajib diisi.' });
@@ -274,6 +274,10 @@ router.post('/', async (req, res) => {
     const public_link_token = crypto.randomBytes(16).toString('hex');
     const { subtotal, total } = calcTotals(items, tax_rate, discount);
 
+    const paidAmount = Math.max(0, parseFloat(amount_paid) || 0);
+    const payDate = payment_date ? new Date(payment_date) : null;
+    const initialStatus = paidAmount >= total && total > 0 ? 'paid' : (req.body.status || 'draft');
+
     // Gunakan transaksi Prisma untuk atomicity
     const invoice = await prisma.$transaction(async (tx) => {
       const inv = await tx.invoice.create({
@@ -282,13 +286,15 @@ router.post('/', async (req, res) => {
           client_id,
           invoice_number,
           public_link_token,
-          status: 'draft',
+          status: initialStatus,
           issue_date: new Date(issue_date),
           due_date: due_date ? new Date(due_date) : null,
           tax_rate: parseFloat(tax_rate) || 0,
           discount: parseFloat(discount) || 0,
           subtotal,
           total,
+          amount_paid: paidAmount,
+          payment_date: payDate,
         },
       });
 
@@ -319,18 +325,17 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ─── PUT /api/invoices/:id ── Update draft (Prisma Transaction) ───────────────
+// ─── PUT /api/invoices/:id ── Update draft / unpaid (Prisma Transaction) ───────────────
 router.put('/:id', async (req, res) => {
   try {
-    const { client_id, issue_date, due_date, tax_rate, discount, items } = req.body;
+    const { client_id, issue_date, due_date, tax_rate, discount, items, amount_paid, payment_date } = req.body;
 
-    // Hanya draft yang bisa diedit
     const existing = await prisma.invoice.findFirst({
       where: { id: req.params.id, user_id: req.user.id },
     });
     if (!existing) return res.status(404).json({ message: 'Invoice tidak ditemukan.' });
-    if (existing.status !== 'draft')
-      return res.status(409).json({ message: 'Hanya invoice berstatus draft yang dapat diedit.' });
+    if (existing.status !== 'draft' && existing.status !== 'unpaid')
+      return res.status(409).json({ message: 'Hanya invoice berstatus draft atau belum dibayar yang dapat diedit.' });
 
     if (!client_id) return res.status(400).json({ message: 'Klien wajib dipilih.' });
     if (!issue_date) return res.status(400).json({ message: 'Tanggal invoice wajib diisi.' });
@@ -344,6 +349,16 @@ router.put('/:id', async (req, res) => {
     if (!client) return res.status(404).json({ message: 'Klien tidak ditemukan.' });
 
     const { subtotal, total } = calcTotals(items, tax_rate, discount);
+    const paidAmount = Math.max(0, parseFloat(amount_paid) || 0);
+    const payDate = payment_date ? new Date(payment_date) : null;
+
+    // Tentukan status berdasarkan pembayaran: jika lunas -> 'paid', jika batal/unpaid -> sesuaikan
+    let updatedStatus = existing.status;
+    if (paidAmount >= total && total > 0) {
+      updatedStatus = 'paid';
+    } else if (existing.status === 'paid' && paidAmount < total) {
+      updatedStatus = 'unpaid';
+    }
 
     const invoice = await prisma.$transaction(async (tx) => {
       // Hapus semua item lama lalu buat ulang (replace strategy)
@@ -353,12 +368,15 @@ router.put('/:id', async (req, res) => {
         where: { id: req.params.id },
         data: {
           client_id,
+          status: updatedStatus,
           issue_date: new Date(issue_date),
           due_date: due_date ? new Date(due_date) : null,
           tax_rate: parseFloat(tax_rate) || 0,
           discount: parseFloat(discount) || 0,
           subtotal,
           total,
+          amount_paid: paidAmount,
+          payment_date: payDate,
         },
       });
 

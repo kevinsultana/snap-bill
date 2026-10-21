@@ -20,6 +20,8 @@ import {
   Building,
   ArrowLeft,
   Zap,
+  CreditCard,
+  Wallet,
 } from "lucide-react";
 import CreatableSelect from "react-select/creatable";
 
@@ -166,6 +168,24 @@ export default function InvoiceForm({
     initialData?.discount ? formatThousand(initialData.discount) : "",
   );
   const [notes, setNotes] = useState(initialData?.notes || "");
+
+  // Initial payment states from initialData
+  const initialPaid = Number(initialData?.amount_paid || 0);
+  const initialTotal = Number(initialData?.total || 0);
+  const defaultOption =
+    initialPaid >= initialTotal && initialTotal > 0
+      ? "paid"
+      : initialPaid > 0
+        ? "dp"
+        : "unpaid";
+
+  const [paymentOption, setPaymentOption] = useState(defaultOption);
+  const [paidAmount, setPaidAmount] = useState(
+    initialPaid > 0 ? formatThousand(initialPaid) : "",
+  );
+  const [paymentDate, setPaymentDate] = useState(
+    toDateInput(initialData?.payment_date) || toDateInput(new Date()),
+  );
 
   // Line items state
   const [lines, setLines] = useState(
@@ -434,6 +454,15 @@ export default function InvoiceForm({
   const taxAmt = (afterDiscount * (parseFloat(taxRate) || 0)) / 100;
   const grandTotal = afterDiscount + taxAmt;
 
+  const rawAmountPaid = useMemo(() => {
+    if (paymentOption === "unpaid") return 0;
+    if (paymentOption === "paid") return grandTotal;
+    const parsed = parseRawNumber(paidAmount);
+    return Math.min(grandTotal, Math.max(0, parsed));
+  }, [paymentOption, paidAmount, grandTotal]);
+
+  const balanceDue = Math.max(0, grandTotal - rawAmountPaid);
+
   // ─── Submit Handler ────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -468,6 +497,8 @@ export default function InvoiceForm({
         due_date: dueDate || null,
         tax_rate: parseFloat(taxRate) || 0,
         discount: discountAmt,
+        amount_paid: rawAmountPaid,
+        payment_date: rawAmountPaid > 0 && paymentDate ? paymentDate : null,
         items: validLines.map((l) => ({
           item_name: l.item_name.trim(),
           quantity: parseRawNumber(l.quantity) || 1,
@@ -593,7 +624,7 @@ export default function InvoiceForm({
           <Eye className="w-4 h-4" />
           <span>Live Preview</span>
           <span className="ml-1 text-[11px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
-            {formatRupiah(grandTotal)}
+            {formatRupiah(rawAmountPaid > 0 ? balanceDue : grandTotal)}
           </span>
         </button>
       </div>
@@ -1026,6 +1057,220 @@ export default function InvoiceForm({
                 </div>
               </div>
             </div>
+
+            {/* 4. Previous Payment / DP Card */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs p-5 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-indigo-600" />
+                    <span>Status & Riwayat Pembayaran Sebelumnya</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Catat status pelunasan atau pembayaran uang muka (DP) yang telah diterima sebelumnya.
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Payment Tabs Selector */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1 bg-slate-100 rounded-xl mb-4 border border-slate-200/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentOption("unpaid");
+                    setPaidAmount("");
+                  }}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    paymentOption === "unpaid"
+                      ? "bg-white text-slate-900 shadow-xs border border-slate-200"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-slate-400" />
+                  <span>Belum Dibayar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentOption("dp");
+                    if (!paidAmount || parseRawNumber(paidAmount) === 0) {
+                      setPaidAmount(formatThousand(Math.round(grandTotal * 0.5)));
+                    }
+                  }}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    paymentOption === "dp"
+                      ? "bg-white text-amber-700 shadow-xs border border-slate-200"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span>Uang Muka (DP) / Sebagian</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaymentOption("paid");
+                    setPaidAmount(formatThousand(grandTotal));
+                  }}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    paymentOption === "paid"
+                      ? "bg-white text-emerald-700 shadow-xs border border-slate-200"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>Sudah Lunas</span>
+                </button>
+              </div>
+
+              {/* Conditional Form Controls depending on paymentOption */}
+              {paymentOption === "dp" && (
+                <div className="p-4 bg-amber-50/50 border border-amber-200/70 rounded-xl mb-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Input Nominal DP / Pembayaran Sebelumnya */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                          Jumlah Yang Sudah Dibayar / DP <span className="text-rose-500">*</span>
+                        </label>
+                        <span className="text-[11px] font-mono font-semibold text-amber-700">
+                          {grandTotal > 0 && rawAmountPaid > 0
+                            ? `(${Math.round((rawAmountPaid / grandTotal) * 100)}% dari total)`
+                            : ""}
+                        </span>
+                      </div>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-3 text-xs font-bold text-slate-400">
+                          Rp
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="w-full px-3.5 pl-9 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-sm font-mono font-bold outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all"
+                          placeholder="0"
+                          value={paidAmount}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/[^0-9]/g, "");
+                            setPaidAmount(digits ? formatThousand(digits) : "");
+                          }}
+                        />
+                      </div>
+                      {/* Shortcut Quick Percent buttons */}
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <span className="text-[10px] font-bold text-slate-400">Cepat:</span>
+                        {[25, 30, 50, 75].map((pct) => (
+                          <button
+                            key={pct}
+                            type="button"
+                            onClick={() =>
+                              setPaidAmount(
+                                formatThousand(Math.round((grandTotal * pct) / 100))
+                              )
+                            }
+                            className="px-2 py-0.5 rounded-md bg-white border border-amber-200 text-amber-800 text-[10px] font-bold hover:bg-amber-100 transition shadow-2xs"
+                          >
+                            DP {pct}%
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Input Tanggal Pembayaran DP */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Tanggal Pembayaran / DP Diterima
+                      </label>
+                      <div className="relative flex items-center">
+                        <Calendar className="absolute left-3 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <input
+                          type="date"
+                          className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs sm:text-sm font-semibold outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100 transition-all"
+                          value={paymentDate}
+                          onChange={(e) => setPaymentDate(e.target.value)}
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1.5">
+                        Tanggal saat uang muka / pembayaran awal diterima dari klien.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {paymentOption === "paid" && (
+                <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                    <div>
+                      <div className="flex items-center gap-2 text-emerald-800 font-extrabold text-xs sm:text-sm">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Status Invoice: Lunas Penuh</span>
+                      </div>
+                      <p className="text-xs text-emerald-700 mt-1">
+                        Klien telah melunasi tagihan penuh sejumlah{" "}
+                        <b className="font-mono text-emerald-900">{formatRupiah(grandTotal)}</b>.
+                      </p>
+                    </div>
+
+                    {/* Input Tanggal Pelunasan */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-emerald-900 mb-1.5">
+                        Tanggal Pelunasan / Pembayaran
+                      </label>
+                      <div className="relative flex items-center">
+                        <Calendar className="absolute left-3 w-4 h-4 text-emerald-600 pointer-events-none" />
+                        <input
+                          type="date"
+                          className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-white border border-emerald-300 text-slate-900 text-xs sm:text-sm font-semibold outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all"
+                          value={paymentDate}
+                          onChange={(e) => setPaymentDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic Calculation Breakdown Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Total Tagihan
+                  </span>
+                  <span className="font-mono font-bold text-slate-900 text-sm mt-0.5">
+                    {formatRupiah(grandTotal)}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Sudah Dibayar / DP
+                  </span>
+                  <span className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
+                    {formatRupiah(rawAmountPaid)}
+                  </span>
+                  {rawAmountPaid > 0 && paymentDate && (
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      Tgl: {formatDateDisplay(paymentDate, lang)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col sm:border-l sm:border-slate-200 sm:pl-3">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Sisa Tagihan (Saldo)
+                  </span>
+                  <span
+                    className={`font-mono font-black text-sm mt-0.5 ${
+                      balanceDue <= 0 ? "text-emerald-600" : "text-amber-700"
+                    }`}
+                  >
+                    {formatRupiah(balanceDue)}
+                  </span>
+                  <span className="text-[10px] font-semibold text-slate-500">
+                    {balanceDue <= 0 ? "✓ Lunas" : "Harus dilunasi klien"}
+                  </span>
+                </div>
+              </div>
+            </div>
           </form>
         </div>
 
@@ -1051,7 +1296,9 @@ export default function InvoiceForm({
                 </span>
               </div>
               <span className="font-mono text-emerald-300 font-bold text-xs">
-                {formatRupiah(grandTotal)}
+                {rawAmountPaid > 0 && balanceDue <= 0
+                  ? "LUNAS (Rp 0)"
+                  : formatRupiah(rawAmountPaid > 0 ? balanceDue : grandTotal)}
               </span>
             </div>
 
@@ -1083,8 +1330,22 @@ export default function InvoiceForm({
                 </div>
 
                 <div className="text-right">
-                  <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-                    {mode === "edit" ? "DRAFT" : "NEW INVOICE"}
+                  <span
+                    className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      rawAmountPaid >= grandTotal && grandTotal > 0
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : rawAmountPaid > 0
+                          ? "bg-amber-100 text-amber-800 border border-amber-200"
+                          : "bg-slate-100 text-slate-700 border border-slate-200"
+                    }`}
+                  >
+                    {rawAmountPaid >= grandTotal && grandTotal > 0
+                      ? "LUNAS (PAID)"
+                      : rawAmountPaid > 0
+                        ? "DP / SEBAGIAN"
+                        : mode === "edit"
+                          ? "DRAFT"
+                          : "NEW INVOICE"}
                   </span>
                   <p className="text-xs font-mono font-extrabold text-indigo-700 mt-1">
                     #{initialData?.invoice_number || "INV-PREVIEW"}
@@ -1205,10 +1466,37 @@ export default function InvoiceForm({
                     </div>
                   )}
 
-                  <div className="flex justify-between text-sm sm:text-base font-black text-slate-900 pt-2 border-t border-slate-200 mt-1">
-                    <span>Total Pembayaran</span>
-                    <span className="font-mono text-emerald-600">
+                  <div className="flex justify-between text-xs sm:text-sm font-bold text-slate-700 pt-2 border-t border-slate-200 mt-1">
+                    <span>Total Tagihan</span>
+                    <span className="font-mono text-slate-900">
                       {formatRupiah(grandTotal)}
+                    </span>
+                  </div>
+
+                  {rawAmountPaid > 0 && (
+                    <div className="flex justify-between text-xs text-emerald-700">
+                      <div>
+                        <span className="font-semibold">Sudah Dibayar / DP</span>
+                        {paymentDate && (
+                          <span className="block text-[10px] text-slate-500 font-normal">
+                            Tgl: {formatDateDisplay(paymentDate, lang)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-mono font-bold">
+                        − {formatRupiah(rawAmountPaid)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-sm sm:text-base font-black text-slate-900 pt-2 border-t-2 border-dashed border-slate-300 mt-1">
+                    <span>Sisa Tagihan (Saldo)</span>
+                    <span
+                      className={`font-mono ${
+                        balanceDue <= 0 ? "text-emerald-600" : "text-amber-600"
+                      }`}
+                    >
+                      {formatRupiah(balanceDue)}
                     </span>
                   </div>
                 </div>

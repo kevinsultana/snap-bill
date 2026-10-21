@@ -823,12 +823,51 @@ export default function InvoiceDetailPage() {
             </div>
           )}
 
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+            <span className="text-xs sm:text-sm font-bold text-slate-700">
+              Total Tagihan
+            </span>
+            <span className="text-sm sm:text-base font-mono font-bold text-slate-900">
+              {formatRupiah(invoice.total)}
+            </span>
+          </div>
+
+          {Number(invoice.amount_paid) > 0 && (
+            <div className="flex items-center justify-between text-xs sm:text-sm text-emerald-700">
+              <div>
+                <span className="font-semibold">Sudah Dibayar / DP</span>
+                {invoice.payment_date && (
+                  <span className="block text-[10px] text-slate-500 font-normal">
+                    Tgl: {formatDate(invoice.payment_date, lang)}
+                  </span>
+                )}
+              </div>
+              <span className="font-mono font-bold">
+                − {formatRupiah(invoice.amount_paid)}
+              </span>
+            </div>
+          )}
+
           <div className="flex items-center justify-between pt-3 border-t-2 border-dashed border-slate-300">
             <span className="text-xs sm:text-sm font-extrabold text-slate-900">
-              {t("invoices.form_total_payment")}
+              {Number(invoice.amount_paid) > 0
+                ? "Sisa Tagihan (Saldo)"
+                : t("invoices.form_total_payment")}
             </span>
-            <span className="text-lg sm:text-xl font-mono font-black text-indigo-700">
-              {formatRupiah(invoice.total)}
+            <span
+              className={`text-lg sm:text-xl font-mono font-black ${
+                Number(invoice.amount_paid) > 0 &&
+                Number(invoice.total) - Number(invoice.amount_paid) <= 0
+                  ? "text-emerald-600"
+                  : "text-indigo-700"
+              }`}
+            >
+              {formatRupiah(
+                Math.max(
+                  0,
+                  Number(invoice.total) - Number(invoice.amount_paid || 0),
+                ),
+              )}
             </span>
           </div>
         </div>

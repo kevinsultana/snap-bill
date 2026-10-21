@@ -425,10 +425,10 @@ export default function PublicPayPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                    {t("dashboard.table_total")}
+                    {Number(invoice.amount_paid) > 0 ? 'Sisa Tagihan' : t('dashboard.table_total')}
                   </p>
                   <p className="text-xl font-black text-emerald-600 font-mono tracking-tight mt-1">
-                    {formatRupiah(invoice.total)}
+                    {formatRupiah(Math.max(0, Number(invoice.total) - Number(invoice.amount_paid || 0)))}
                   </p>
                 </div>
               </div>
@@ -545,12 +545,38 @@ export default function PublicPayPage() {
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t-2 border-dashed border-slate-300">
-                    <span>{t("invoices.form_total_payment")}</span>
-                    <span className="font-mono text-indigo-700 text-base">
-                      {formatRupiah(invoice.total)}
-                    </span>
-                  </div>
+                  {Number(invoice.amount_paid) > 0 ? (
+                    <>
+                      <div className="flex justify-between text-xs font-bold text-slate-700 pt-2 border-t border-slate-200">
+                        <span>Total Tagihan</span>
+                        <span className="font-mono text-slate-900">{formatRupiah(invoice.total)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-emerald-700">
+                        <div>
+                          <span className="font-semibold">Sudah Dibayar / DP</span>
+                          {invoice.payment_date && (
+                            <span className="block text-[10px] text-slate-500 font-normal">
+                              Tgl: {formatDate(invoice.payment_date, lang)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono font-bold">− {formatRupiah(invoice.amount_paid)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t-2 border-dashed border-slate-300">
+                        <span>Sisa Tagihan (Saldo)</span>
+                        <span className={`font-mono text-base ${Number(invoice.total) - Number(invoice.amount_paid) <= 0 ? 'text-emerald-600' : 'text-indigo-700'}`}>
+                          {formatRupiah(Math.max(0, Number(invoice.total) - Number(invoice.amount_paid || 0)))}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t-2 border-dashed border-slate-300">
+                      <span>{t("invoices.form_total_payment")}</span>
+                      <span className="font-mono text-indigo-700 text-base">
+                        {formatRupiah(invoice.total)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

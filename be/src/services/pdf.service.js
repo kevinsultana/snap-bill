@@ -62,6 +62,9 @@ function buildInvoiceHTML(invoice) {
   const taxRate = Number(invoice.tax_rate || 0);
   const taxAmount = ((subtotal - discount) * taxRate) / 100;
   const total = Number(invoice.total || 0);
+  const amountPaid = Number(invoice.amount_paid || 0);
+  const paymentDateStr = invoice.payment_date ? formatDate(invoice.payment_date) : '';
+  const balanceDue = Math.max(0, total - amountPaid);
 
   const safeLogoUrl = sanitizeLogoUrl(user.logo_url);
 
@@ -234,9 +237,29 @@ function buildInvoiceHTML(invoice) {
           : ''
       }
       <tr style="border-top: 2px solid #0f172a;">
-        <td style="padding: 10px 0; font-size: 15px; font-weight: 700; color: #0f172a;">Total Tagihan</td>
-        <td style="padding: 10px 0; font-size: 16px; font-weight: 700; text-align: right; color: #4338ca;">${formatRupiah(total)}</td>
+        <td style="padding: 10px 0; font-size: 14px; font-weight: 700; color: #0f172a;">Total Tagihan</td>
+        <td style="padding: 10px 0; font-size: 15px; font-weight: 700; text-align: right; color: #0f172a;">${formatRupiah(total)}</td>
       </tr>
+      ${
+        amountPaid > 0
+          ? `
+        <tr>
+          <td style="padding: 6px 0; color: #15803d; font-size: 12px;">
+            Sudah Dibayar / DP ${paymentDateStr ? `<br/><span style="color: #64748b; font-size: 10px;">(Tgl: ${paymentDateStr})</span>` : ''}
+          </td>
+          <td style="padding: 6px 0; text-align: right; color: #15803d; font-weight: 600;">- ${formatRupiah(amountPaid)}</td>
+        </tr>
+        <tr style="border-top: 2px dashed #cbd5e1; background: #f8fafc;">
+          <td style="padding: 8px 6px; font-size: 13px; font-weight: 800; color: ${balanceDue <= 0 ? '#15803d' : '#b45309'};">
+            ${balanceDue <= 0 ? 'STATUS: LUNAS' : 'Sisa Tagihan (Saldo)'}
+          </td>
+          <td style="padding: 8px 6px; font-size: 15px; font-weight: 800; text-align: right; color: ${balanceDue <= 0 ? '#15803d' : '#b45309'};">
+            ${formatRupiah(balanceDue)}
+          </td>
+        </tr>
+      `
+          : ''
+      }
     </table>
   </div>
 

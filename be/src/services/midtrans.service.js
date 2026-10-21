@@ -53,9 +53,10 @@ async function createSnapTransaction({
 }) {
   const snap = getSnapInstance(serverKey, clientKey, isProduction);
 
-  const grossAmount = Math.round(Number(invoice.total));
+  const amountPaid = Math.round(Number(invoice.amount_paid || 0));
+  const grossAmount = Math.max(0, Math.round(Number(invoice.total)) - amountPaid);
   if (grossAmount <= 0) {
-    throw new Error('Total tagihan invoice harus lebih dari Rp 0 untuk memproses pembayaran via Midtrans.');
+    throw new Error('Sisa tagihan invoice adalah Rp 0 (sudah lunas), tidak memerlukan pembayaran via Midtrans.');
   }
 
   // Siapkan detail item untuk Midtrans
@@ -89,6 +90,16 @@ async function createSnapTransaction({
         name: `Pajak (${Number(invoice.tax_rate)}%)`,
       });
     }
+  }
+
+  // Tambahkan potongan uang muka / pembayaran sebelumnya jika ada
+  if (amountPaid > 0) {
+    itemDetails.push({
+      id: 'paid-amount',
+      price: -amountPaid,
+      quantity: 1,
+      name: 'Pembayaran Sebelumnya / DP',
+    });
   }
 
   // Cek apakah total item_details persis sama dengan gross_amount (syarat Midtrans)

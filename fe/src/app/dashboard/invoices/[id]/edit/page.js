@@ -16,8 +16,8 @@ export default function EditInvoicePage() {
   useEffect(() => {
     api.get(`/api/invoices/${id}`)
       .then((res) => {
-        if (res.data.status !== 'draft') {
-          setError('Hanya invoice berstatus draft yang dapat diedit.');
+        if (res.data.status !== 'draft' && res.data.status !== 'unpaid') {
+          setError('Hanya invoice berstatus draft atau belum dibayar yang dapat diedit.');
         } else {
           setInvoice(res.data);
         }
